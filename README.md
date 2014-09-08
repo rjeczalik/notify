@@ -1,2 +1,2 @@
-notify
+notify [![GoDoc](https://godoc.org/github.com/rjeczalik/notify?status.svg)](https://godoc.org/github.com/rjeczalik/notify) [![Build Status](https://img.shields.io/travis/rjeczalik/notify/wip.svg)](https://travis-ci.org/rjeczalik/notify "linux_amd64") [![Build status](https://img.shields.io/appveyor/ci/rjeczalik/notify.svg)](https://ci.appveyor.com/project/rjeczalik/notify "windows_amd64") [![Coverage Status](https://img.shields.io/coveralls/rjeczalik/notify.svg)](https://coveralls.io/r/rjeczalik/notify?branch=wip)
 ======
