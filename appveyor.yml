@@ -1,0 +1,24 @@
+version: "{build}"
+
+os: Windows Server 2012 R2
+
+clone_folder: c:\projects\src\github.com\rjeczalik\notify
+
+environment:
+ GOPATH: c:\projects
+
+install:
+ - set PATH=%GOPATH%\bin;%PATH%
+ - cd %APPVEYOR_BUILD_FOLDER%
+ - go version
+ - go get code.google.com/p/go.tools/cmd/vet
+ - go get -v -t ./...
+
+build_script:
+ - go tool vet -all .
+ - go build ./...
+ - go test -race -v ./...
+
+test: off
+
+deploy: off
