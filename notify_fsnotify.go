@@ -12,8 +12,8 @@ import (
 
 var (
 	wd  string
-	sep      = string(os.PathSeparator)
-	all Kind = Create | Write | Remove | Rename | Recursive
+	sep       = string(os.PathSeparator)
+	all Event = Create | Write | Remove | Rename | Recursive
 )
 
 func init() {
@@ -26,10 +26,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	Default = &fsnotify{
+	impl = &fsnotify{
 		w:     w,
 		wtree: make(map[string]interface{}),
-		m:     make(map[chan<- string][]string),
+		m:     make(map[chan<- EventInfo][]string),
 		refn:  make(map[string]uint),
 	}
 }
@@ -85,13 +85,13 @@ type watcher struct {
 
 type fsnotify struct {
 	sync.RWMutex
-	w     *why.Watcher               // underlying fsnotify implementation
-	wtree map[string]interface{}     // for watchers recursive lookup
-	m     map[chan<- string][]string // watched paths per chan
-	refn  map[string]uint            // directory watcher counter
+	w     *why.Watcher
+	wtree map[string]interface{}
+	m     map[chan<- EventInfo][]string
+	refn  map[string]uint
 }
 
-func (fs *fsnotify) Notify(name string, c chan<- string, kind ...Kind) {
+func (fs *fsnotify) Notify(name string, c chan<- EventInfo, events ...Event) {
 	if c == nil {
 		panic("fs/notify: Notify using nil channel")
 	}
@@ -100,15 +100,15 @@ func (fs *fsnotify) Notify(name string, c chan<- string, kind ...Kind) {
 	if err != nil {
 		return
 	}
-	var k Kind
-	if len(kind) == 0 {
-		k = all
+	var evs Event
+	if len(events) == 0 {
+		evs = all
 	}
-	for _, kind := range kind {
-		k |= kind
+	for _, ev := range events {
+		evs |= ev
 	}
 	if !fi.IsDir() {
-		k &= ^Recursive
+		evs &= ^Recursive
 	}
 	fs.Lock()
 	fs.m[c] = appendset(fs.m[c], name) // fix
@@ -116,6 +116,6 @@ func (fs *fsnotify) Notify(name string, c chan<- string, kind ...Kind) {
 	fs.Unlock()
 }
 
-func (fs *fsnotify) Stop(ch chan<- string) {
+func (fs *fsnotify) Stop(ch chan<- EventInfo) {
 	// TODO
 }

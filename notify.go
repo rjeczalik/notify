@@ -17,16 +17,14 @@ type EventInfo interface {
 }
 
 func Notify(name string, c chan<- EventInfo, events ...Event) {
-	Default.Notify(name, c, events...)
+	impl.Notify(name, c, events...)
 }
 
 func Stop(c chan<- EventInfo) {
-	Default.Stop(c)
+	impl.Stop(c)
 }
 
-type Notifier interface {
+var impl interface {
 	Notify(string, chan<- EventInfo, ...Event)
 	Stop(chan<- EventInfo)
 }
-
-var Default Notifier
