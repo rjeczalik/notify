@@ -16,8 +16,8 @@ type EventInfo interface {
 	Sys() interface{}
 }
 
-func Notify(name string, c chan<- EventInfo, events ...Event) {
-	impl.Notify(name, c, events...)
+func Watch(name string, c chan<- EventInfo, events ...Event) {
+	impl.Watch(name, c, events...)
 }
 
 func Stop(c chan<- EventInfo) {
@@ -25,6 +25,6 @@ func Stop(c chan<- EventInfo) {
 }
 
 var impl interface {
-	Notify(string, chan<- EventInfo, ...Event)
+	Watch(string, chan<- EventInfo, ...Event)
 	Stop(chan<- EventInfo)
 }

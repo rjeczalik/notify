@@ -91,9 +91,9 @@ type fsnotify struct {
 	refn  map[string]uint
 }
 
-func (fs *fsnotify) Notify(name string, c chan<- EventInfo, events ...Event) {
+func (fs *fsnotify) Watch(name string, c chan<- EventInfo, events ...Event) {
 	if c == nil {
-		panic("fs/notify: Notify using nil channel")
+		panic("fs/notify: Watch using nil channel")
 	}
 	name = abs(name)
 	fi, err := os.Stat(name)
