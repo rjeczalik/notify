@@ -10,6 +10,8 @@ const (
 	Recursive
 )
 
+const All Event = Create | Write | Remove | Rename | Recursive
+
 type EventInfo interface {
 	Name() string
 	Event() Event

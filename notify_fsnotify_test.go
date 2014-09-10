@@ -53,3 +53,30 @@ func TestSplitabs(t *testing.T) {
 		}
 	}
 }
+
+func TestJoinevents(t *testing.T) {
+	allFile := All & ^Recursive
+	cases := [...]struct {
+		events []Event
+		isdir  bool
+		exp    Event
+	}{
+		0:  {nil, true, All},
+		1:  {nil, false, allFile},
+		2:  {[]Event{}, true, All},
+		3:  {[]Event{}, false, allFile},
+		4:  {[]Event{Create}, false, Create},
+		5:  {[]Event{Create}, true, Create},
+		6:  {[]Event{Recursive}, false, allFile},
+		7:  {[]Event{Recursive}, true, All},
+		8:  {[]Event{Rename, Recursive}, true, Rename | Recursive},
+		9:  {[]Event{Rename, Recursive}, false, Rename},
+		10: {[]Event{Create, Write, Remove}, true, Create | Write | Remove},
+		11: {[]Event{Create, Write, Remove}, false, Create | Write | Remove},
+	}
+	for i, cas := range cases {
+		if event := joinevents(cas.events, cas.isdir); event != cas.exp {
+			t.Errorf("want event=%v; got %v (i=%d)", cas.exp, event, i)
+		}
+	}
+}

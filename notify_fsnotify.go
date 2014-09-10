@@ -7,13 +7,12 @@ import (
 	"strings"
 	"sync"
 
-	why "gopkg.in/fsnotify.v1"
+	old "gopkg.in/fsnotify.v1"
 )
 
 var (
 	wd  string
-	sep       = string(os.PathSeparator)
-	all Event = Create | Write | Remove | Rename | Recursive
+	sep = string(os.PathSeparator)
 )
 
 func init() {
@@ -22,7 +21,7 @@ func init() {
 		panic(err)
 	}
 	wd = dir
-	w, err := why.NewWatcher()
+	w, err := old.NewWatcher()
 	if err != nil {
 		panic(err)
 	}
@@ -85,33 +84,41 @@ type watcher struct {
 
 type fsnotify struct {
 	sync.RWMutex
-	w     *why.Watcher
+	w     *old.Watcher
 	wtree map[string]interface{}
 	m     map[chan<- EventInfo][]string
 	refn  map[string]uint
 }
 
+// TODO(rjeczalik): Remove isdir? Don't care if path is a file or a directory at
+// the moment of creating a watcher?
+func joinevents(events []Event, isdir bool) (e Event) {
+	if len(events) == 0 || (len(events) == 1 && events[0] == Recursive) {
+		e = All
+	} else {
+		for _, event := range events {
+			e |= event
+		}
+	}
+	if !isdir {
+		e &= ^Recursive
+	}
+	return
+}
+
 func (fs *fsnotify) Watch(name string, c chan<- EventInfo, events ...Event) {
 	if c == nil {
-		panic("fs/notify: Watch using nil channel")
+		panic("notify: Watch using nil channel")
 	}
 	name = abs(name)
 	fi, err := os.Stat(name)
 	if err != nil {
 		return
 	}
-	var evs Event
-	if len(events) == 0 {
-		evs = all
-	}
-	for _, ev := range events {
-		evs |= ev
-	}
-	if !fi.IsDir() {
-		evs &= ^Recursive
-	}
+	_ = joinevents(events, fi.IsDir())
+	// joinevents
 	fs.Lock()
-	fs.m[c] = appendset(fs.m[c], name) // fix
+	fs.m[c] = appendset(fs.m[c], name)
 	// TODO reg in wtree
 	fs.Unlock()
 }
