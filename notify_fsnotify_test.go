@@ -12,10 +12,20 @@ func TestAppendset(t *testing.T) {
 		vals  map[string]struct{}
 		end   []string
 	}{
-		{
+		0: {
 			[]string{"a", "e", "x"},
 			map[string]struct{}{"A": {}, "E": {}, "x": {}},
 			[]string{"A", "E", "a", "e", "x"},
+		},
+		1: {
+			[]string{},
+			map[string]struct{}{"/a/b/c/d": {}, "/b/c/d": {}, "/c/d": {}, "/d": {}},
+			[]string{"/a/b/c/d", "/b/c/d", "/c/d", "/d"},
+		},
+		2: {
+			[]string{"a", "b", "c"},
+			map[string]struct{}{"d": {}, "e": {}, "f": {}},
+			[]string{"a", "b", "c", "d", "e", "f"},
 		},
 	}
 	for i := range cases {
@@ -33,6 +43,9 @@ func TestSplitabs(t *testing.T) {
 	cases := map[string][]string{
 		"C:/a/b/c/d.txt": {"a", "b", "c", "d.txt"},
 		"/a/b/c/d.txt":   {"a", "b", "c", "d.txt"},
+		"":               nil,
+		".":              nil,
+		"C:":             nil,
 	}
 	for path, names := range cases {
 		if s := splitabs(filepath.FromSlash(path)); !reflect.DeepEqual(s, names) {
