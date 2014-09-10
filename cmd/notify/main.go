@@ -1,0 +1,53 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/rjeczalik/notify"
+)
+
+const usage = "usage: notify path [EVENT...]"
+
+var event = map[string]notify.Event{
+	"create":    notify.Create,
+	"write":     notify.Write,
+	"remove":    notify.Remove,
+	"rename":    notify.Rename,
+	"recursive": notify.Recursive,
+}
+
+func parse(s []string) (e []notify.Event) {
+	for _, s := range s {
+		event, ok := event[strings.ToLower(s)]
+		if !ok {
+			die("invalid event: " + s)
+		}
+		e = append(e, event)
+	}
+	return
+}
+
+func die(v interface{}) {
+	fmt.Fprintln(os.Stderr, v)
+	os.Exit(1)
+}
+
+func main() {
+	if len(os.Args) == 1 {
+		die(usage)
+	}
+	ch := make(chan notify.EventInfo)
+	go func() {
+		for ei := range ch {
+			fmt.Printf("event: name=%s, type=%v\n", ei.Name(), ei.Event())
+		}
+	}()
+	if len(os.Args) > 1 {
+		notify.Watch(os.Args[1], ch, parse(os.Args[2:])...)
+	} else {
+		notify.Watch(os.Args[1], ch)
+	}
+	select {}
+}
