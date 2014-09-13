@@ -20,6 +20,7 @@ func init() {
 	wd = dir
 }
 
+// Abs
 func abs(path string) string {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(wd, path)
@@ -27,6 +28,8 @@ func abs(path string) string {
 	return filepath.Clean(path)
 }
 
+// Appendset
+//
 // TODO(rjeczalik): Sort by directory depth?
 func appendset(s []string, x string) []string {
 	n := len(s)
@@ -46,7 +49,8 @@ func appendset(s []string, x string) []string {
 	return s
 }
 
-func splitabs(p string) (s []string) {
+// Splitpath
+func splitpath(p string) (s []string) {
 	if p == "" || p == "." || p == sep {
 		return
 	}
@@ -78,4 +82,26 @@ func joinevents(events []Event, isdir bool) (e Event) {
 		e &= ^Recursive
 	}
 	return
+}
+
+// Walkpath
+func walkpath(p string, fn func(string) bool) bool {
+	if p == "" || p == "." {
+		return false
+	}
+	i, n := strings.Index(p, sep)+1, len(p)
+	if i == 0 || i == n {
+		return false
+	}
+	for i < n {
+		j := strings.Index(p[i:], sep)
+		if j == -1 {
+			j = n - i
+		}
+		if !fn(p[i : i+j]) {
+			return i+i+j+2 > n
+		}
+		i += j + 1
+	}
+	return true
 }

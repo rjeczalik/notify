@@ -39,7 +39,7 @@ func TestAppendset(t *testing.T) {
 	}
 }
 
-func TestSplitabs(t *testing.T) {
+func TestSplitpath(t *testing.T) {
 	cases := map[string][]string{
 		"C:/a/b/c/d.txt": {"a", "b", "c", "d.txt"},
 		"/a/b/c/d.txt":   {"a", "b", "c", "d.txt"},
@@ -48,7 +48,8 @@ func TestSplitabs(t *testing.T) {
 		"C:":             nil,
 	}
 	for path, names := range cases {
-		if s := splitabs(filepath.FromSlash(path)); !reflect.DeepEqual(s, names) {
+		path = filepath.FromSlash(path)
+		if s := splitpath(path); !reflect.DeepEqual(s, names) {
 			t.Errorf("want s=%v; got %v (path=%s)", names, s, path)
 		}
 	}
@@ -77,6 +78,34 @@ func TestJoinevents(t *testing.T) {
 	for i, cas := range cases {
 		if event := joinevents(cas.events, cas.isdir); event != cas.exp {
 			t.Errorf("want event=%v; got %v (i=%d)", cas.exp, event, i)
+		}
+	}
+}
+
+func TestWalkpath(t *testing.T) {
+	cases := map[string]struct {
+		p  []string
+		ok bool
+	}{
+		"C:/a/b/c/d.txt": {[]string{"a", "b", "c", "d.txt"}, true},
+		"/a/b/c/d.txt":   {[]string{"a", "b", "c", "d.txt"}, true},
+		"":               {[]string{}, false},
+		".":              {[]string{}, false},
+		"C:":             {[]string{}, false},
+	}
+	var p []string
+	fn := func(s string) bool {
+		p = append(p, s)
+		return s != "break"
+	}
+	for path, cas := range cases {
+		p, path = p[:0], filepath.FromSlash(path)
+		if ok := walkpath(path, fn); ok != cas.ok {
+			t.Errorf("want ok=%v; got %v (path=%s)", cas.ok, ok, path)
+			continue
+		}
+		if !reflect.DeepEqual(p, cas.p) {
+			t.Errorf("want p=%v; got %v (path=%s)", cas.p, p, path)
 		}
 	}
 }
