@@ -19,14 +19,13 @@ type EventInfo interface {
 }
 
 func Watch(name string, c chan<- EventInfo, events ...Event) {
-	impl.Watch(name, c, events...)
+	global.Watch(name, c, events...)
 }
 
 func Stop(c chan<- EventInfo) {
-	impl.Stop(c)
+	global.Stop(c)
 }
 
-var impl interface {
-	Watch(string, chan<- EventInfo, ...Event)
-	Stop(chan<- EventInfo)
+var global = demux{
+	tree: make(map[string]interface{}),
 }
