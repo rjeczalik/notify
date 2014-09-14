@@ -50,14 +50,15 @@ func appendset(s []string, x string) []string {
 }
 
 // Splitpath
-func splitpath(p string) (s []string) {
+func splitpath(p string) []string {
 	if p == "" || p == "." || p == sep {
-		return
+		return nil
 	}
 	i := strings.Index(p, sep) + 1
 	if i == 0 || i == len(p) {
-		return
+		return nil
 	}
+	var s []string
 	for i < len(p) {
 		j := strings.Index(p[i:], sep)
 		if j == -1 {
@@ -65,7 +66,7 @@ func splitpath(p string) (s []string) {
 		}
 		s, i = append(s, p[i:i+j]), i+j+1
 	}
-	return
+	return s
 }
 
 // TODO(rjeczalik): Remove isdir? Don't care if path is a file or a directory at
@@ -99,7 +100,7 @@ func walkpath(p string, fn func(string) bool) bool {
 			j = n - i
 		}
 		if !fn(p[i : i+j]) {
-			return i+i+j+2 > n
+			return i+j+2 > n
 		}
 		i += j + 1
 	}

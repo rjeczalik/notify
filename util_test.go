@@ -87,11 +87,15 @@ func TestWalkpath(t *testing.T) {
 		p  []string
 		ok bool
 	}{
-		"C:/a/b/c/d.txt": {[]string{"a", "b", "c", "d.txt"}, true},
-		"/a/b/c/d.txt":   {[]string{"a", "b", "c", "d.txt"}, true},
-		"":               {[]string{}, false},
-		".":              {[]string{}, false},
-		"C:":             {[]string{}, false},
+		"C:/a/b/c/d.txt":       {[]string{"a", "b", "c", "d.txt"}, true},
+		"/a/b/c/d.txt":         {[]string{"a", "b", "c", "d.txt"}, true},
+		"C:/a/b/c/break":       {[]string{"a", "b", "c", "break"}, true},
+		"/a/b/c/break/":        {[]string{"a", "b", "c", "break"}, true},
+		"C:/a/b/c/break/d.txt": {[]string{"a", "b", "c", "break"}, false},
+		"/a/b/c/break/d.txt":   {[]string{"a", "b", "c", "break"}, false},
+		"":                     {nil, false},
+		".":                    {nil, false},
+		"C:":                   {nil, false},
 	}
 	var p []string
 	fn := func(s string) bool {
@@ -102,6 +106,10 @@ func TestWalkpath(t *testing.T) {
 		p, path = p[:0], filepath.FromSlash(path)
 		if ok := walkpath(path, fn); ok != cas.ok {
 			t.Errorf("want ok=%v; got %v (path=%s)", cas.ok, ok, path)
+			continue
+		}
+		// Because reflect.DeepEqual([]string(nil), []string{}) gives false.
+		if len(cas.p)+len(p) == 0 {
 			continue
 		}
 		if !reflect.DeepEqual(p, cas.p) {
