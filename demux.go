@@ -4,30 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 )
-
-// false - early exit
-func pathwalk(p string, fn func(string) bool) bool {
-	if p == "" || p == "." {
-		return false
-	}
-	i, n := strings.Index(p, sep)+1, len(p)
-	if i == 0 || i == n {
-		return false
-	}
-	for i < n {
-		j := strings.Index(p[i:], sep)
-		if j == -1 {
-			j = n - i
-		}
-		if !fn(p[i : i+j]) {
-			return i+i+j+2 > n
-		}
-		i += j + 1
-	}
-	return true
-}
 
 type demux struct {
 	// Watcher
@@ -74,7 +51,7 @@ func (d demux) Watch(p string, c chan<- EventInfo, events ...Event) (err error) 
 		}
 		return false
 	}
-	if !pathwalk(p, fn) {
+	if !walkpath(p, fn) {
 		return &os.PathError{
 			Op:   "notify.Watch",
 			Path: p,
