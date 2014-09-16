@@ -6,19 +6,19 @@ import (
 	"path/filepath"
 )
 
-type demux struct {
+type dispatch struct {
 	// Watcher
 	Watcher watcher
 
 	tree map[string]interface{}
 }
 
-func (d demux) watchFile(s string, dir map[string]interface{},
+func (d dispatch) watchFile(s string, dir map[string]interface{},
 	ch chan<- EventInfo, e Event) (err error) {
 	return errors.New("TODO")
 }
 
-func (d demux) watchDir(s string, dir map[string]interface{},
+func (d dispatch) watchDir(s string, dir map[string]interface{},
 	ch chan<- EventInfo, e Event) (err error) {
 	return errors.New("TODO")
 }
@@ -32,7 +32,7 @@ func isdir(p string) (bool, error) {
 }
 
 // Watch
-func (d demux) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
+func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
 	isdir, err := isdir(p)
 	if err != nil {
 		return
@@ -66,6 +66,6 @@ func (d demux) Watch(p string, c chan<- EventInfo, events ...Event) (err error) 
 }
 
 // Stop
-func (d demux) Stop(c chan<- EventInfo) {
+func (d dispatch) Stop(c chan<- EventInfo) {
 	panic("TODO")
 }

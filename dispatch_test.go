@@ -2,5 +2,5 @@ package notify
 
 import "testing"
 
-func TestTree(t *testing.T) {
+func TestDispatch(t *testing.T) {
 }

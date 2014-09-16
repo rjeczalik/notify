@@ -26,6 +26,6 @@ func Stop(c chan<- EventInfo) {
 	global.Stop(c)
 }
 
-var global = demux{
+var global = dispatch{
 	tree: make(map[string]interface{}),
 }
