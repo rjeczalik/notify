@@ -7,8 +7,8 @@ import (
 )
 
 type dispatch struct {
-	// Watcher
-	Watcher watcher
+	// Watcher implements the OS filesystem event notification.
+	Watcher Watcher
 
 	tree map[string]interface{}
 }
@@ -31,7 +31,7 @@ func isdir(p string) (bool, error) {
 	return fi.IsDir(), nil
 }
 
-// Watch
+// Watch TODO
 func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
 	isdir, err := isdir(p)
 	if err != nil {
@@ -60,12 +60,14 @@ func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 	}
 	e := joinevents(events, isdir)
 	if isdir {
+		// TODO
 		return d.watchDir(s, dir, c, e)
 	}
+	// TODO
 	return d.watchFile(s, dir, c, e)
 }
 
-// Stop
+// Stop TODO
 func (d dispatch) Stop(c chan<- EventInfo) {
 	panic("TODO")
 }

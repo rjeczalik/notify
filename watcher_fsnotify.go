@@ -20,17 +20,20 @@ type fsnotify struct {
 	w *old.Watcher
 }
 
-// Watch
+// IsRecursive implements notify.Watcher interface.
+func (fs fsnotify) IsRecursive() (nope bool) { return }
+
+// Watch implements notify.Watcher interface.
 func (fs fsnotify) Watch(p string, e Event) error {
 	return errors.New("TODO")
 }
 
-// Unwatch
+// Unwatch implements notify.Watcher interface.
 func (fs fsnotify) Unwatch(p string) error {
 	return errors.New("TODO")
 }
 
-// Mux
-func (fs fsnotify) Mux(c chan<- EventInfo) {
+// Fanin implements notify.Watcher interface.
+func (fs fsnotify) Fanin(c chan<- EventInfo) {
 	panic("TODO")
 }
