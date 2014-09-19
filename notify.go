@@ -1,5 +1,7 @@
 package notify
 
+import "strings"
+
 type Event uint8
 
 const (
@@ -11,6 +13,22 @@ const (
 )
 
 const All Event = Create | Delete | Write | Move | Recursive
+
+var s = map[Event]string{
+	Create:    "Create",
+	Delete:    "Delete",
+	Write:     "Write",
+	Move:      "Move",
+	Recursive: "Recursive",
+}
+
+func (e Event) String() string {
+	var z []string
+	for _, event := range splitevents(e) {
+		z = append(z, s[event])
+	}
+	return strings.Join(z, ",")
+}
 
 type EventInfo interface {
 	Event() Event
