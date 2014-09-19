@@ -71,9 +71,9 @@ func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 	}
 }
 
-func TestWatcher(t *testing.T) {
+func TestGlobalWatcher(t *testing.T) {
 	if global.Watcher == nil {
-		t.Skip("no watcher to test")
+		t.Skip("no global watcher to test")
 	}
 	ei := []EventInfo{
 		Ev("github.com/rjeczalik/fs/fs_test.go", Create, false),
