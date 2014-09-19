@@ -21,8 +21,8 @@ func strip(e Event) Event {
 	return e & ^Recursive
 }
 
-func test(t *testing.T, w Watcher, ev []EventInfo, d time.Duration) {
-	done, c, fn := make(chan error), make(chan EventInfo, len(ev)), filepath.WalkFunc(nil)
+func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
+	done, c, fn := make(chan error), make(chan EventInfo, len(ei)), filepath.WalkFunc(nil)
 	walk, exec, cleanup := Tree.Create(t)
 	defer cleanup()
 	if w.IsRecursive() {
@@ -52,16 +52,12 @@ func test(t *testing.T, w Watcher, ev []EventInfo, d time.Duration) {
 		t.Fatal(err)
 	}
 	go func() {
-		exec(ev...)
-	}()
-	go func() {
-		var i int
-		for ei := range c {
-			if err := equal(ei, ev[i]); err != nil {
+		for _, ei := range ei {
+			exec(ei)
+			if err := equal(<-c, ei); err != nil {
 				done <- err
 				return
 			}
-			i++
 		}
 		done <- nil
 	}()
@@ -79,12 +75,23 @@ func TestWatcher(t *testing.T) {
 	if global.Watcher == nil {
 		t.Skip("no watcher to test")
 	}
-	ev := [...]EventInfo{
-		0: Ev("github.com/rjeczalik/fs/fs_test.go", Create, false),
-		1: Ev("github.com/rjeczalik/fs/binfs", Create, true),
-		2: Ev("github.com/rjeczalik/fs/binfs/binfs.go", Create, false),
-		3: Ev("github.com/rjeczalik/fs/binfs/binfs_test.go", Create, false),
-		4: Ev("github.com/rjeczalik/fs/binfs", Delete, true),
+	ei := []EventInfo{
+		Ev("github.com/rjeczalik/fs/fs_test.go", Create, false),
+		Ev("github.com/rjeczalik/fs/binfs", Create, true),
+		Ev("github.com/rjeczalik/fs/binfs.go", Create, false),
+		Ev("github.com/rjeczalik/fs/binfs_test.go", Create, false),
+		Ev("github.com/rjeczalik/fs/binfs", Delete, true),
+		Ev("github.com/rjeczalik/fs/binfs", Create, true),
+		// BUG(OS X): Fsnotify claims, the following is Create not Move.
+		// Ev("github.com/rjeczalik/fs/binfs", Move, true),
+		Ev("github.com/rjeczalik/fs/virfs", Create, false),
+		// BUG(OS X): When being watched by fsnotify, writing to the newly-created
+		// file fails with "bad file descriptor".
+		// Ev("github.com/rjeczalik/fs/virfs", Write, false),
+		Ev("github.com/rjeczalik/fs/virfs", Delete, false),
+		// BUG(OS X): The same as above, this time "bad file descriptor" on a file
+		// that was created previously.
+		Ev("github.com/rjeczalik/fs/LICENSE", Write, false),
 	}
-	test(t, global.Watcher, ev[:], 5*time.Second)
+	test(t, global.Watcher, ei, time.Second)
 }

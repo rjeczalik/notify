@@ -43,9 +43,12 @@ func newEvent(ev old.Event) EventInfo {
 		name: ev.Name,
 		ev:   m[ev.Op],
 	}
-	if fi, err := os.Stat(ev.Name); err == nil {
-		// TODO(rjeczalik): Temporary, to be improved.
-		e.isdir = fi.IsDir()
+	// TODO(rjeczalik): Temporary, to be improved. If it's delete event, Dispatch
+	// would know whether the subject was a file or directory.
+	if e.ev&Delete == 0 {
+		if fi, err := os.Stat(ev.Name); err == nil {
+			e.isdir = fi.IsDir()
+		}
 	}
 	return e
 }

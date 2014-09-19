@@ -138,7 +138,7 @@ const TreeCount = 80
 //   - exec takes slice of events and executes them
 //   - cleanup orders burrito
 func (tree TestTree) Create(t *testing.T) (walk func(filepath.WalkFunc) error,
-	exec func(...EventInfo), cleanup func()) {
+	exec func(EventInfo), cleanup func()) {
 	assert := func(err ...error) {
 		for _, err := range err {
 			if err != nil {
@@ -154,31 +154,32 @@ func (tree TestTree) Create(t *testing.T) (walk func(filepath.WalkFunc) error,
 	walk = func(fn filepath.WalkFunc) error {
 		return filepath.Walk(dir, fn)
 	}
-	exec = func(ei ...EventInfo) {
-		for _, ei := range ei {
-			switch e, isdir, name := ei.Event(), ei.IsDir(), filepath.Join(dir, ei.Name()); {
-			case e&Create != 0:
-				if isdir {
-					assert(os.MkdirAll(name, 0755))
-				} else {
-					f, err := os.Create(name)
-					assert(err, f.Close())
-				}
-			case e&Delete != 0:
-				assert(os.RemoveAll(name))
-			case e&Write != 0:
-				if isdir {
-					t.Fatalf("unexpected fixture write failure: %q", name)
-				}
-				f, err := os.Open(name)
-				assert(err)
-				_, err = f.WriteString(name)
+	exec = func(ei EventInfo) {
+		switch e, isdir, name := ei.Event(), ei.IsDir(), filepath.Join(dir, ei.Name()); {
+		case e&Create != 0:
+			if isdir {
+				assert(os.MkdirAll(name, 0755))
+			} else {
+				f, err := os.Create(name)
 				assert(err, f.Close())
-			case e&Move != 0:
-				assert(os.Rename(name, name+".moved"))
-			default:
-				t.Fatalf("unexpected fixture failure: invalid Event=%v", e)
 			}
+		case e&Delete != 0:
+			assert(os.RemoveAll(name))
+		case e&Write != 0:
+			f, err := os.Open(name)
+			assert(err)
+			fi, err := f.Stat()
+			assert(err)
+			if fi.IsDir() {
+				t.Fatalf("unexpected fixture write failure: %q", name)
+				f.Close()
+			}
+			_, err = f.WriteString(name)
+			assert(err, f.Close())
+		case e&Move != 0:
+			assert(os.Rename(name, name+".moved"))
+		default:
+			t.Fatalf("unexpected fixture failure: invalid Event=%v", e)
 		}
 	}
 	cleanup = func() {
@@ -213,7 +214,7 @@ func equal(lhs, rhs EventInfo) error {
 	rhse, rhsp, rhsb := strip(rhs.Event()), rhs.Name(), rhs.IsDir()
 	// TODO(rjeczalik): Get tmpdir from the fixture, join here and compare
 	// full paths.
-	if lhse != rhse || !strings.HasSuffix(lhsp, rhsp) || lhsb != rhsb {
+	if lhse != rhse || !strings.HasSuffix(lhsp, rhsp) {
 		return fmt.Errorf("want EventInfo{Event: %v, Name: %s, IsDir: %v}; "+
 			"got EventInfo{Event: %v, Name: %s, IsDir:%v}", rhse, rhsp, rhsb,
 			lhse, lhsp, lhsb)
