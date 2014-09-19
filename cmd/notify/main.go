@@ -12,9 +12,9 @@ const usage = "usage: notify path [EVENT...]"
 
 var event = map[string]notify.Event{
 	"create":    notify.Create,
+	"delete":    notify.Delete,
 	"write":     notify.Write,
-	"remove":    notify.Remove,
-	"rename":    notify.Rename,
+	"move":      notify.Move,
 	"recursive": notify.Recursive,
 }
 

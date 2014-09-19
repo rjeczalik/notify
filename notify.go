@@ -4,17 +4,18 @@ type Event uint8
 
 const (
 	Create Event = 1 << iota
+	Delete
 	Write
-	Remove
-	Rename
+	Move
 	Recursive
 )
 
-const All Event = Create | Write | Remove | Rename | Recursive
+const All Event = Create | Delete | Write | Move | Recursive
 
 type EventInfo interface {
-	Name() string
 	Event() Event
+	IsDir() bool
+	Name() string
 	Sys() interface{}
 }
 

@@ -70,10 +70,10 @@ func TestJoinevents(t *testing.T) {
 		5:  {[]Event{Create}, true, Create},
 		6:  {[]Event{Recursive}, false, allFile},
 		7:  {[]Event{Recursive}, true, All},
-		8:  {[]Event{Rename, Recursive}, true, Rename | Recursive},
-		9:  {[]Event{Rename, Recursive}, false, Rename},
-		10: {[]Event{Create, Write, Remove}, true, Create | Write | Remove},
-		11: {[]Event{Create, Write, Remove}, false, Create | Write | Remove},
+		8:  {[]Event{Move, Recursive}, true, Move | Recursive},
+		9:  {[]Event{Move, Recursive}, false, Move},
+		10: {[]Event{Create, Write, Delete}, true, Create | Write | Delete},
+		11: {[]Event{Create, Write, Delete}, false, Create | Write | Delete},
 	}
 	for i, cas := range cases {
 		if event := joinevents(cas.events, cas.isdir); event != cas.exp {
