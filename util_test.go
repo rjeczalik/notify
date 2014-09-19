@@ -82,6 +82,10 @@ func TestJoinevents(t *testing.T) {
 	}
 }
 
+func TestSplitevents(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
+}
+
 func TestWalkpath(t *testing.T) {
 	cases := map[string]struct {
 		p  []string

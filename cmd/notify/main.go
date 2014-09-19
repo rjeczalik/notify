@@ -11,6 +11,7 @@ import (
 const usage = "usage: notify path [EVENT...]"
 
 var event = map[string]notify.Event{
+	"all":       notify.All,
 	"create":    notify.Create,
 	"delete":    notify.Delete,
 	"write":     notify.Write,

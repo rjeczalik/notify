@@ -91,7 +91,17 @@ func TestGlobalWatcher(t *testing.T) {
 		Ev("github.com/rjeczalik/fs/virfs", Delete, false),
 		// BUG(OS X): The same as above, this time "bad file descriptor" on a file
 		// that was created previously.
-		Ev("github.com/rjeczalik/fs/LICENSE", Write, false),
+		// Ev("github.com/rjeczalik/fs/LICENSE", Write, false),
+		// TODO(rjeczalik): For non-recursive watchers directory delete results
+		// in lots of delete events of the subtree. Is it possible to "squash"
+		// them into one event? How it should work cross-platform?
+		// Ev("github.com", Delete, true),
+		Ev("file", Create, false),
+		Ev("dir", Create, true),
 	}
 	test(t, global.Watcher, ei, time.Second)
+}
+
+func TestIssue16(t *testing.T) {
+	test(t, global.Watcher, []EventInfo{Ev("github.com", Delete, true)}, time.Second)
 }
