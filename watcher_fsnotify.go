@@ -1,7 +1,8 @@
 package notify
 
 import (
-	"errors"
+	"os"
+	"runtime"
 
 	old "gopkg.in/fsnotify.v1"
 )
@@ -11,11 +12,45 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	global.Watcher = &fsnotify{
-		w: w,
-	}
+	fs := &fsnotify{w: w}
+	// TODO(rjeczalik): Not really going to happen?
+	runtime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
+	global.Watcher = fs
 }
 
+var m = map[old.Op]Event{
+	old.Create: Create,
+	old.Remove: Delete,
+	old.Write:  Write,
+	old.Rename: Move,
+	// TODO(rjeczalik): Find out who cares about chmod.
+	// old.Chmod: Write,
+}
+
+type event struct {
+	name  string
+	ev    Event
+	isdir bool // tribool - yes, no, can't tell?
+}
+
+func (e event) Event() Event     { return e.ev }
+func (e event) IsDir() bool      { return e.isdir }
+func (e event) Name() string     { return e.name }
+func (e event) Sys() interface{} { return nil } // no-one cares about fsnotify.Event
+
+func newEvent(ev old.Event) EventInfo {
+	e := event{
+		name: ev.Name,
+		ev:   m[ev.Op],
+	}
+	if fi, err := os.Stat(ev.Name); err == nil {
+		// TODO(rjeczalik): Temporary, to be improved.
+		e.isdir = fi.IsDir()
+	}
+	return e
+}
+
+// Fsnotify implements notify.Watcher interface by wrapping fsnotify.v1 package.
 type fsnotify struct {
 	w *old.Watcher
 }
@@ -24,16 +59,23 @@ type fsnotify struct {
 func (fs fsnotify) IsRecursive() (nope bool) { return }
 
 // Watch implements notify.Watcher interface.
-func (fs fsnotify) Watch(p string, e Event) error {
-	return errors.New("TODO")
+func (fs fsnotify) Watch(p string, _ Event) error {
+	return fs.w.Add(p)
 }
 
 // Unwatch implements notify.Watcher interface.
 func (fs fsnotify) Unwatch(p string) error {
-	return errors.New("TODO")
+	return fs.w.Remove(p)
 }
 
 // Fanin implements notify.Watcher interface.
 func (fs fsnotify) Fanin(c chan<- EventInfo) {
-	panic("TODO")
+	go func() {
+		for e := range fs.w.Events {
+			if e.Op&old.Chmod != 0 {
+				continue // currently we don't care about chmod
+			}
+			c <- newEvent(e)
+		}
+	}()
 }

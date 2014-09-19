@@ -56,7 +56,7 @@ type Watcher interface {
 	Unwatch(string) error
 
 	// Fanin requests to fan in all events from all the created watchers into ch.
-	// It is guaranteed the ch is non-nil.
+	// It is guaranteed the ch is non-nil. All unexpected events are ignored.
 	//
 	// The Fanin method is called once on package init by the Dispatch.
 	Fanin(ch chan<- EventInfo)
