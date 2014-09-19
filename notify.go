@@ -2,32 +2,25 @@ package notify
 
 import "strings"
 
-type Event uint8
+type Event int
 
-const (
-	Create Event = 1 << iota
-	Delete
-	Write
-	Move
-	Recursive
-)
-
-const All Event = Create | Delete | Write | Move | Recursive
-
-var s = map[Event]string{
-	Create:    "Create",
-	Delete:    "Delete",
-	Write:     "Write",
-	Move:      "Move",
-	Recursive: "Recursive",
-}
-
+// TODO(someone) : what if invalid value is casted to Event type?
 func (e Event) String() string {
 	var z []string
 	for _, event := range splitevents(e) {
-		z = append(z, s[event])
+		z = append(z, events[int(event)])
 	}
 	return strings.Join(z, ",")
+}
+
+// TODO(someone): splitevents supports only generic events.
+func splitevents(e Event) (events []Event) {
+	for _, event := range []Event{Create, Delete, Write, Move, Recursive} {
+		if e&event != 0 {
+			events = append(events, event)
+		}
+	}
+	return
 }
 
 type EventInfo interface {
