@@ -5,14 +5,15 @@ package notify
 import "syscall"
 
 var (
+	// TODO(ppknap) : rework these flags.
 	Create = IN_CREATE
-	Delete = IN_DELETE
+	Delete = IN_DELETE_SELF | IN_DELETE
 	Write  = IN_MODIFY
 	Move   = IN_MOVE
 )
 
 // All TODO
-var All = IN_ALL_EVENTS
+var All = Event(Create | Delete | Write | Move)
 
 // Events TODO
 const (
@@ -34,22 +35,22 @@ const (
 )
 
 var estr = map[Event]string{
-	Create:           "create",
-	Delete:           "delete",
-	Write:            "write",
-	Move:             "move",
-	IN_ACCESS:        "syscall.IN_ACCESS",
-	IN_MODIFY:        "syscall.IN_MODIFY",
-	IN_ATTRIB:        "syscall.IN_ATTRIB",
-	IN_CLOSE_WRITE:   "syscall.IN_CLOSE_WRITE",
-	IN_CLOSE_NOWRITE: "syscall.IN_CLOSE_NO_WRITE",
-	IN_OPEN:          "syscall.IN_OPEN",
-	IN_MOVED_FROM:    "syscall.IN_MOVED_FROM",
-	IN_MOVED_TO:      "syscall.IN_MOVED_TO",
-	IN_CREATE:        "syscall.IN_CREATE",
-	IN_DELETE:        "syscall.IN_DELETE",
-	IN_DELETE_SELF:   "syscall.IN_DELETE_SELF",
-	IN_MOVE_SELF:     "syscall.IN_MOVE_SELF",
-	IN_CLOSE:         "syscall.IN_CLOSE",
-	IN_MOVE:          "syscall.IN_MOVE",
+	Create:           "notify.Create",
+	Delete:           "notify.Delete",
+	Write:            "notify.Wwrite",
+	Move:             "notify.Move",
+	IN_ACCESS:        "notify.IN_ACCESS",
+	IN_MODIFY:        "notify.IN_MODIFY",
+	IN_ATTRIB:        "notify.IN_ATTRIB",
+	IN_CLOSE_WRITE:   "notify.IN_CLOSE_WRITE",
+	IN_CLOSE_NOWRITE: "notify.IN_CLOSE_NO_WRITE",
+	IN_OPEN:          "notify.IN_OPEN",
+	IN_MOVED_FROM:    "notify.IN_MOVED_FROM",
+	IN_MOVED_TO:      "notify.IN_MOVED_TO",
+	IN_CREATE:        "notify.IN_CREATE",
+	IN_DELETE:        "notify.IN_DELETE",
+	IN_DELETE_SELF:   "notify.IN_DELETE_SELF",
+	IN_MOVE_SELF:     "notify.IN_MOVE_SELF",
+	IN_CLOSE:         "notify.IN_CLOSE",
+	IN_MOVE:          "notify.IN_MOVE",
 }
