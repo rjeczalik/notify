@@ -103,5 +103,6 @@ func TestGlobalWatcher(t *testing.T) {
 }
 
 func TestIssue16(t *testing.T) {
+	t.Skip("#16")
 	test(t, global.Watcher, []EventInfo{Ev("github.com", Delete, true)}, time.Second)
 }
