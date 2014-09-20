@@ -85,15 +85,6 @@ func joinevents(events []Event, isdir bool) (e Event) {
 	return
 }
 
-func splitevents(e Event) (events []Event) {
-	for _, event := range []Event{Create, Delete, Write, Move, Recursive} {
-		if e&event != 0 {
-			events = append(events, event)
-		}
-	}
-	return
-}
-
 // Walkpath
 func walkpath(p string, fn func(string) bool) bool {
 	if p == "" || p == "." {
