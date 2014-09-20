@@ -7,6 +7,7 @@ import (
 
 type Event int
 
+// Kind TODO
 func (e Event) Kind() Event {
 	if ek, ok := evkinds[int(e)]; ok {
 		return ek
@@ -14,6 +15,7 @@ func (e Event) Kind() Event {
 	panic("notify: invalid event type - " + e.String())
 }
 
+// String TODO
 func (e Event) String() string {
 	var z []string
 	for _, event := range splitevents(e) {
