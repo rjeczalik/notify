@@ -8,8 +8,6 @@ const (
 	Delete = EV_STUB_DELETE
 	Write  = EV_STUB_WRITE
 	Move   = EV_STUB_MOVE
-
-	Recursive = Event(0x00000010)
 )
 
 const All = Event(0x0000000f)
