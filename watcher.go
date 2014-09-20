@@ -11,34 +11,6 @@ package notify
 // It's used for development purposes, the finished packaged will switch between
 // those using build tags.
 type Watcher interface {
-	// IsRecursive is used to tell Dispatch that it supports, or not, recursive
-	// watching. When it returns true, it is able to watch via the following call:
-	//
-	//   notify.Watch("/home/notify", notify.Recursive, notify.Create)
-	//
-	// whole "/home/notify" for either file or directory create events.
-	//
-	// Implementations that do not support recursive watchers will get that feature
-	// emulated by Dispatch - it means that more Watch and Unwatch methods
-	// are going to be called. Moreover it is guranteed that no notify.Recursive
-	// event is going to be passed to the Watch method, e.g. for the following
-	// call:
-	//
-	//   notify.Watch("/home/notify", notify.Recursive, notify.Create)
-	//
-	// The following methods may be called on the Watcher:
-	//
-	//   notify.global.Watcher.Watch("/home/notify", notify.Create)
-	//   notify.global.Watcher.Watch("/home/notify/Music", notify.Create)
-	//   notify.global.Watcher.Watch("/home/notify/Documents", notify.Create)
-	//   notify.global.Watcher.Watch("/home/notify/Downloads", notify.Create)
-	//   ...
-	//
-	// All of them stripped from notify.Recursive.
-	//
-	// The IsRecurisve method is called once on package init by the Dispatch.
-	IsRecursive() bool
-
 	// Watch requests a watcher creation for the given path and given event set.
 	//
 	// NOTE(rjeczalik): For now Dispatch will call Watch method in a thread-safe
@@ -60,4 +32,35 @@ type Watcher interface {
 	//
 	// The Fanin method is called once on package init by the Dispatch.
 	Fanin(ch chan<- EventInfo)
+}
+
+// RecursiveWatcher is an interface for a Watcher for those OS, which do support
+// recursive watching over directories.
+type RecursiveWatcher interface {
+	Watcher
+
+	// RecursiveWatch watches the path passed recursively for changes. It is
+	// guaranteed that the given path points to a valid directory and the path
+	// is stripped from "/...".
+	//
+	//   notify.Watch("/home/notify/...",notify.Create)
+	//
+	// whole "/home/notify" for either file or directory create events.
+	//
+	// Implementations that do not support recursive watchers will get that feature
+	// emulated by Dispatch - it means that more Watch and Unwatch methods
+	// are going to be called, e.g. for the following Watch:
+	//
+	//   notify.Watch("/home/notify", notify.Recursive, notify.Create)
+	//
+	// The following methods may be called on the Watcher:
+	//
+	//   notify.global.Watcher.Watch("/home/notify", notify.Create)
+	//   notify.global.Watcher.Watch("/home/notify/Music", notify.Create)
+	//   notify.global.Watcher.Watch("/home/notify/Documents", notify.Create)
+	//   notify.global.Watcher.Watch("/home/notify/Downloads", notify.Create)
+	//   ...
+	//
+	// TODO(rjeczalik): Rework.
+	RecursiveWatch(string, Event) error
 }

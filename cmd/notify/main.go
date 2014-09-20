@@ -11,12 +11,11 @@ import (
 const usage = "usage: notify path [EVENT...]"
 
 var event = map[string]notify.Event{
-	"all":       notify.All,
-	"create":    notify.Create,
-	"delete":    notify.Delete,
-	"write":     notify.Write,
-	"move":      notify.Move,
-	"recursive": notify.Recursive,
+	"all":    notify.All,
+	"create": notify.Create,
+	"delete": notify.Delete,
+	"write":  notify.Write,
+	"move":   notify.Move,
 }
 
 func parse(s []string) (e []notify.Event) {

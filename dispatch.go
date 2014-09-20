@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type dispatch struct {
@@ -12,6 +13,9 @@ type dispatch struct {
 
 	// Tree TODO
 	Tree map[string]interface{}
+
+	rw    RecursiveWatcher // underlying implementation
+	isrec bool             // whether Watcher implements RecursiveWatcher
 }
 
 func (d dispatch) watchFile(s string, dir map[string]interface{},
@@ -32,11 +36,41 @@ func isdir(p string) (bool, error) {
 	return fi.IsDir(), nil
 }
 
+// TODO(rjeczalik): Move to init? Ensure the d.Watcher was set before that init?
+func (d dispatch) checkinit() {
+	if d.rw == nil {
+		if d.Watcher == nil {
+			panic("notify: no implementation found")
+		}
+		rw, ok := d.Watcher.(RecursiveWatcher)
+		if ok {
+			d.rw = rw
+		} else {
+			d.rw = Recursive{
+				Watcher: d.Watcher,
+				Tree:    d.Tree,
+			}
+		}
+	}
+}
+
 // Watch TODO
 func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
+	d.checkinit()
+	var isrec bool
+	if strings.HasSuffix(p, "...") {
+		p, isrec = p[:len(p)-3], true
+	}
 	isdir, err := isdir(p)
 	if err != nil {
 		return
+	}
+	if isrec && !isdir {
+		return &os.PathError{
+			Op:   "notify.Watch",
+			Path: p,
+			Err:  os.ErrInvalid,
+		}
 	}
 	dir, s := d.Tree, filepath.Base(p)
 	fn := func(s string) bool {
@@ -70,5 +104,6 @@ func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 
 // Stop TODO
 func (d dispatch) Stop(c chan<- EventInfo) {
+	d.checkinit()
 	panic("TODO(rjeczalik)")
 }
