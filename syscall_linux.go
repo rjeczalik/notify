@@ -10,8 +10,6 @@ const (
 	Delete = IN_DELETE
 	Write  = IN_MODIFY
 	Move   = IN_MOVE
-
-	Recursive = Event(0x00010000)
 )
 
 const All = Event(IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVE)
