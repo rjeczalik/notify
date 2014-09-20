@@ -81,17 +81,6 @@ func joinevents(events []Event) (e Event) {
 	return
 }
 
-// Splitevents TODO
-func splitevents(e Event) (events []Event) {
-	// TODO(rjeczalik): All is sum of all events, add AllSlice?
-	for _, event := range []Event{Create, Delete, Write, Move} {
-		if e&event != 0 {
-			events = append(events, event)
-		}
-	}
-	return
-}
-
 // Walkpath TODO
 func walkpath(p string, fn func(string) bool) bool {
 	if p == "" || p == "." {
