@@ -17,22 +17,19 @@ func nonil(err ...error) error {
 	return nil
 }
 
-func strip(e Event) Event {
-	return e & ^Recursive
-}
-
 func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 	done, c, fn := make(chan error), make(chan EventInfo, len(ei)), filepath.WalkFunc(nil)
 	walk, exec, cleanup := Tree.Create(t)
+	rw, ok := w.(RecursiveWatcher)
 	defer cleanup()
-	if w.IsRecursive() {
+	if ok {
 		var once sync.Once
 		fn = func(p string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			once.Do(func() {
-				err = w.Watch(p, All)
+				err = rw.RecursiveWatch(p, All)
 			})
 			return nonil(err, filepath.SkipDir)
 		}
@@ -42,7 +39,7 @@ func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 				return err
 			}
 			if fi.IsDir() {
-				err = w.Watch(p, strip(All))
+				err = w.Watch(p, All)
 			}
 			return err
 		}

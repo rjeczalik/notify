@@ -10,7 +10,8 @@ type dispatch struct {
 	// Watcher implements the OS filesystem event notification.
 	Watcher Watcher
 
-	tree map[string]interface{}
+	// Tree TODO
+	Tree map[string]interface{}
 }
 
 func (d dispatch) watchFile(s string, dir map[string]interface{},
@@ -37,7 +38,7 @@ func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 	if err != nil {
 		return
 	}
-	dir, s := d.tree, filepath.Base(p)
+	dir, s := d.Tree, filepath.Base(p)
 	fn := func(s string) bool {
 		d, ok := dir[s]
 		if !ok {
@@ -58,7 +59,7 @@ func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 			Err:  os.ErrInvalid,
 		}
 	}
-	e := joinevents(events, isdir)
+	e := joinevents(events)
 	if isdir {
 		// TODO
 		return d.watchDir(s, dir, c, e)
@@ -69,5 +70,5 @@ func (d dispatch) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 
 // Stop TODO
 func (d dispatch) Stop(c chan<- EventInfo) {
-	panic("TODO")
+	panic("TODO(rjeczalik)")
 }

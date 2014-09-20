@@ -56,28 +56,19 @@ func TestSplitpath(t *testing.T) {
 }
 
 func TestJoinevents(t *testing.T) {
-	allFile := All & ^Recursive
 	cases := [...]struct {
-		events []Event
-		isdir  bool
-		exp    Event
+		evs []Event
+		ev  Event
 	}{
-		0:  {nil, true, All},
-		1:  {nil, false, allFile},
-		2:  {[]Event{}, true, All},
-		3:  {[]Event{}, false, allFile},
-		4:  {[]Event{Create}, false, Create},
-		5:  {[]Event{Create}, true, Create},
-		6:  {[]Event{Recursive}, false, allFile},
-		7:  {[]Event{Recursive}, true, All},
-		8:  {[]Event{Move, Recursive}, true, Move | Recursive},
-		9:  {[]Event{Move, Recursive}, false, Move},
-		10: {[]Event{Create, Write, Delete}, true, Create | Write | Delete},
-		11: {[]Event{Create, Write, Delete}, false, Create | Write | Delete},
+		0: {nil, All},
+		1: {[]Event{}, All},
+		2: {[]Event{Create}, Create},
+		3: {[]Event{Move}, Move},
+		4: {[]Event{Create, Write, Delete}, Create | Write | Delete},
 	}
 	for i, cas := range cases {
-		if event := joinevents(cas.events, cas.isdir); event != cas.exp {
-			t.Errorf("want event=%v; got %v (i=%d)", cas.exp, event, i)
+		if ev := joinevents(cas.evs); ev != cas.ev {
+			t.Errorf("want event=%v; got %v (i=%d)", cas.ev, ev, i)
 		}
 	}
 }

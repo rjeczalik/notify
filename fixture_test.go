@@ -209,9 +209,8 @@ func Ev(p string, e Event, b bool) EventInfo {
 }
 
 func equal(lhs, rhs EventInfo) error {
-	// TODO rm strip
-	lhse, lhsp, lhsb := strip(lhs.Event()), lhs.Name(), lhs.IsDir()
-	rhse, rhsp, rhsb := strip(rhs.Event()), rhs.Name(), rhs.IsDir()
+	lhse, lhsp, lhsb := lhs.Event(), lhs.Name(), lhs.IsDir()
+	rhse, rhsp, rhsb := rhs.Event(), rhs.Name(), rhs.IsDir()
 	// TODO(rjeczalik): Get tmpdir from the fixture, join here and compare
 	// full paths.
 	if lhse != rhse || !strings.HasSuffix(lhsp, rhsp) {

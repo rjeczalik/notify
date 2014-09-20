@@ -2,6 +2,7 @@ package notify
 
 import "strings"
 
+// Event TODO
 type Event uint8
 
 const (
@@ -9,19 +10,18 @@ const (
 	Delete
 	Write
 	Move
-	Recursive
 )
 
-const All Event = Create | Delete | Write | Move | Recursive
+const All Event = Create | Delete | Write | Move
 
 var s = map[Event]string{
-	Create:    "Create",
-	Delete:    "Delete",
-	Write:     "Write",
-	Move:      "Move",
-	Recursive: "Recursive",
+	Create: "Create",
+	Delete: "Delete",
+	Write:  "Write",
+	Move:   "Move",
 }
 
+// String TODO
 func (e Event) String() string {
 	var z []string
 	for _, event := range splitevents(e) {
@@ -30,21 +30,24 @@ func (e Event) String() string {
 	return strings.Join(z, ",")
 }
 
+// EventInfo TODO
 type EventInfo interface {
-	Event() Event
-	IsDir() bool
-	Name() string
-	Sys() interface{}
+	Event() Event     // TODO
+	IsDir() bool      // TODO
+	Name() string     // TODO
+	Sys() interface{} // TODO
 }
 
+// Watch TODO
 func Watch(name string, c chan<- EventInfo, events ...Event) {
 	global.Watch(name, c, events...)
 }
 
+// Stop TODO
 func Stop(c chan<- EventInfo) {
 	global.Stop(c)
 }
 
 var global = dispatch{
-	tree: make(map[string]interface{}),
+	Tree: make(map[string]interface{}),
 }

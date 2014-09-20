@@ -20,7 +20,7 @@ func init() {
 	wd = dir
 }
 
-// Abs
+// Abs TODO
 func abs(path string) string {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(wd, path)
@@ -28,7 +28,7 @@ func abs(path string) string {
 	return filepath.Clean(path)
 }
 
-// Appendset
+// Appendset TODO
 //
 // TODO(rjeczalik): Sort by directory depth?
 func appendset(s []string, x string) []string {
@@ -49,7 +49,7 @@ func appendset(s []string, x string) []string {
 	return s
 }
 
-// Splitpath
+// Splitpath TODO
 func splitpath(p string) []string {
 	if p == "" || p == "." || p == sep {
 		return nil
@@ -69,24 +69,22 @@ func splitpath(p string) []string {
 	return s
 }
 
-// TODO(rjeczalik): Remove isdir? Don't care if path is a file or a directory at
-// the moment of creating a watcher?
-func joinevents(events []Event, isdir bool) (e Event) {
-	if len(events) == 0 || (len(events) == 1 && events[0] == Recursive) {
+// Joinevents TODO
+func joinevents(events []Event) (e Event) {
+	if len(events) == 0 {
 		e = All
 	} else {
 		for _, event := range events {
 			e |= event
 		}
 	}
-	if !isdir {
-		e &= ^Recursive
-	}
 	return
 }
 
+// Splitevents TODO
 func splitevents(e Event) (events []Event) {
-	for _, event := range []Event{Create, Delete, Write, Move, Recursive} {
+	// TODO(rjeczalik): All is sum of all events, add AllSlice?
+	for _, event := range []Event{Create, Delete, Write, Move} {
 		if e&event != 0 {
 			events = append(events, event)
 		}
@@ -94,7 +92,7 @@ func splitevents(e Event) (events []Event) {
 	return
 }
 
-// Walkpath
+// Walkpath TODO
 func walkpath(p string, fn func(string) bool) bool {
 	if p == "" || p == "." {
 		return false
