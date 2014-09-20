@@ -39,25 +39,6 @@ func loop() {
 	}
 }
 
-func init() {
-	var err error
-	fd, err = syscall.InotifyInit()
-	if fd == -1 {
-		fmt.Println(os.NewSyscallError("InotifyInit", err))
-	}
-	fmt.Println("fd: ", fd)
-	// runtime.SetFinalizer(&fd,
-	// 	func(fd *int) {
-	// 		syscall.Close(*fd)
-	// 	},
-	// )
-	go loop()
-}
-
-var fd int
-var wd int
-var buffer [40960]byte
-
 func watch(path string) {
 	var err error
 	wd, err = syscall.InotifyAddWatch(fd, path, allFlags)
