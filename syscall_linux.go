@@ -5,15 +5,16 @@ package notify
 import "syscall"
 
 // os_linux.go
-var (
-	Create    = IN_CREATE
-	Delete    = IN_DELETE
-	Write     = IN_MODIFY
-	Move      = IN_MOVE
-	Recursive = HACK_RECURSIVE
+const (
+	Create = IN_CREATE
+	Delete = IN_DELETE
+	Write  = IN_MODIFY
+	Move   = IN_MOVE
+
+	Recursive = Event(0x00010000)
 )
 
-var All = IN_ALL_EVENTS
+const All = Event(IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVE)
 
 // Events
 const (
@@ -32,12 +33,10 @@ const (
 	IN_CLOSE         = Event(syscall.IN_CLOSE)
 	IN_MOVE          = Event(syscall.IN_MOVE)
 	IN_ALL_EVENTS    = Event(syscall.IN_ALL_EVENTS)
-
-	HACK_RECURSIVE = Event(0x00010000)
 )
 
-// Event table
-var events = [...]string{
+// Event names
+var evnames = map[int]string{
 	syscall.IN_ACCESS:        "file was accessed for reading",
 	syscall.IN_MODIFY:        "file was modified",
 	syscall.IN_ATTRIB:        "metadata changed",
@@ -52,4 +51,22 @@ var events = [...]string{
 	syscall.IN_MOVE_SELF:     "file/directory was itself moved",
 	syscall.IN_CLOSE:         "file was closed",
 	syscall.IN_MOVE:          "file was moved",
+}
+
+// Event kinds
+var evkinds = map[int]Event{
+	syscall.IN_ACCESS:        Write,
+	syscall.IN_MODIFY:        Write,
+	syscall.IN_ATTRIB:        Write,
+	syscall.IN_CLOSE_WRITE:   Write,
+	syscall.IN_CLOSE_NOWRITE: Write,
+	syscall.IN_OPEN:          Write,
+	syscall.IN_MOVED_FROM:    Create,
+	syscall.IN_MOVED_TO:      Delete,
+	syscall.IN_CREATE:        Create,
+	syscall.IN_DELETE:        Delete,
+	syscall.IN_DELETE_SELF:   Delete,
+	syscall.IN_MOVE_SELF:     Write,
+	syscall.IN_CLOSE:         Write,
+	syscall.IN_MOVE:          Write,
 }

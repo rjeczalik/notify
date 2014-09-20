@@ -1,21 +1,35 @@
 package notify
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 type Event int
 
-// TODO(someone) : what if invalid value is casted to Event type?
+func (e Event) Kind() Event {
+	if ek, ok := evkinds[int(e)]; ok {
+		return ek
+	}
+	panic("notify: invalid event type - " + e.String())
+}
+
 func (e Event) String() string {
 	var z []string
 	for _, event := range splitevents(e) {
-		z = append(z, events[int(event)])
+		if en := evnames[int(event)]; en != "" {
+			z = append(z, en)
+		} else {
+			z = append(z, "event "+strconv.Itoa(int(event)))
+		}
+
 	}
 	return strings.Join(z, ",")
 }
 
 // TODO(someone): splitevents supports only generic events.
 func splitevents(e Event) (events []Event) {
-	for _, event := range []Event{Create, Delete, Write, Move, Recursive} {
+	for _, event := range []Event{Create, Delete, Write, Move} {
 		if e&event != 0 {
 			events = append(events, event)
 		}
