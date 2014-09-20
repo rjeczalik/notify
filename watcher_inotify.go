@@ -3,6 +3,7 @@
 package notify
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	//"path/filepath"
@@ -33,9 +34,9 @@ var handlers handlersType
 
 // TODO(ppknap) : doc.
 type watched struct {
-	pathname  string
-	mask      uint32
-	watchdesc int
+	sync.Mutex
+	path string
+	mask uint32
 }
 
 // TODO(ppknap) : doc.
@@ -45,7 +46,7 @@ func init() {
 		panic(os.NewSyscallError("InotifyInit", err))
 	}
 
-	handlers.fd = &fd
+	handlers.fd, handlers.m = &fd, make(map[int]*watched)
 	runtime.SetFinalizer(handlers.fd, func(fd *int) {
 		syscall.Close(*fd)
 	})
@@ -80,16 +81,57 @@ func process() {
 	}
 }
 
-func watch(p string, e Event) error {
+// TODO(ppknap) : doc.
+func watch(path string, event Event) error {
+	wd, err := syscall.InotifyAddWatch(*handlers.fd, path, uint32(event))
+	if err != nil {
+		return os.NewSyscallError("InotifyAddWatch", err)
+	}
 
+	handlers.RLock()
+	w := handlers.m[wd]
+	handlers.RUnlock()
+
+	if w == nil {
+		w = &watched{path: path, mask: uint32(event)}
+		handlers.Lock()
+		handlers.m[wd] = w
+		handlers.Unlock()
+	} else {
+		w.Lock()
+		w.mask = uint32(event)
+		w.Unlock()
+	}
 	return nil
 }
 
-func unwatch(p string) error {
+// TODO(ppknap) : doc.
+func unwatch(path string) error {
+	wd := -1
+	handlers.RLock()
+	for wdkey, w := range handlers.m {
+		if w.path == path {
+			wd = wdkey
+			break
+		}
+	}
+	handlers.RUnlock()
+
+	if wd < 0 {
+		return errors.New("path " + path + " is unwatched")
+	}
+	// BUG(goauthors) : watch descriptor is of type `int`, not `uint32`
+	if _, err := syscall.InotifyRmWatch(*handlers.fd, uint32(wd)); err != nil {
+		return os.NewSyscallError("InotifyRmWatch", err)
+	}
+
+	handlers.Lock()
+	delete(handlers.m, wd)
+	handlers.Unlock()
 	return nil
 }
 
-// TODO(ppknap) : Does I have to know about this function's implementation?
+// TODO(ppknap) : Does I have to know about the implementation of this function?
 func sendevent(ei EventInfo) {
 	handlers.c <- ei
 }
