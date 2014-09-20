@@ -9,6 +9,7 @@ import (
 	//"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -34,7 +35,6 @@ var handlers handlersType
 
 // TODO(ppknap) : doc.
 type watched struct {
-	sync.Mutex
 	path string
 	mask uint32
 }
@@ -63,7 +63,7 @@ func loop() {
 	}
 }
 
-// TODO(ppknap) : doc.
+// TODO(ppknap) : impl/doc.
 func process() {
 	var n int
 	var err error
@@ -98,9 +98,7 @@ func watch(path string, event Event) error {
 		handlers.m[wd] = w
 		handlers.Unlock()
 	} else {
-		w.Lock()
-		w.mask = uint32(event)
-		w.Unlock()
+		atomic.StoreUint32(&w.mask, uint32(event))
 	}
 	return nil
 }
