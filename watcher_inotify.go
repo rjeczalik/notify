@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+	rntm "runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -18,11 +18,12 @@ import (
 // TODO(ppknap) : doc.
 const maxEventSize = syscall.SizeofInotifyEvent + syscall.PathMax + 1
 
-// TODO(ppknap) : This type should be dropped. It is useless since
-// we use it only here. Use:
-//  var handlers struct {
-//  	...
-//  }
+// TODO(ppknap) : This type should be dropped. It is useless since we use it only
+// here. Use:
+//
+//   var handlers struct {
+//     ...
+//   }
 type handlersType struct {
 	sync.RWMutex
 	m      map[int32]*watched
@@ -33,7 +34,7 @@ type handlersType struct {
 }
 
 // TODO(ppknap) : doc.
-var handlers handlersType
+var handlers *handlersType
 
 // TODO(ppknap) : doc.
 type watched struct {
@@ -43,19 +44,24 @@ type watched struct {
 
 // TODO(ppknap) : doc.
 func init() {
+	handlers = newInotify()
+	runtime = NewRuntime(handlers)
+}
+
+// NewInotify TODO
+func newInotify() *handlersType {
 	fd, err := syscall.InotifyInit()
 	if err != nil {
 		panic(os.NewSyscallError("InotifyInit", err))
 	}
-
-	handlers.fd, handlers.m = &fd, make(map[int32]*watched)
-	runtime.SetFinalizer(handlers.fd, func(fd *int) {
-		syscall.Close(*fd)
-	})
-	// TODO(ppknap) : this should be removed:<.
-	handlers.c = make(chan EventInfo) // TODO(pknap) : rm me
-	global.Watcher = &handlers
+	h := &handlersType{
+		m:  make(map[int32]*watched),
+		fd: &fd,
+		c:  make(chan EventInfo),
+	}
+	rntm.SetFinalizer(h, func(h *handlersType) { syscall.Close(*h.fd) })
 	go loop()
+	return h
 }
 
 // TODO(ppknap) : doc.
@@ -71,6 +77,7 @@ func process() {
 	switch {
 	//TODO(pknap) : improve error handling + doc.
 	case err != nil || n < 0:
+		// TODO(rjeczalik): Panic, error?
 		fmt.Println(os.NewSyscallError("Read", err))
 	case n < syscall.SizeofInotifyEvent:
 		return
@@ -193,9 +200,6 @@ func (e *event) Sys() interface{} { return e.sys } //
 func maskevent(mask uint32) Event {
 	return Event(mask & syscall.IN_ALL_EVENTS)
 }
-
-// IsRecursive implements notify.Watcher interface.
-func (h *handlersType) IsRecursive() (nope bool) { return }
 
 // Watch implements notify.Watcher interface.
 func (h *handlersType) Watch(p string, e Event) error {
