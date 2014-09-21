@@ -5,16 +5,15 @@ package notify
 import fsnotifyv1 "gopkg.in/fsnotify.v1"
 
 // Generic notify events.
-var (
+const (
 	Create = FSN_CREATE
 	Delete = FSN_REMOVE
 	Write  = FSN_WRITE
 	Move   = FSN_RENAME
-	All    = FSN_ALL
 )
 
 // Fsnotify events.
-var (
+const (
 	FSN_CREATE = Event(fsnotifyv1.Create)
 	FSN_REMOVE = Event(fsnotifyv1.Remove)
 	FSN_WRITE  = Event(fsnotifyv1.Write)
