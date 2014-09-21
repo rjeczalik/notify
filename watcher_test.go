@@ -75,16 +75,16 @@ func TestRuntimeWatcher(t *testing.T) {
 		t.Skip("no global watcher to test")
 	}
 	ei := []EventInfo{
-		Ev("github.com/rjeczalik/fs/fs_test.go", Create, false),
-		Ev("github.com/rjeczalik/fs/binfs", Create, true),
-		Ev("github.com/rjeczalik/fs/binfs.go", Create, false),
-		Ev("github.com/rjeczalik/fs/binfs_test.go", Create, false),
-		Ev("github.com/rjeczalik/fs/binfs", Delete, true),
-		Ev("github.com/rjeczalik/fs/binfs", Create, true),
-		Ev("github.com/rjeczalik/fs/virfs", Create, false),
-		Ev("github.com/rjeczalik/fs/virfs", Delete, false),
-		Ev("file", Create, false),
-		Ev("dir", Create, true),
+		EI("github.com/rjeczalik/fs/fs_test.go", Create, false),
+		EI("github.com/rjeczalik/fs/binfs", Create, true),
+		EI("github.com/rjeczalik/fs/binfs.go", Create, false),
+		EI("github.com/rjeczalik/fs/binfs_test.go", Create, false),
+		EI("github.com/rjeczalik/fs/binfs", Delete, true),
+		EI("github.com/rjeczalik/fs/binfs", Create, true),
+		EI("github.com/rjeczalik/fs/virfs", Create, false),
+		EI("github.com/rjeczalik/fs/virfs", Delete, false),
+		EI("file", Create, false),
+		EI("dir", Create, true),
 	}
 	test(t, runtime.Watcher, ei, time.Second)
 }

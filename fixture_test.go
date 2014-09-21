@@ -200,7 +200,7 @@ func (v testev) Name() string     { return v.p }
 func (v testev) Sys() interface{} { return nil }
 
 // Ev gives new EventInfo for p path, e Event and b saying if it's a directory.
-func Ev(p string, e Event, b bool) EventInfo {
+func EI(p string, e Event, b bool) EventInfo {
 	return testev{
 		p: p,
 		e: e,
