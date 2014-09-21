@@ -53,3 +53,9 @@ var estr = map[Event]string{
 	IN_CLOSE:         "syscall.IN_CLOSE",
 	IN_MOVE:          "syscall.IN_MOVE",
 }
+
+var ekind = map[Event]Event{
+	syscall.IN_MOVED_FROM:  Create,
+	syscall.IN_MOVED_TO:    Delete,
+	syscall.IN_DELETE_SELF: Delete,
+}
