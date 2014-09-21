@@ -25,9 +25,9 @@ type EventInfo interface {
 }
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to
-// hint the Dispatch whether the event created a file or directory or it deleted
-// one. The possible values of Kind are Create or Delete, any other value is
-// ignored by the Dispatch.
+// hint the notify runtime whether the event created a file or directory or it
+// deleted one. The possible values of Kind are Create or Delete, any other
+// value is ignored by the notify runtime.
 //
 // TODO(rjeczalik): Unexported || Part of EventInfo?
 func Kind(e Event) Event {

@@ -6,8 +6,8 @@ import "errors"
 type Recursive struct {
 	Watcher
 
-	// Tree reads and writes to Dispatch.Tree.
-	Tree map[string]interface{}
+	// Runtime TODO
+	Runtime *Runtime
 }
 
 // RecursiveWatch TODO

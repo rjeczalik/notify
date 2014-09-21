@@ -20,7 +20,9 @@ func nonil(err ...error) error {
 func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 	done, c, fn := make(chan error), make(chan EventInfo, len(ei)), filepath.WalkFunc(nil)
 	walk, exec, cleanup := Tree.Create(t)
-	rw, ok := w.(RecursiveWatcher)
+	// TODO(rjeczalik): Uncomment it after Recursive.RecursiveWatch is implemented.
+	// rw, ok := w.(RecursiveWatcher)
+	rw, ok := (RecursiveWatcher)(nil), false
 	defer cleanup()
 	if ok {
 		var once sync.Once
@@ -68,8 +70,8 @@ func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 	}
 }
 
-func TestGlobalWatcher(t *testing.T) {
-	if global.Watcher == nil {
+func TestRuntimeWatcher(t *testing.T) {
+	if runtime.Watcher == nil {
 		t.Skip("no global watcher to test")
 	}
 	ei := []EventInfo{
@@ -96,10 +98,10 @@ func TestGlobalWatcher(t *testing.T) {
 		Ev("file", Create, false),
 		Ev("dir", Create, true),
 	}
-	test(t, global.Watcher, ei, time.Second)
+	test(t, runtime.Watcher, ei, time.Second)
 }
 
 func TestIssue16(t *testing.T) {
 	t.Skip("#16")
-	test(t, global.Watcher, []EventInfo{Ev("github.com", Delete, true)}, time.Second)
+	test(t, runtime.Watcher, []EventInfo{Ev("github.com", Delete, true)}, time.Second)
 }

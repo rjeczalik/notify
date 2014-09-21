@@ -2,6 +2,6 @@ package notify
 
 import "testing"
 
-func TestDispatch(t *testing.T) {
+func TestRuntime(t *testing.T) {
 	t.Skip("TODO(rjeczalik)")
 }

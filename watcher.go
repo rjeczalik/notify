@@ -13,24 +13,24 @@ package notify
 type Watcher interface {
 	// Watch requests a watcher creation for the given path and given event set.
 	//
-	// NOTE(rjeczalik): For now Dispatch will call Watch method in a thread-safe
+	// NOTE(rjeczalik): For now notify runtime will call Watch method in a thread-safe
 	// manner, so you may want to not bother with synchronization from the beginning,
-	// it may be added later, e.g. when Dispatch is going to be changed to some
+	// it may be added later, e.g. when notify runtime  is going to be changed to some
 	// producer-consumer model.
 	Watch(string, Event) error
 
 	// Unwatch requests a watcher deletion for the given path and given event set.
 	//
-	// NOTE(rjeczalik): For now Dispatch will call Unwatch method in a thread-safe
+	// NOTE(rjeczalik): For now notify runtime will call Unwatch method in a thread-safe
 	// manner, so you may want to not bother with synchronization from the beginning,
-	// it may be added later, e.g. when Dispatch is going to be changed to some
+	// it may be added later, e.g. when notify runtime is going to be changed to some
 	// 1:M producer-consumer model.
 	Unwatch(string) error
 
 	// Fanin requests to fan in all events from all the created watchers into ch.
 	// It is guaranteed the ch is non-nil. All unexpected events are ignored.
 	//
-	// The Fanin method is called once on package init by the Dispatch.
+	// The Fanin method is called once on package init by the notify runtime.
 	Fanin(ch chan<- EventInfo)
 }
 
@@ -48,7 +48,7 @@ type RecursiveWatcher interface {
 	// whole "/home/notify" for either file or directory create events.
 	//
 	// Implementations that do not support recursive watchers will get that feature
-	// emulated by Dispatch - it means that more Watch and Unwatch methods
+	// emulated by notify runtime - it means that more Watch and Unwatch methods
 	// are going to be called, e.g. for the following Watch:
 	//
 	//   notify.Watch("/home/notify", notify.Recursive, notify.Create)

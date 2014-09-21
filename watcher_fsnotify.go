@@ -2,7 +2,7 @@ package notify
 
 import (
 	"os"
-	"runtime"
+	goruntime "runtime"
 
 	old "gopkg.in/fsnotify.v1"
 )
@@ -14,8 +14,8 @@ func init() {
 	}
 	fs := &fsnotify{w: w}
 	// TODO(rjeczalik): Not really going to happen?
-	runtime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
-	global.Watcher = fs
+	goruntime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
+	runtime = NewRuntime(fs)
 }
 
 var m = map[old.Op]Event{
@@ -43,8 +43,8 @@ func newEvent(ev old.Event) EventInfo {
 		name: ev.Name,
 		ev:   m[ev.Op],
 	}
-	// TODO(rjeczalik): Temporary, to be improved. If it's delete event, Dispatch
-	// would know whether the subject was a file or directory.
+	// TODO(rjeczalik): Temporary, to be improved. If it's delete event, notify
+	// runtime would know whether the subject was a file or directory.
 	if e.ev&Delete == 0 {
 		if fi, err := os.Stat(ev.Name); err == nil {
 			e.isdir = fi.IsDir()
