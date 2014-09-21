@@ -3,7 +3,7 @@ package notify
 import "strings"
 
 // Event TODO
-type Event int
+type Event uint32
 
 // String implements fmt.Stringer interface.
 func (e Event) String() string {
