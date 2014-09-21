@@ -46,6 +46,7 @@ type watched struct {
 func init() {
 	handlers = newInotify()
 	runtime = NewRuntime(handlers)
+	go loop()
 }
 
 // NewInotify TODO
@@ -60,7 +61,6 @@ func newInotify() *handlersType {
 		c:  make(chan EventInfo),
 	}
 	rntm.SetFinalizer(h, func(h *handlersType) { syscall.Close(*h.fd) })
-	go loop()
 	return h
 }
 
