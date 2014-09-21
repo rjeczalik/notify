@@ -1,30 +1,16 @@
+// +build fsnotify
+
 package notify
 
 import (
 	"os"
-	goruntime "runtime"
+	rntm "runtime"
 
-	old "gopkg.in/fsnotify.v1"
+	fsnotifyv1 "gopkg.in/fsnotify.v1"
 )
 
 func init() {
-	w, err := old.NewWatcher()
-	if err != nil {
-		panic(err)
-	}
-	fs := &fsnotify{w: w}
-	// TODO(rjeczalik): Not really going to happen?
-	goruntime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
-	runtime = NewRuntime(fs)
-}
-
-var m = map[old.Op]Event{
-	old.Create: Create,
-	old.Remove: Delete,
-	old.Write:  Write,
-	old.Rename: Move,
-	// TODO(rjeczalik): Find out who cares about chmod.
-	// old.Chmod: Write,
+	runtime = NewRuntime(newFsnotify())
 }
 
 type event struct {
@@ -38,10 +24,10 @@ func (e event) IsDir() bool      { return e.isdir }
 func (e event) Name() string     { return e.name }
 func (e event) Sys() interface{} { return nil } // no-one cares about fsnotify.Event
 
-func newEvent(ev old.Event) EventInfo {
+func newEvent(ev fsnotifyv1.Event) EventInfo {
 	e := event{
 		name: ev.Name,
-		ev:   m[ev.Op],
+		ev:   Event(ev.Op),
 	}
 	// TODO(rjeczalik): Temporary, to be improved. If it's delete event, notify
 	// runtime would know whether the subject was a file or directory.
@@ -53,13 +39,21 @@ func newEvent(ev old.Event) EventInfo {
 	return e
 }
 
-// Fsnotify implements notify.Watcher interface by wrapping fsnotify.v1 package.
+// Fsnotify implements notify.Watcher interface by wrapping fsnotifyv1 package.
 type fsnotify struct {
-	w *old.Watcher
+	w *fsnotifyv1.Watcher
 }
 
-// IsRecursive implements notify.Watcher interface.
-func (fs fsnotify) IsRecursive() (nope bool) { return }
+// NewFsnotify creates new non-recursive watcher backed by fsnotifyv1 package.
+func newFsnotify() (fs *fsnotify) {
+	w, err := fsnotifyv1.NewWatcher()
+	if err != nil {
+		panic(err)
+	}
+	fs = &fsnotify{w: w}
+	rntm.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
+	return
+}
 
 // Watch implements notify.Watcher interface.
 func (fs fsnotify) Watch(p string, _ Event) error {
@@ -75,9 +69,6 @@ func (fs fsnotify) Unwatch(p string) error {
 func (fs fsnotify) Fanin(c chan<- EventInfo) {
 	go func() {
 		for e := range fs.w.Events {
-			if e.Op&old.Chmod != 0 {
-				continue // currently we don't care about chmod
-			}
 			c <- newEvent(e)
 		}
 	}()

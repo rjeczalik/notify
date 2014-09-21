@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!fsnotify
 
 package notify
 
@@ -9,10 +9,8 @@ var (
 	Delete = IN_DELETE
 	Write  = IN_MODIFY
 	Move   = IN_MOVE
+	All    = IN_ALL_EVENTS
 )
-
-// All TODO
-var All = IN_ALL_EVENTS
 
 // Events TODO
 const (
