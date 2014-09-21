@@ -10,7 +10,7 @@ var (
 	Delete = IN_DELETE
 	Write  = IN_MODIFY
 	Move   = IN_MOVE
-	All    = IN_ALL_EVENTS
+	All    = Create | Delete | Write | Move
 )
 
 // Inotify events.
