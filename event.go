@@ -5,6 +5,9 @@ import "strings"
 // Event TODO
 type Event uint32
 
+// All TODO
+const All = Create | Delete | Write | Move
+
 // String implements fmt.Stringer interface.
 func (e Event) String() string {
 	var s []string

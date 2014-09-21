@@ -4,13 +4,12 @@ package notify
 
 import "syscall"
 
-var (
+const (
 	// TODO(ppknap) : rework these flags.
 	Create = IN_CREATE
 	Delete = IN_DELETE
 	Write  = IN_MODIFY
 	Move   = IN_MOVE
-	All    = Create | Delete | Write | Move
 )
 
 // Inotify events.
@@ -33,10 +32,11 @@ const (
 )
 
 var estr = map[Event]string{
-	Create:           "notify.Create",
-	Delete:           "notify.Delete",
-	Write:            "notify.Wwrite",
-	Move:             "notify.Move",
+	// TODO(pknap) this is currently in progress.
+	//Create:           "notify.Create",
+	//Delete:           "notify.Delete",
+	//Write:            "notify.Wwrite",
+	//Move:             "notify.Move",
 	IN_ACCESS:        "notify.IN_ACCESS",
 	IN_MODIFY:        "notify.IN_MODIFY",
 	IN_ATTRIB:        "notify.IN_ATTRIB",

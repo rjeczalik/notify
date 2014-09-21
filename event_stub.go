@@ -2,12 +2,11 @@
 
 package notify
 
-var (
+const (
 	Create = EV_STUB_CREATE
 	Delete = EV_STUB_DELETE
 	Write  = EV_STUB_WRITE
 	Move   = EV_STUB_MOVE
-	All    = EV_STUB_ALL
 )
 
 // Events TODO
