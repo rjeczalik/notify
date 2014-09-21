@@ -27,3 +27,7 @@ var estr = map[Event]string{
 	Write:  "write",
 	Move:   "move",
 }
+
+var ekind = map[Event]Event{
+	Move: Create, // TODO(rjeczalik): Move (fsnotify.Rename) does not work, workaround?
+}

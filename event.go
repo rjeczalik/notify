@@ -19,7 +19,23 @@ func (e Event) String() string {
 // EventInfo TODO
 type EventInfo interface {
 	Event() Event     // TODO
-	IsDir() bool      // TODO
+	IsDir() bool      // TODO(rjeczalik): Move to WatchInfo?
 	Name() string     // TODO
 	Sys() interface{} // TODO
+}
+
+// Kind gives generic event type of the EventInfo.Event(). The purpose is to
+// hint the Dispatch whether the event created a file or directory or it deleted
+// one. The possible values of Kind are Create or Delete, any other value is
+// ignored by the Dispatch.
+//
+// TODO(rjeczalik): Unexported || Part of EventInfo?
+func Kind(e Event) Event {
+	switch e {
+	case Create, Delete:
+		return e
+	default:
+		ev, _ := ekind[e]
+		return ev
+	}
 }
