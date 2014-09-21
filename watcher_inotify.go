@@ -3,14 +3,16 @@
 package notify
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
-	//"path/filepath"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"unsafe"
 )
 
 // TODO(ppknap) : doc.
@@ -23,7 +25,7 @@ const maxEventSize = syscall.SizeofInotifyEvent + syscall.PathMax + 1
 //  }
 type handlersType struct {
 	sync.RWMutex
-	m      map[int]*watched
+	m      map[int32]*watched
 	fd     *int
 	buffer [64 * maxEventSize]byte
 	// TODO(ppknap) : I don't like this:<.
@@ -46,7 +48,7 @@ func init() {
 		panic(os.NewSyscallError("InotifyInit", err))
 	}
 
-	handlers.fd, handlers.m = &fd, make(map[int]*watched)
+	handlers.fd, handlers.m = &fd, make(map[int32]*watched)
 	runtime.SetFinalizer(handlers.fd, func(fd *int) {
 		syscall.Close(*fd)
 	})
@@ -63,22 +65,42 @@ func loop() {
 	}
 }
 
-// TODO(ppknap) : impl/doc.
+// TODO(ppknap) : doc.
 func process() {
-	var n int
-	var err error
-
-	n, err = syscall.Read(*handlers.fd, handlers.buffer[:])
-
-	fmt.Println("\n====================\n")
-	fmt.Println("NumberOfBytes:", n)
-	fmt.Println("Error:", err)
-	fmt.Println("\n====================\n")
-
-	if n != 0 {
-	} else {
-		fmt.Println("no data received")
+	n, err := syscall.Read(*handlers.fd, handlers.buffer[:])
+	switch {
+	//TODO(pknap) : improve error handling + doc.
+	case err != nil || n < 0:
+		fmt.Println(os.NewSyscallError("Read", err))
+	case n < syscall.SizeofInotifyEvent:
+		return
 	}
+
+	events := make([]*event, 0)
+	nmin := n - syscall.SizeofInotifyEvent
+
+	var sys *syscall.InotifyEvent
+	for pos, name := 0, ""; pos <= nmin; {
+		sys = (*syscall.InotifyEvent)(unsafe.Pointer(&handlers.buffer[pos]))
+		pos += syscall.SizeofInotifyEvent
+
+		if name = ""; sys.Len > 0 {
+			endpos := pos + int(sys.Len)
+			name = string(bytes.TrimRight(handlers.buffer[pos:endpos], "\x00"))
+			pos = endpos
+		}
+
+		if pos > n {
+			fmt.Println("TODO queue overflow")
+		}
+
+		events = append(events, &event{sys: syscall.InotifyEvent{
+			Wd:     sys.Wd,
+			Mask:   sys.Mask,
+			Cookie: sys.Cookie,
+		}, name: name})
+	}
+	send(events)
 }
 
 // TODO(ppknap) : doc.
@@ -89,13 +111,13 @@ func watch(path string, event Event) error {
 	}
 
 	handlers.RLock()
-	w := handlers.m[wd]
+	w := handlers.m[int32(wd)]
 	handlers.RUnlock()
 
 	if w == nil {
 		w = &watched{path: path, mask: uint32(event)}
 		handlers.Lock()
-		handlers.m[wd] = w
+		handlers.m[int32(wd)] = w
 		handlers.Unlock()
 	} else {
 		atomic.StoreUint32(&w.mask, uint32(event))
@@ -105,7 +127,7 @@ func watch(path string, event Event) error {
 
 // TODO(ppknap) : doc.
 func unwatch(path string) error {
-	wd := -1
+	wd := int32(-1)
 	handlers.RLock()
 	for wdkey, w := range handlers.m {
 		if w.path == path {
@@ -129,22 +151,48 @@ func unwatch(path string) error {
 	return nil
 }
 
-// TODO(ppknap) : Does I have to know about the implementation of this function?
+// TODO(ppknap) : doc
+func send(events []*event) {
+	handlers.RLock()
+	for i, event := range events {
+		if w, ok := handlers.m[event.sys.Wd]; ok {
+			if event.name == "" {
+				event.name = w.path
+			} else {
+				event.name = filepath.Join(w.path, event.name)
+			}
+		} else {
+			events[i] = nil
+		}
+	}
+	handlers.RUnlock()
+
+	for _, event := range events {
+		if event != nil {
+			sendevent(event)
+		}
+	}
+}
+
 func sendevent(ei EventInfo) {
 	handlers.c <- ei
 }
 
-// TODO(rjeczalik) : could this be platform independent?
+// TODO(ppknap) : doc.
 type event struct {
-	name  string
-	ev    Event
-	isdir bool // tribool - yes, no, can't tell?
+	sys  syscall.InotifyEvent
+	name string
 }
 
-func (e event) Event() Event     { return e.ev }
-func (e event) IsDir() bool      { return e.isdir }
-func (e event) Name() string     { return e.name }
-func (e event) Sys() interface{} { return nil } // no-one cares about fsnotify.Event
+func (e *event) Event() Event     { return maskevent(e.sys.Mask) }
+func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
+func (e *event) Name() string     { return e.name }
+func (e *event) Sys() interface{} { return e.sys } //
+
+// TODO(ppknap) : impl/doc.
+func maskevent(mask uint32) Event {
+	return Event(mask & syscall.IN_ALL_EVENTS)
+}
 
 // IsRecursive implements notify.Watcher interface.
 func (h *handlersType) IsRecursive() (nope bool) { return }

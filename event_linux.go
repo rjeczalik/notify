@@ -7,7 +7,7 @@ import "syscall"
 var (
 	// TODO(ppknap) : rework these flags.
 	Create = IN_CREATE
-	Delete = IN_DELETE_SELF | IN_DELETE
+	Delete = IN_DELETE
 	Write  = IN_MODIFY
 	Move   = IN_MOVE
 	All    = IN_ALL_EVENTS
