@@ -112,7 +112,10 @@ func process() {
 
 // TODO(ppknap) : doc.
 func watch(path string, event Event) error {
-	wd, err := syscall.InotifyAddWatch(*handlers.fd, path, uint32(event))
+	if event&invalid != 0 {
+		return errors.New("invalid event")
+	}
+	wd, err := syscall.InotifyAddWatch(*handlers.fd, path, eventmask(event))
 	if err != nil {
 		return os.NewSyscallError("InotifyAddWatch", err)
 	}
@@ -194,11 +197,29 @@ type event struct {
 func (e *event) Event() Event     { return maskevent(e.sys.Mask) }
 func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
 func (e *event) Name() string     { return e.name }
-func (e *event) Sys() interface{} { return e.sys } //
+func (e *event) Sys() interface{} { return e.sys }
 
-// TODO(ppknap) : impl/doc.
+// TODO(ppknap) : doc.
+func eventmask(e Event) uint32 {
+	if e&Create != 0 {
+		e = (e ^ Create) | IN_CREATE | IN_MOVED_TO
+	}
+	if e&Delete != 0 {
+		e = (e ^ Delete) | IN_DELETE | IN_DELETE_SELF
+	}
+	if e&Write != 0 {
+		e = (e ^ Write) | IN_MODIFY
+	}
+	if e&Move != 0 {
+		e = (e ^ Move) | IN_MOVED_FROM | IN_MOVE_SELF
+	}
+	return uint32(e)
+}
+
+// TODO(ppknap) : doc.
 func maskevent(mask uint32) Event {
-	return Event(mask & syscall.IN_ALL_EVENTS)
+
+	return Event(mask)
 }
 
 // Watch implements notify.Watcher interface.

@@ -5,11 +5,10 @@ package notify
 import "syscall"
 
 const (
-	// TODO(ppknap) : rework these flags.
-	Create = IN_CREATE
-	Delete = IN_DELETE
-	Write  = IN_MODIFY
-	Move   = IN_MOVE
+	Create Event = 0x100000 << iota
+	Delete
+	Write
+	Move
 )
 
 // Inotify events.
@@ -31,12 +30,22 @@ const (
 	IN_ALL_EVENTS    = Event(syscall.IN_ALL_EVENTS)
 )
 
+// Inotify behavior events.
+const (
+	//IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW) // TODO add support
+	//IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK) // TODO add support
+	IN_MASK_ADD = Event(syscall.IN_MASK_ADD)
+	//IN_ONESHOT     = Event(syscall.IN_ONESHOT)  // TODO add support
+	//IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)  // TODO add support
+)
+
+const invalid = ^(All | IN_ALL_EVENTS | IN_MASK_ADD)
+
 var estr = map[Event]string{
-	// TODO(pknap) this is currently in progress.
-	//Create:           "notify.Create",
-	//Delete:           "notify.Delete",
-	//Write:            "notify.Wwrite",
-	//Move:             "notify.Move",
+	Create:           "notify.Create",
+	Delete:           "notify.Delete",
+	Write:            "notify.Write",
+	Move:             "notify.Move",
 	IN_ACCESS:        "notify.IN_ACCESS",
 	IN_MODIFY:        "notify.IN_MODIFY",
 	IN_ATTRIB:        "notify.IN_ATTRIB",
@@ -51,6 +60,11 @@ var estr = map[Event]string{
 	IN_MOVE_SELF:     "notify.IN_MOVE_SELF",
 	IN_CLOSE:         "notify.IN_CLOSE",
 	IN_MOVE:          "notify.IN_MOVE",
+	// IN_DONT_FOLLOW:   "notify.IN_DONT_FOLLOW",
+	// IN_EXCL_UNLINK:   "notify.IN_EXCL_UNLINK",
+	IN_MASK_ADD: "notify.IN_MASK_ADD",
+	// IN_ONESHOT:       "notify.IN_ONESHOT",
+	// IN_ONLYDIR:       "notify.IN_ONLYDIR",
 }
 
 var ekind = map[Event]Event{
