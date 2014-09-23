@@ -32,14 +32,14 @@ const (
 
 // Inotify behavior events.
 const (
-	//IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW) // TODO add support
-	//IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK) // TODO add support
-	IN_MASK_ADD = Event(syscall.IN_MASK_ADD)
-	//IN_ONESHOT     = Event(syscall.IN_ONESHOT)  // TODO add support
-	//IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)  // TODO add support
+//IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW) // TODO add support
+//IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK) // TODO add support
+// IN_MASK_ADD = Event(syscall.IN_MASK_ADD) // TODO add support
+//IN_ONESHOT     = Event(syscall.IN_ONESHOT)  // TODO add support
+//IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)  // TODO add support
 )
 
-const invalid = ^(All | IN_ALL_EVENTS | IN_MASK_ADD)
+const invalid = ^(All | IN_ALL_EVENTS)
 
 var estr = map[Event]string{
 	Create:           "notify.Create",
@@ -60,11 +60,6 @@ var estr = map[Event]string{
 	IN_MOVE_SELF:     "notify.IN_MOVE_SELF",
 	IN_CLOSE:         "notify.IN_CLOSE",
 	IN_MOVE:          "notify.IN_MOVE",
-	// IN_DONT_FOLLOW:   "notify.IN_DONT_FOLLOW",
-	// IN_EXCL_UNLINK:   "notify.IN_EXCL_UNLINK",
-	IN_MASK_ADD: "notify.IN_MASK_ADD",
-	// IN_ONESHOT:       "notify.IN_ONESHOT",
-	// IN_ONLYDIR:       "notify.IN_ONLYDIR",
 }
 
 var ekind = map[Event]Event{

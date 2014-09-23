@@ -38,7 +38,7 @@ var handlers *handlersType
 
 // TODO(ppknap) : doc.
 type watched struct {
-	path string
+	name string
 	mask uint32
 }
 
@@ -105,17 +105,17 @@ func process() {
 			Wd:     sys.Wd,
 			Mask:   sys.Mask,
 			Cookie: sys.Cookie,
-		}, name: name})
+		}, impl: watched{name: name}})
 	}
 	send(events)
 }
 
 // TODO(ppknap) : doc.
-func watch(path string, event Event) error {
+func watch(name string, event Event) error {
 	if event&invalid != 0 {
 		return errors.New("invalid event")
 	}
-	wd, err := syscall.InotifyAddWatch(*handlers.fd, path, eventmask(event))
+	wd, err := syscall.InotifyAddWatch(*handlers.fd, name, makemask(event))
 	if err != nil {
 		return os.NewSyscallError("InotifyAddWatch", err)
 	}
@@ -125,7 +125,7 @@ func watch(path string, event Event) error {
 	handlers.RUnlock()
 
 	if w == nil {
-		w = &watched{path: path, mask: uint32(event)}
+		w = &watched{name: name, mask: uint32(event)}
 		handlers.Lock()
 		handlers.m[int32(wd)] = w
 		handlers.Unlock()
@@ -136,11 +136,11 @@ func watch(path string, event Event) error {
 }
 
 // TODO(ppknap) : doc.
-func unwatch(path string) error {
+func unwatch(name string) error {
 	wd := int32(-1)
 	handlers.RLock()
 	for wdkey, w := range handlers.m {
-		if w.path == path {
+		if w.name == name {
 			wd = wdkey
 			break
 		}
@@ -148,7 +148,7 @@ func unwatch(path string) error {
 	handlers.RUnlock()
 
 	if wd < 0 {
-		return errors.New("path " + path + " is unwatched")
+		return errors.New("file/directory " + name + " is unwatched")
 	}
 	// BUG(goauthors) : watch descriptor is of type `int`, not `uint32`
 	if _, err := syscall.InotifyRmWatch(*handlers.fd, uint32(wd)); err != nil {
@@ -166,10 +166,15 @@ func send(events []*event) {
 	handlers.RLock()
 	for i, event := range events {
 		if w, ok := handlers.m[event.sys.Wd]; ok {
-			if event.name == "" {
-				event.name = w.path
+			if event.impl.name == "" {
+				event.impl.name = w.name
 			} else {
-				event.name = filepath.Join(w.path, event.name)
+				event.impl.name = filepath.Join(w.name, event.impl.name)
+			}
+			if event.sys.Mask&makemask(Event(w.mask)) != 0 {
+				event.impl.mask = w.mask
+			} else {
+				events[i] = nil
 			}
 		} else {
 			events[i] = nil
@@ -191,16 +196,16 @@ func sendevent(ei EventInfo) {
 // TODO(ppknap) : doc.
 type event struct {
 	sys  syscall.InotifyEvent
-	name string
+	impl watched
 }
 
-func (e *event) Event() Event     { return maskevent(e.sys.Mask) }
+func (e *event) Event() Event     { return decodemask(e.impl.mask, e.sys.Mask) }
 func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
-func (e *event) Name() string     { return e.name }
+func (e *event) Name() string     { return e.impl.name }
 func (e *event) Sys() interface{} { return e.sys }
 
 // TODO(ppknap) : doc.
-func eventmask(e Event) uint32 {
+func makemask(e Event) uint32 {
 	if e&Create != 0 {
 		e = (e ^ Create) | IN_CREATE | IN_MOVED_TO
 	}
@@ -217,9 +222,21 @@ func eventmask(e Event) uint32 {
 }
 
 // TODO(ppknap) : doc.
-func maskevent(mask uint32) Event {
-
-	return Event(mask)
+func decodemask(mask, syse uint32) Event {
+	imask := makemask(Event(mask))
+	switch {
+	case mask&syse != 0:
+		return Event(syse)
+	case imask&makemask(Create)&syse != 0:
+		return Create
+	case imask&makemask(Delete)&syse != 0:
+		return Delete
+	case imask&makemask(Write)&syse != 0:
+		return Write
+	case imask&makemask(Move)&syse != 0:
+		return Move
+	}
+	panic("notify: cannot decode internal mask")
 }
 
 // Watch implements notify.Watcher interface.
