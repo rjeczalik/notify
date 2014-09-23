@@ -1,6 +1,10 @@
 package notify
 
-import "testing"
+import (
+	"sort"
+	"strings"
+	"testing"
+)
 
 func mock(m map[Event]string) func() {
 	old := estr
@@ -8,6 +12,13 @@ func mock(m map[Event]string) func() {
 	return func() {
 		estr = old
 	}
+}
+
+// S is a workaround for random event strings concatenation order.
+func s(s string) string {
+	z := strings.Split(s, "|")
+	sort.StringSlice(z).Sort()
+	return strings.Join(z, "|")
 }
 
 // This test is not safe to run in parallel with others.
@@ -26,7 +37,7 @@ func TestEventString(t *testing.T) {
 		0x07: "A|B|C",
 	}
 	for e, str := range cases {
-		if s := e.String(); s != str {
+		if s := s(e.String()); s != str {
 			t.Errorf("want s=%s; got %s (e=%#x)", str, s, e)
 		}
 	}
