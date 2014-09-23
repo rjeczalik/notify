@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	rntm "runtime"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -45,7 +45,7 @@ type watched struct {
 // TODO(ppknap) : doc.
 func init() {
 	handlers = newInotify()
-	runtime = NewRuntime(handlers)
+	notify = NewRuntime(handlers)
 	go loop()
 }
 
@@ -60,7 +60,7 @@ func newInotify() *handlersType {
 		fd: &fd,
 		c:  make(chan EventInfo),
 	}
-	rntm.SetFinalizer(h, func(h *handlersType) { syscall.Close(*h.fd) })
+	runtime.SetFinalizer(h, func(h *handlersType) { syscall.Close(*h.fd) })
 	return h
 }
 

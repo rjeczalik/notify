@@ -4,13 +4,13 @@ package notify
 
 import (
 	"os"
-	rntm "runtime"
+	"runtime"
 
 	fsnotifyv1 "gopkg.in/fsnotify.v1"
 )
 
 func init() {
-	runtime = NewRuntime(newFsnotify())
+	notify = NewRuntime(newFsnotify())
 }
 
 type event struct {
@@ -51,7 +51,7 @@ func newFsnotify() (fs *fsnotify) {
 		panic(err)
 	}
 	fs = &fsnotify{w: w}
-	rntm.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
+	runtime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
 	return
 }
 

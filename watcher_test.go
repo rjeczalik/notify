@@ -71,7 +71,7 @@ func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 }
 
 func TestRuntimeWatcher(t *testing.T) {
-	if runtime == nil || runtime.Watcher == nil {
+	if notify == nil || notify.Watcher == nil {
 		t.Skip("no global watcher to test")
 	}
 	ei := []EventInfo{
@@ -86,5 +86,5 @@ func TestRuntimeWatcher(t *testing.T) {
 		EI("file", Create, false),
 		EI("dir", Create, true),
 	}
-	test(t, runtime.Watcher, ei, time.Second)
+	test(t, notify.Watcher, ei, time.Second)
 }
