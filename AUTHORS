@@ -1,0 +1,10 @@
+# List of losers who decided to waste their life on developing this package.
+#
+# The up-to-date list of the authors one may obtain with:
+#
+#   ~ $ git shortlog -se | awk '{print $2 " " $3 " " $4}' | sort
+#
+
+Pawel Blaszczyk <blaszczykpb@gmail.com> # not yet committed anything, but has best intentions
+Pawel Knap <pawelknap88@gmail.com>
+Rafal Jeczalik <rjeczalik@gmail.com>
