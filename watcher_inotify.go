@@ -79,6 +79,7 @@ func process() {
 	case err != nil || n < 0:
 		// TODO(rjeczalik): Panic, error?
 		fmt.Println(os.NewSyscallError("Read", err))
+		return
 	case n < syscall.SizeofInotifyEvent:
 		return
 	}
@@ -97,10 +98,6 @@ func process() {
 			pos = endpos
 		}
 
-		if pos > n {
-			fmt.Println("TODO queue overflow")
-		}
-
 		events = append(events, &event{sys: syscall.InotifyEvent{
 			Wd:     sys.Wd,
 			Mask:   sys.Mask,
@@ -112,6 +109,9 @@ func process() {
 
 // TODO(ppknap) : doc.
 func watch(name string, event Event) error {
+	// TODO(ppknap) : doc. (ignore add mask)
+	event &= ^IN_MASK_ADD
+
 	if event&invalid != 0 {
 		return errors.New("invalid event")
 	}
@@ -165,6 +165,9 @@ func unwatch(name string) error {
 func send(events []*event) {
 	handlers.RLock()
 	for i, event := range events {
+		if event.sys.Mask&syscall.IN_IGNORED != 0 {
+			continue
+		}
 		if w, ok := handlers.m[event.sys.Wd]; ok {
 			if event.impl.name == "" {
 				event.impl.name = w.name

@@ -32,11 +32,11 @@ const (
 
 // Inotify behavior events.
 const (
-//IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW) // TODO add support
-//IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK) // TODO add support
-// IN_MASK_ADD = Event(syscall.IN_MASK_ADD) // TODO add support
-//IN_ONESHOT     = Event(syscall.IN_ONESHOT)  // TODO add support
-//IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)  // TODO add support
+	//IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW) // TODO add support
+	//IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK) // TODO add support
+	IN_MASK_ADD = Event(syscall.IN_MASK_ADD)
+	//IN_ONESHOT     = Event(syscall.IN_ONESHOT)  // TODO add support
+	//IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)  // TODO add support
 )
 
 const invalid = ^(All | IN_ALL_EVENTS)
