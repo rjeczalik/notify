@@ -19,7 +19,7 @@ func nonil(err ...error) error {
 
 func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 	done, c, fn := make(chan error), make(chan EventInfo, len(ei)), filepath.WalkFunc(nil)
-	walk, exec, cleanup := Tree.Create(t)
+	walk, exec, cleanup := fixture.New(t)
 	// TODO(rjeczalik): Uncomment it after Recursive.RecursiveWatch is implemented.
 	// rw, ok := w.(RecursiveWatcher)
 	rw, ok := (RecursiveWatcher)(nil), false
@@ -75,16 +75,16 @@ func TestRuntimeWatcher(t *testing.T) {
 		t.Skip("no global watcher to test")
 	}
 	ei := []EventInfo{
-		EI("github.com/rjeczalik/fs/fs_test.go", Create, false),
-		EI("github.com/rjeczalik/fs/binfs", Create, true),
-		EI("github.com/rjeczalik/fs/binfs.go", Create, false),
-		EI("github.com/rjeczalik/fs/binfs_test.go", Create, false),
-		EI("github.com/rjeczalik/fs/binfs", Delete, true),
-		EI("github.com/rjeczalik/fs/binfs", Create, true),
-		EI("github.com/rjeczalik/fs/virfs", Create, false),
-		EI("github.com/rjeczalik/fs/virfs", Delete, false),
-		EI("file", Create, false),
-		EI("dir", Create, true),
+		EI("github.com/rjeczalik/fs/fs_test.go", Create),
+		EI("github.com/rjeczalik/fs/binfs/", Create),
+		EI("github.com/rjeczalik/fs/binfs.go", Create),
+		EI("github.com/rjeczalik/fs/binfs_test.go", Create),
+		EI("github.com/rjeczalik/fs/binfs/", Delete),
+		EI("github.com/rjeczalik/fs/binfs/", Create),
+		EI("github.com/rjeczalik/fs/virfs", Create),
+		EI("github.com/rjeczalik/fs/virfs", Delete),
+		EI("file", Create),
+		EI("dir/", Create),
 	}
 	test(t, notify.Watcher, ei, time.Second)
 }
