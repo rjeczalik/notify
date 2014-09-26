@@ -2,9 +2,10 @@
 #
 # The up-to-date list of the authors one may obtain with:
 #
-#   ~ $ git shortlog -se | awk '{print $2 " " $3 " " $4}' | sort
+#   ~ $ git shortlog -es | cut -f2
 #
 
-Pawel Blaszczyk <blaszczykpb@gmail.com> # not yet committed anything, but has best intentions
-Pawel Knap <pawelknap88@gmail.com>
-Rafal Jeczalik <rjeczalik@gmail.com>
+Jacek Szwec     <szwec.jacek@gmail.com>
+Pawel Blaszczyk <blaszczykpb@gmail.com>
+Pawel Knap      <pawelknap88@gmail.com>
+Rafal Jeczalik  <rjeczalik@gmail.com>
