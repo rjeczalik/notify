@@ -195,7 +195,7 @@ func (f Fixture) New(t *testing.T) (walk func(filepath.WalkFunc) error,
 	}
 	dir, err := ioutil.TempDir("", "notify")
 	assert(err)
-	if n := fsutil.Copy(memfs.FS(tree), fsutil.Rel(fs.Default, dir)); n != ntree {
+	if n := fsutil.Copy(tree, fsutil.Rel(fs.Default, dir)); n != ntree {
 		t.Fatalf("unexpected fixture mktree failure: want n=%d; got %d", ntree, n)
 	}
 	walk = func(fn filepath.WalkFunc) error {
