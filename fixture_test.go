@@ -161,6 +161,7 @@ var fixture = Fixture{
 		}
 		fi, err := f.Stat()
 		if err != nil {
+			f.Close()
 			return err
 		}
 		if fi.IsDir() {
@@ -168,6 +169,7 @@ var fixture = Fixture{
 		}
 		_, err = f.WriteString(p)
 		if err != nil {
+			f.Close()
 			return err
 		}
 		return f.Close()

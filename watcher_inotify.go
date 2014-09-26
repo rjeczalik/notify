@@ -166,6 +166,7 @@ func send(events []*event) {
 	handlers.RLock()
 	for i, event := range events {
 		if event.sys.Mask&syscall.IN_IGNORED != 0 {
+			events[i] = nil
 			continue
 		}
 		if w, ok := handlers.m[event.sys.Wd]; ok {
