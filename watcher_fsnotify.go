@@ -9,10 +9,6 @@ import (
 	fsnotifyv1 "gopkg.in/fsnotify.v1"
 )
 
-func init() {
-	notifier = NewRuntime(newFsnotify())
-}
-
 type event struct {
 	name  string
 	ev    Event
@@ -44,15 +40,15 @@ type fsnotify struct {
 	w *fsnotifyv1.Watcher
 }
 
-// NewFsnotify creates new non-recursive watcher backed by fsnotifyv1 package.
-func newFsnotify() (fs *fsnotify) {
+// NewWatcher creates new non-recursive watcher backed by fsnotifyv1 package.
+func newWatcher() Watcher {
 	w, err := fsnotifyv1.NewWatcher()
 	if err != nil {
 		panic(err)
 	}
-	fs = &fsnotify{w: w}
+	fs := &fsnotify{w: w}
 	runtime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
-	return
+	return fs
 }
 
 // Watch implements notify.Watcher interface.

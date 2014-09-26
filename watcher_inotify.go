@@ -45,7 +45,6 @@ type watched struct {
 // TODO(ppknap) : doc.
 func init() {
 	handlers = newInotify()
-	notifier = NewRuntime(handlers)
 	go loop()
 }
 
@@ -62,6 +61,11 @@ func newInotify() *handlersType {
 	}
 	runtime.SetFinalizer(h, func(h *handlersType) { syscall.Close(*h.fd) })
 	return h
+}
+
+// NewWatcher creates new non-recursive watcher backed by inotify.
+func newWatcher() Watcher {
+	return handlers
 }
 
 // TODO(ppknap) : doc.

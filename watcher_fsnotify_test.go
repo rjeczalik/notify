@@ -32,7 +32,7 @@ func TestFsnotify(t *testing.T) {
 		EI("file", Create),
 		EI("dir/", Create),
 	}
-	test(t, newFsnotify(), All, ei, time.Second)
+	test(t, newWatcher(), All, ei, time.Second)
 }
 
 func TestIssue16(t *testing.T) {

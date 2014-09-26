@@ -19,7 +19,8 @@ type Runtime struct {
 }
 
 // NewRuntime TODO
-func NewRuntime(w Watcher) *Runtime {
+func NewRuntime() *Runtime {
+	w, ch := NewWatcher(), make(chan EventInfo)
 	r := &Runtime{
 		Tree: make(map[string]interface{}),
 	}
@@ -32,6 +33,9 @@ func NewRuntime(w Watcher) *Runtime {
 			Runtime: r,
 		}
 	}
+	// TODO(rjeczalik): Uncomment after #5.
+	// r.Watcher.Fanin(ch)
+	go r.loop()
 	return r
 }
 

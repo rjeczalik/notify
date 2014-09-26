@@ -1,5 +1,11 @@
 package notify
 
+// NewWatcher TODO
+func NewWatcher() Watcher {
+	// newWatcher is implemented per supported platform
+	return newWatcher()
+}
+
 // Watcher is a temporary interface for wrapping inotify, ReadDirChangesW,
 // FSEvents, kqueue, poller and fsnotify implementations.
 //
