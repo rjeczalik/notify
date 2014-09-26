@@ -45,7 +45,7 @@ type watched struct {
 // TODO(ppknap) : doc.
 func init() {
 	handlers = newInotify()
-	notify = NewRuntime(handlers)
+	notifier = NewRuntime(handlers)
 	go loop()
 }
 

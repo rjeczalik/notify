@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	notify = NewRuntime(newFsnotify())
+	notifier = NewRuntime(newFsnotify())
 }
 
 type event struct {
