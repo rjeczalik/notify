@@ -17,47 +17,68 @@ func nonil(err ...error) error {
 	return nil
 }
 
-func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) {
-	done, c, fn := make(chan error), make(chan EventInfo, len(ei)), filepath.WalkFunc(nil)
-	walk, exec, cleanup := fixture.New(t)
-	// TODO(rjeczalik): Uncomment it after Recursive.RecursiveWatch is implemented.
-	// rw, ok := w.(RecursiveWatcher)
-	rw, ok, paths, stop := (RecursiveWatcher)(nil), false, []string{}, make(chan struct{})
-	defer func() {
-		for _, p := range paths {
-			w.Unwatch(p)
-		}
-		close(stop)
-		cleanup()
-	}()
-	if ok {
+// TODO(rjeczalik): merge watch and unwatch in one func
+
+func watch(w Watcher, e Event) filepath.WalkFunc {
+	if rw, ok := w.(RecursiveWatcher); ok {
 		var once sync.Once
-		fn = func(p string, fi os.FileInfo, err error) error {
+		return func(p string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			once.Do(func() {
-				if err = rw.RecursiveWatch(p, mask); err == nil {
-					paths = append(paths, p)
-				}
+				err = rw.RecursiveWatch(p, e)
 			})
 			return nonil(err, filepath.SkipDir)
 		}
-	} else {
-		fn = func(p string, fi os.FileInfo, err error) error {
+	}
+	return func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			err = w.Watch(p, e)
+		}
+		return err
+	}
+}
+
+func unwatch(w Watcher) filepath.WalkFunc {
+	if rw, ok := w.(RecursiveWatcher); ok {
+		var once sync.Once
+		return func(p string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			if fi.IsDir() {
-				if err = w.Watch(p, mask); err == nil {
-					paths = append(paths, p)
-				}
-			}
-			return err
+			once.Do(func() {
+				err = rw.Unwatch(p)
+			})
+			return nonil(err, filepath.SkipDir)
 		}
 	}
+	return func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			err = w.Unwatch(p)
+		}
+		return err
+	}
+}
+
+func test(t *testing.T, w Watcher, e Event, ei []EventInfo, d time.Duration) {
+	done, c, stop := make(chan error), make(chan EventInfo, len(ei)), make(chan struct{})
+	walk, exec, cleanup := fixture.New(t)
+	defer func() {
+		if err := walk(unwatch(w)); err != nil {
+			t.Fatal(err)
+		}
+		close(stop)
+		cleanup()
+	}()
 	w.Fanin(c, stop)
-	if err := walk(fn); err != nil {
+	if err := walk(watch(w, e)); err != nil {
 		t.Fatal(err)
 	}
 	go func() {
