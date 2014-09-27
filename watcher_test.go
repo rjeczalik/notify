@@ -36,8 +36,9 @@ func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) 
 				return err
 			}
 			once.Do(func() {
-				err = rw.RecursiveWatch(p, mask)
-				paths = append(paths, p)
+				if err = rw.RecursiveWatch(p, mask); err == nil {
+					paths = append(paths, p)
+				}
 			})
 			return nonil(err, filepath.SkipDir)
 		}
@@ -47,8 +48,9 @@ func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) 
 				return err
 			}
 			if fi.IsDir() {
-				err = w.Watch(p, mask)
-				paths = append(paths, p)
+				if err = w.Watch(p, mask); err == nil {
+					paths = append(paths, p)
+				}
 			}
 			return err
 		}
