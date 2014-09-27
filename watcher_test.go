@@ -51,7 +51,7 @@ func unwatch(w Watcher) filepath.WalkFunc {
 				return err
 			}
 			once.Do(func() {
-				err = rw.Unwatch(p)
+				err = rw.Unwatch(p, All)
 			})
 			return nonil(err, filepath.SkipDir)
 		}
@@ -61,7 +61,7 @@ func unwatch(w Watcher) filepath.WalkFunc {
 			return err
 		}
 		if fi.IsDir() {
-			err = w.Unwatch(p)
+			err = w.Unwatch(p, All)
 		}
 		return err
 	}

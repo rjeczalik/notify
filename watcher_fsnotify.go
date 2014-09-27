@@ -57,7 +57,7 @@ func (fs fsnotify) Watch(p string, _ Event) error {
 }
 
 // Unwatch implements notify.Watcher interface.
-func (fs fsnotify) Unwatch(p string) error {
+func (fs fsnotify) Unwatch(p string, _ Event) error {
 	return fs.w.Remove(p)
 }
 
