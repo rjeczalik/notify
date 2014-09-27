@@ -31,7 +31,7 @@ type Watcher interface {
 	// manner, so you may want to not bother with synchronization from the beginning,
 	// it may be added later, e.g. when notify runtime is going to be changed to some
 	// 1:M producer-consumer model.
-	Unwatch(string) error
+	Unwatch(string, Event) error
 
 	// Fanin requests to fan in all events from all the created watchers into c.
 	// It is guaranteed the c is non-nil. All unexpected events are ignored.

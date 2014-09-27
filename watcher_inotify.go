@@ -253,7 +253,7 @@ func (h *handlersType) Watch(p string, e Event) error {
 }
 
 // Unwatch implements notify.Watcher interface.
-func (h *handlersType) Unwatch(p string) error {
+func (h *handlersType) Unwatch(p string, _ Event) error {
 	return inotifyunwatch(p)
 }
 
