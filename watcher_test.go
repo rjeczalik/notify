@@ -17,13 +17,18 @@ func nonil(err ...error) error {
 	return nil
 }
 
-func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
+func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) {
 	done, c, fn := make(chan error), make(chan EventInfo, len(ei)), filepath.WalkFunc(nil)
 	walk, exec, cleanup := fixture.New(t)
 	// TODO(rjeczalik): Uncomment it after Recursive.RecursiveWatch is implemented.
 	// rw, ok := w.(RecursiveWatcher)
-	rw, ok := (RecursiveWatcher)(nil), false
-	defer cleanup()
+	rw, ok, paths := (RecursiveWatcher)(nil), false, []string{}
+	defer func() {
+		for _, p := range paths {
+			w.Unwatch(p)
+		}
+		cleanup()
+	}()
 	if ok {
 		var once sync.Once
 		fn = func(p string, fi os.FileInfo, err error) error {
@@ -31,7 +36,9 @@ func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 				return err
 			}
 			once.Do(func() {
-				err = rw.RecursiveWatch(p, All)
+				if err = rw.RecursiveWatch(p, mask); err == nil {
+					paths = append(paths, p)
+				}
 			})
 			return nonil(err, filepath.SkipDir)
 		}
@@ -41,7 +48,9 @@ func test(t *testing.T, w Watcher, ei []EventInfo, d time.Duration) {
 				return err
 			}
 			if fi.IsDir() {
-				err = w.Watch(p, All)
+				if err = w.Watch(p, mask); err == nil {
+					paths = append(paths, p)
+				}
 			}
 			return err
 		}
@@ -86,5 +95,5 @@ func TestRuntimeWatcher(t *testing.T) {
 		EI("file", Create),
 		EI("dir/", Create),
 	}
-	test(t, notifier.Watcher, ei, time.Second)
+	test(t, notifier.Watcher, All, ei, time.Second)
 }
