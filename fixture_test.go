@@ -201,7 +201,7 @@ func (f Fixture) New(t *testing.T) (walk func(filepath.WalkFunc) error,
 		t.Fatalf("unexpected fixture mktree failure: want n=%d; got %d", ntree, n)
 	}
 	walk = func(fn filepath.WalkFunc) error {
-		return filepath.Walk(dir, fn)
+		return fsutil.Rel(tree, dir).Walk(sep, fn)
 	}
 	exec = func(ei EventInfo) {
 		fn, ok := f[ei.Event()]

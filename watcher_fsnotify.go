@@ -9,10 +9,6 @@ import (
 	fsnotifyv1 "gopkg.in/fsnotify.v1"
 )
 
-func init() {
-	notifier = NewRuntime(newFsnotify())
-}
-
 type event struct {
 	name  string
 	ev    Event
@@ -44,15 +40,15 @@ type fsnotify struct {
 	w *fsnotifyv1.Watcher
 }
 
-// NewFsnotify creates new non-recursive watcher backed by fsnotifyv1 package.
-func newFsnotify() (fs *fsnotify) {
+// NewWatcher creates new non-recursive watcher backed by fsnotifyv1 package.
+func newWatcher() Watcher {
 	w, err := fsnotifyv1.NewWatcher()
 	if err != nil {
 		panic(err)
 	}
-	fs = &fsnotify{w: w}
-	runtime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
-	return
+	fs := &fsnotify{w: w}
+	runtime.SetFinalizer(fs, (*fsnotify).stop)
+	return fs
 }
 
 // Watch implements notify.Watcher interface.
@@ -66,10 +62,23 @@ func (fs fsnotify) Unwatch(p string) error {
 }
 
 // Fanin implements notify.Watcher interface.
-func (fs fsnotify) Fanin(c chan<- EventInfo) {
+func (fs fsnotify) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
 	go func() {
-		for e := range fs.w.Events {
-			c <- newEvent(e)
+		for {
+			select {
+			case e := <-fs.w.Events:
+				c <- newEvent(e)
+			case <-stop:
+				fs.stop()
+				return
+			}
 		}
 	}()
+}
+
+func (fs *fsnotify) stop() {
+	if fs.w != nil {
+		fs.w.Close()
+		fs.w = nil
+	}
 }
