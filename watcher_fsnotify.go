@@ -47,7 +47,7 @@ func newWatcher() Watcher {
 		panic(err)
 	}
 	fs := &fsnotify{w: w}
-	runtime.SetFinalizer(fs, func(fs *fsnotify) { fs.w.Close() })
+	runtime.SetFinalizer(fs, (*fsnotify).stop)
 	return fs
 }
 
@@ -62,10 +62,23 @@ func (fs fsnotify) Unwatch(p string) error {
 }
 
 // Fanin implements notify.Watcher interface.
-func (fs fsnotify) Fanin(c chan<- EventInfo) {
+func (fs fsnotify) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
 	go func() {
-		for e := range fs.w.Events {
-			c <- newEvent(e)
+		for {
+			select {
+			case e := <-fs.w.Events:
+				c <- newEvent(e)
+			case <-stop:
+				fs.stop()
+				return
+			}
 		}
 	}()
+}
+
+func (fs *fsnotify) stop() {
+	if fs.w != nil {
+		fs.w.Close()
+		fs.w = nil
+	}
 }

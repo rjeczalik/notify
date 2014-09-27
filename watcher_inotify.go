@@ -258,10 +258,18 @@ func (h *handlersType) Unwatch(p string) error {
 }
 
 // Fanin implements notify.Watcher interface.
-func (h *handlersType) Fanin(c chan<- EventInfo) {
+func (h *handlersType) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
 	go func() {
-		for e := range h.c {
-			c <- e
+		for {
+			select {
+			case ei := <-h.c:
+				c <- ei
+			case <-stop:
+				// TODO(pknap): Cleanup inotify if needed, so it's possible to
+				// initialise it again by newWatcher. All the watches must
+				// be removed from outside this point.
+				return
+			}
 		}
 	}()
 }

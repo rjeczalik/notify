@@ -37,5 +37,5 @@ func TestFsnotify(t *testing.T) {
 
 func TestIssue16(t *testing.T) {
 	t.Skip("TODO(#16)")
-	test(t, notifier.Watcher, All, []EventInfo{EI("github.com/", Delete)}, time.Second)
+	test(t, newWatcher(), All, []EventInfo{EI("github.com/", Delete)}, time.Second)
 }

@@ -33,11 +33,14 @@ type Watcher interface {
 	// 1:M producer-consumer model.
 	Unwatch(string) error
 
-	// Fanin requests to fan in all events from all the created watchers into ch.
-	// It is guaranteed the ch is non-nil. All unexpected events are ignored.
+	// Fanin requests to fan in all events from all the created watchers into c.
+	// It is guaranteed the c is non-nil. All unexpected events are ignored.
 	//
 	// The Fanin method is called once on package init by the notify runtime.
-	Fanin(ch chan<- EventInfo)
+	//
+	// The stop channel is closed when the notify runtime is stopped and is no
+	// longer receiving events sent to c.
+	Fanin(c chan<- EventInfo, stop <-chan struct{})
 }
 
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support

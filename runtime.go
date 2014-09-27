@@ -7,6 +7,14 @@ import (
 	"strings"
 )
 
+func isdir(p string) (bool, error) {
+	fi, err := os.Stat(p)
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
+}
+
 // Runtime TODO
 type Runtime struct {
 	// Watcher implements the OS filesystem event notification.
@@ -16,13 +24,17 @@ type Runtime struct {
 	Tree map[string]interface{}
 
 	native bool // whether RecursiveWatch is native or emulated
+	c      <-chan EventInfo
+	stop   chan struct{}
 }
 
 // NewRuntime TODO
 func NewRuntime() *Runtime {
-	w, ch := NewWatcher(), make(chan EventInfo)
+	w, c := NewWatcher(), make(chan EventInfo)
 	r := &Runtime{
 		Tree: make(map[string]interface{}),
+		stop: make(chan struct{}),
+		c:    c,
 	}
 	rw, ok := w.(RecursiveWatcher)
 	if ok {
@@ -33,28 +45,9 @@ func NewRuntime() *Runtime {
 			Runtime: r,
 		}
 	}
-	// TODO(rjeczalik): Uncomment after #5.
-	// r.Watcher.Fanin(ch)
+	r.Watcher.Fanin(c, r.stop)
 	go r.loop()
 	return r
-}
-
-func (r Runtime) watchFile(s string, dir map[string]interface{},
-	ch chan<- EventInfo, e Event) (err error) {
-	return errors.New("TODO")
-}
-
-func (r Runtime) watchDir(s string, dir map[string]interface{},
-	ch chan<- EventInfo, e Event) (err error) {
-	return errors.New("TODO")
-}
-
-func isdir(p string) (bool, error) {
-	fi, err := os.Stat(p)
-	if err != nil {
-		return false, err
-	}
-	return fi.IsDir(), nil
 }
 
 // Watch TODO
@@ -107,4 +100,36 @@ func (r Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err error
 // Stop TODO
 func (r Runtime) Stop(c chan<- EventInfo) {
 	panic("TODO(rjeczalik)")
+}
+
+// Close stops the runtime, resulting it does not send any more notifications.
+// For test purposes.
+//
+// TODO(rjeczalik): Close all channels if we decide to close them on error.
+// The Go stdlib does not close user channels, maybe because it does not handle
+// errors via channels.
+func (r *Runtime) Close() (err error) {
+	close(r.stop)
+	return
+}
+
+func (r *Runtime) loop() {
+	for {
+		select {
+		case ei := <-r.c:
+			println("TODO: handle event", ei)
+		case <-r.stop:
+			return
+		}
+	}
+}
+
+func (r Runtime) watchFile(s string, dir map[string]interface{},
+	ch chan<- EventInfo, e Event) (err error) {
+	return errors.New("TODO")
+}
+
+func (r Runtime) watchDir(s string, dir map[string]interface{},
+	ch chan<- EventInfo, e Event) (err error) {
+	return errors.New("TODO")
 }

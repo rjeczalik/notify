@@ -1,6 +1,6 @@
 package notify
 
-var r = NewRuntime()
+var r *Runtime
 
 // Watch TODO
 func Watch(name string, c chan<- EventInfo, events ...Event) {

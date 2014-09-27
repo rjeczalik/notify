@@ -22,11 +22,12 @@ func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) 
 	walk, exec, cleanup := fixture.New(t)
 	// TODO(rjeczalik): Uncomment it after Recursive.RecursiveWatch is implemented.
 	// rw, ok := w.(RecursiveWatcher)
-	rw, ok, paths := (RecursiveWatcher)(nil), false, []string{}
+	rw, ok, paths, stop := (RecursiveWatcher)(nil), false, []string{}, make(chan struct{})
 	defer func() {
 		for _, p := range paths {
 			w.Unwatch(p)
 		}
+		close(stop)
 		cleanup()
 	}()
 	if ok {
@@ -55,7 +56,7 @@ func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) 
 			return err
 		}
 	}
-	w.Fanin(c)
+	w.Fanin(c, stop)
 	if err := walk(fn); err != nil {
 		t.Fatal(err)
 	}
@@ -79,10 +80,7 @@ func test(t *testing.T, w Watcher, mask Event, ei []EventInfo, d time.Duration) 
 	}
 }
 
-func TestRuntimeWatcher(t *testing.T) {
-	if notifier == nil || notifier.Watcher == nil {
-		t.Skip("no global watcher to test")
-	}
+func TestWatcher(t *testing.T) {
 	ei := []EventInfo{
 		EI("github.com/rjeczalik/fs/fs_test.go", Create),
 		EI("github.com/rjeczalik/fs/binfs/", Create),
@@ -95,5 +93,5 @@ func TestRuntimeWatcher(t *testing.T) {
 		EI("file", Create),
 		EI("dir/", Create),
 	}
-	test(t, notifier.Watcher, All, ei, time.Second)
+	test(t, newWatcher(), All, ei, time.Second)
 }
