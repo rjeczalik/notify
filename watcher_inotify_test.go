@@ -2,7 +2,10 @@
 
 package notify
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestEventMaskEvent(t *testing.T) {
 	tests := []struct {
@@ -87,4 +90,28 @@ func TestEventMaskEvent(t *testing.T) {
 			t.Errorf("want event=%v, got %v (test: %d)", test.received, e, i)
 		}
 	}
+}
+
+func TestInotify(t *testing.T) {
+	ei := []EventInfo{
+		EI("github.com/rjeczalik/fs/fs_test.go", IN_ACCESS),
+		// EI("github.com/rjeczalik/fs/binfs/", IN_MODIFY),
+		// EI("github.com/rjeczalik/fs/binfs.go", IN_ATTRIB),
+		// EI("github.com/rjeczalik/fs/binfs_test.go", IN_CLOSE_WRITE),
+		// EI("github.com/rjeczalik/fs/binfs/", IN_CLOSE_NOWRITE),
+		// EI("github.com/rjeczalik/fs/binfs/", IN_OPEN),
+		// EI("github.com/rjeczalik/fs/fs_test.go", IN_MOVED_FROM),
+		// EI("github.com/rjeczalik/fs/binfs/", IN_MOVED_TO),
+		// EI("github.com/rjeczalik/fs/binfs.go", IN_CREATE),
+		// EI("github.com/rjeczalik/fs/binfs_test.go", IN_DELETE),
+		// EI("github.com/rjeczalik/fs/binfs/", IN_DELETE_SELF),
+		// EI("github.com/rjeczalik/fs/binfs/", IN_MOVE_SELF),
+		// EI("github.com/rjeczalik/fs/fs_test.go", IN_ACCESS),
+		// EI("github.com/rjeczalik/fs/binfs/", Create),
+		// EI("github.com/rjeczalik/fs/binfs.go", Create),
+		// EI("github.com/rjeczalik/fs/binfs_test.go", Create),
+		// EI("github.com/rjeczalik/fs/binfs/", Delete),
+		// EI("github.com/rjeczalik/fs/binfs/", Create),
+	}
+	test(t, notifier.Watcher, IN_ALL_EVENTS, ei, time.Second)
 }

@@ -169,7 +169,7 @@ func unwatch(name string) error {
 func send(events []*event) {
 	handlers.RLock()
 	for i, event := range events {
-		if event.sys.Mask&syscall.IN_IGNORED != 0 {
+		if event.sys.Mask&(syscall.IN_IGNORED|syscall.IN_Q_OVERFLOW) != 0 {
 			events[i] = nil
 			continue
 		}
