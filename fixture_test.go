@@ -155,7 +155,7 @@ var fixture = Fixture{
 		return os.RemoveAll(p)
 	},
 	Write: func(p string) error {
-		f, err := os.Open(p)
+		f, err := os.OpenFile(p, os.O_RDWR, 0755)
 		if err != nil {
 			return err
 		}

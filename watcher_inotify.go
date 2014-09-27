@@ -112,7 +112,7 @@ func process() {
 }
 
 // TODO(ppknap) : doc.
-func watch(name string, event Event) error {
+func inotifywatch(name string, event Event) error {
 	// TODO(ppknap) : doc. (ignore add mask)
 	event &= ^IN_MASK_ADD
 
@@ -140,7 +140,7 @@ func watch(name string, event Event) error {
 }
 
 // TODO(ppknap) : doc.
-func unwatch(name string) error {
+func inotifyunwatch(name string) error {
 	wd := int32(-1)
 	handlers.RLock()
 	for wdkey, w := range handlers.m {
@@ -249,12 +249,12 @@ func decodemask(mask, syse uint32) Event {
 
 // Watch implements notify.Watcher interface.
 func (h *handlersType) Watch(p string, e Event) error {
-	return watch(p, e)
+	return inotifywatch(p, e)
 }
 
 // Unwatch implements notify.Watcher interface.
 func (h *handlersType) Unwatch(p string) error {
-	return unwatch(p)
+	return inotifyunwatch(p)
 }
 
 // Fanin implements notify.Watcher interface.
