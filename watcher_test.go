@@ -1,71 +1,9 @@
 package notify
 
 import (
-	"os"
-	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 )
-
-func nonil(err ...error) error {
-	for _, err := range err {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// TODO(rjeczalik): merge watch and unwatch in one func
-
-func watch(w Watcher, e Event) filepath.WalkFunc {
-	if rw, ok := w.(RecursiveWatcher); ok {
-		var once sync.Once
-		return func(p string, fi os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			once.Do(func() {
-				err = rw.RecursiveWatch(p, e)
-			})
-			return nonil(err, filepath.SkipDir)
-		}
-	}
-	return func(p string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if fi.IsDir() {
-			err = w.Watch(p, e)
-		}
-		return err
-	}
-}
-
-func unwatch(w Watcher) filepath.WalkFunc {
-	if rw, ok := w.(RecursiveWatcher); ok {
-		var once sync.Once
-		return func(p string, fi os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			once.Do(func() {
-				err = rw.Unwatch(p)
-			})
-			return nonil(err, filepath.SkipDir)
-		}
-	}
-	return func(p string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if fi.IsDir() {
-			err = w.Unwatch(p)
-		}
-		return err
-	}
-}
 
 func test(t *testing.T, w Watcher, e Event, ei []EventInfo, d time.Duration) {
 	done, c, stop := make(chan error), make(chan EventInfo, len(ei)), make(chan struct{})
@@ -114,5 +52,5 @@ func TestWatcher(t *testing.T) {
 		EI("file", Create),
 		EI("dir/", Create),
 	}
-	test(t, newWatcher(), All, ei, time.Second)
+	test(t, NewWatcher(), All, ei, time.Second)
 }

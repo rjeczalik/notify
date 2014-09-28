@@ -32,10 +32,10 @@ func TestFsnotify(t *testing.T) {
 		EI("file", Create),
 		EI("dir/", Create),
 	}
-	test(t, newWatcher(), All, ei, time.Second)
+	test(t, NewWatcher(), All, ei, time.Second)
 }
 
 func TestIssue16(t *testing.T) {
 	t.Skip("TODO(#16)")
-	test(t, newWatcher(), All, []EventInfo{EI("github.com/", Delete)}, time.Second)
+	test(t, NewWatcher(), All, []EventInfo{EI("github.com/", Delete)}, time.Second)
 }
