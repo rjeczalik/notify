@@ -90,8 +90,8 @@ func TestEventMaskEvent(t *testing.T) {
 }
 
 func TestInotify(t *testing.T) {
-	ei := []EventInfo{
-		EI("github.com/rjeczalik/fs/fs.go", IN_ACCESS),
+	ei := map[EventInfo][]Event{
+		EI("github.com/rjeczalik/fs/fs.go", IN_ACCESS): inotify[IN_ACCESS],
 		// EI("github.com/rjeczalik/fs/binfs/", IN_MODIFY),
 		// EI("github.com/rjeczalik/fs/binfs.go", IN_ATTRIB),
 		// EI("github.com/rjeczalik/fs/binfs_test.go", IN_CLOSE_WRITE),
@@ -104,5 +104,5 @@ func TestInotify(t *testing.T) {
 		// EI("github.com/rjeczalik/fs/binfs/", IN_DELETE_SELF),
 		// EI("github.com/rjeczalik/fs/binfs/", IN_MOVE_SELF),
 	}
-	fixtureos.Cases(t).ExpectEvents(NewWatcher(), IN_ALL_EVENTS, ei)
+	fixtureos.Cases(t).ExpectEventList(NewWatcher(), IN_ALL_EVENTS, ei)
 }
