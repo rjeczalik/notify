@@ -6,10 +6,9 @@ import (
 	"io"
 	"os"
 	"testing"
-	"time"
 )
 
-var fixtureos = Fixture{
+var fixtureos = Fixture(FixtureFunc{
 	IN_ACCESS: func(p string) error {
 		f, err := os.OpenFile(p, os.O_RDWR, 0755)
 		if err != nil {
@@ -31,13 +30,7 @@ var fixtureos = Fixture{
 		return f.Close()
 
 	},
-}
-
-func init() {
-	for e, f := range fixtureos {
-		fixture[e] = f
-	}
-}
+})
 
 func TestEventMaskEvent(t *testing.T) {
 	tests := []struct {
@@ -145,5 +138,5 @@ func TestInotify(t *testing.T) {
 		// EI("github.com/rjeczalik/fs/binfs/", Delete),
 		// EI("github.com/rjeczalik/fs/binfs/", Create),
 	}
-	test(t, newWatcher(), IN_ACCESS, ei, time.Second)
+	fixtureos.Cases(t).ExpectEvents(NewWatcher(), IN_ACCESS, ei)
 }

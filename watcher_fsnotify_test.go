@@ -2,10 +2,7 @@
 
 package notify
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestFsnotify(t *testing.T) {
 	ei := []EventInfo{
@@ -32,10 +29,10 @@ func TestFsnotify(t *testing.T) {
 		EI("file", Create),
 		EI("dir/", Create),
 	}
-	test(t, NewWatcher(), All, ei, time.Second)
+	fixture.Cases(t).ExpectEvents(NewWatcher(), All, ei)
 }
 
 func TestIssue16(t *testing.T) {
 	t.Skip("TODO(#16)")
-	test(t, NewWatcher(), All, []EventInfo{EI("github.com/", Delete)}, time.Second)
+	fixture.Cases(t).ExpectEvents(NewWatcher(), All, []EventInfo{EI("github.com/", Delete)})
 }

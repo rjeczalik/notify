@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rjeczalik/fs"
 	"github.com/rjeczalik/fs/fsutil"
@@ -165,10 +166,10 @@ func IsDir(p string) bool {
 
 // Fixture maps event types and actions which are invoked on user-specified
 // EventInfo values.
-type Fixture map[Event]func(path string) error
+type FixtureFunc map[Event]func(path string) error
 
 // Fixture is a default set of actions for Create, Delete, Write and Move events.
-var fixture = Fixture{
+var fixture = FixtureFunc{
 	Create: func(p string) error {
 		if IsDir(p) {
 			return os.MkdirAll(p, 0755)
@@ -209,14 +210,23 @@ var fixture = Fixture{
 	},
 }
 
-// New dumps Tree into unique temporary location on the filesystem.
+// Fixture mixes given fixture function map with the default fixture.
 //
-// The function it returns do the following:
+// When len(f) == 0 it returns a copy of fixture variable.
 //
-//   - exec takes slice of events and executes them
-//   - cleanup orders burrito
-func (f Fixture) New(t *testing.T) (walk func(filepath.WalkFunc) error,
-	exec func(EventInfo), cleanup func()) {
+// The returned fixture is a copy to ensure no global variable is modified by
+// a test.
+func Fixture(f FixtureFunc) FixtureFunc {
+	for s, fn := range fixture {
+		f[s] = fn
+	}
+	return f
+}
+
+// Cases dumps Tree into unique temporary location on the filesystem. It returns
+// a control structures which is used for performing various testing over temportary
+// directory tree.
+func (f FixtureFunc) Cases(t *testing.T) (cas Cases) {
 	assert := func(err ...error) {
 		for _, err := range err {
 			if err != nil {
@@ -229,10 +239,11 @@ func (f Fixture) New(t *testing.T) (walk func(filepath.WalkFunc) error,
 	if n := fsutil.Copy(tree, fsutil.Rel(fs.Default, dir)); n != ntree {
 		t.Fatalf("unexpected fixture mktree failure: want n=%d; got %d", ntree, n)
 	}
-	walk = func(fn filepath.WalkFunc) error {
+	cas.t = t
+	cas.walk = func(fn filepath.WalkFunc) error {
 		return fsutil.Rel(tree, dir).Walk(sep, fn)
 	}
-	exec = func(ei EventInfo) {
+	cas.exec = func(ei EventInfo) {
 		fn, ok := f[ei.Event()]
 		if !ok {
 			t.Fatalf("unexpected fixture failure: invalid Event=%v", ei.Event())
@@ -241,7 +252,7 @@ func (f Fixture) New(t *testing.T) (walk func(filepath.WalkFunc) error,
 			t.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
 		}
 	}
-	cleanup = func() {
+	cas.clean = func() {
 		assert(os.RemoveAll(dir))
 	}
 	return
@@ -286,4 +297,54 @@ func equal(lhs, rhs EventInfo) error {
 			lhse, lhsp, lhsb)
 	}
 	return nil
+}
+
+// Global timeout used for a single test.
+var timeout = time.Second
+
+// Cases TODO
+type Cases struct {
+	t     *testing.T
+	walk  func(filepath.WalkFunc) error
+	exec  func(EventInfo)
+	clean func()
+}
+
+// ExpectEvents watches events described by e within Watcher given by the w and
+// executes in order events described by ei.
+//
+// It immadiately fails and stops if either expected event was not received or
+// the time test took has exceeded default global timeout.
+func (cas Cases) ExpectEvents(w Watcher, e Event, ei []EventInfo) {
+	done, c, stop := make(chan error), make(chan EventInfo, len(ei)), make(chan struct{})
+	defer func() {
+		if err := cas.walk(unwatch(w)); err != nil {
+			cas.t.Fatal(err)
+		}
+		close(stop)
+		cas.clean()
+	}()
+	w.Fanin(c, stop)
+	if err := cas.walk(watch(w, e)); err != nil {
+		cas.t.Fatal(err)
+	}
+	go func() {
+		for _, ei := range ei {
+			cas.exec(ei)
+			if err := equal(<-c, ei); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+	select {
+	case <-time.After(timeout):
+		cas.t.Fatalf("test has timed out after %v", timeout)
+	case err := <-done:
+		if err != nil {
+			cas.t.Fatal(err)
+		}
+	}
+
 }
