@@ -2,35 +2,7 @@
 
 package notify
 
-import (
-	"io"
-	"os"
-	"testing"
-)
-
-var fixtureos = Fixture(FixtureFunc{
-	IN_ACCESS: func(p string) error {
-		f, err := os.OpenFile(p, os.O_RDWR, 0755)
-		if err != nil {
-			return err
-		}
-		if _, err := f.WriteString(p); err != nil {
-			f.Close()
-			return err
-		}
-		f.Close()
-		f, err = os.Open(p)
-		if err != nil {
-			return err
-		}
-		if _, err = f.Read([]byte{0x00}); err != nil && err != io.EOF {
-			f.Close()
-			return err
-		}
-		return f.Close()
-
-	},
-})
+import "testing"
 
 func TestEventMaskEvent(t *testing.T) {
 	tests := []struct {
@@ -131,12 +103,6 @@ func TestInotify(t *testing.T) {
 		// EI("github.com/rjeczalik/fs/binfs_test.go", IN_DELETE),
 		// EI("github.com/rjeczalik/fs/binfs/", IN_DELETE_SELF),
 		// EI("github.com/rjeczalik/fs/binfs/", IN_MOVE_SELF),
-		// EI("github.com/rjeczalik/fs/fs_test.go", IN_ACCESS),
-		// EI("github.com/rjeczalik/fs/binfs/", Create),
-		// EI("github.com/rjeczalik/fs/binfs.go", Create),
-		// EI("github.com/rjeczalik/fs/binfs_test.go", Create),
-		// EI("github.com/rjeczalik/fs/binfs/", Delete),
-		// EI("github.com/rjeczalik/fs/binfs/", Create),
 	}
-	fixtureos.Cases(t).ExpectEvents(NewWatcher(), IN_ACCESS, ei)
+	fixtureos.Cases(t).ExpectEvents(NewWatcher(), IN_ALL_EVENTS, ei)
 }

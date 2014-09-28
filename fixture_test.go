@@ -166,33 +166,33 @@ func IsDir(p string) bool {
 
 // Fixture maps event types and actions which are invoked on user-specified
 // EventInfo values.
-type FixtureFunc map[Event]func(path string) error
+type FixtureFunc map[Event]func(path string) ([]Event, error)
 
 // Fixture is a default set of actions for Create, Delete, Write and Move events.
 var fixture = FixtureFunc{
-	Create: func(p string) error {
+	Create: func(p string) ([]Event, error) {
 		if IsDir(p) {
-			return os.MkdirAll(p, 0755)
+			return madev[Create], os.MkdirAll(p, 0755)
 		}
 		f, err := os.Create(p)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return f.Close()
+		return madev[Create], f.Close()
 
 	},
-	Delete: func(p string) error {
-		return os.RemoveAll(p)
+	Delete: func(p string) ([]Event, error) {
+		return madev[Delete], os.RemoveAll(p)
 	},
-	Write: func(p string) error {
+	Write: func(p string) ([]Event, error) {
 		f, err := os.OpenFile(p, os.O_RDWR, 0755)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		fi, err := f.Stat()
 		if err != nil {
 			f.Close()
-			return err
+			return nil, err
 		}
 		if fi.IsDir() {
 			panic("invalid EventInfo exec: " + p)
@@ -200,13 +200,13 @@ var fixture = FixtureFunc{
 		_, err = f.WriteString(p)
 		if err != nil {
 			f.Close()
-			return err
+			return nil, err
 		}
-		return f.Close()
+		return madev[Write], f.Close()
 
 	},
-	Move: func(p string) error {
-		return os.Rename(p, p+".moved")
+	Move: func(p string) ([]Event, error) {
+		return madev[Move], os.Rename(p, p+".moved")
 	},
 }
 
@@ -243,14 +243,17 @@ func (f FixtureFunc) Cases(t *testing.T) (cas Cases) {
 	cas.walk = func(fn filepath.WalkFunc) error {
 		return fsutil.Rel(tree, dir).Walk(sep, fn)
 	}
-	cas.exec = func(ei EventInfo) {
+	cas.exec = func(ei EventInfo) ([]Event, error) {
 		fn, ok := f[ei.Event()]
 		if !ok {
-			t.Fatalf("unexpected fixture failure: invalid Event=%v", ei.Event())
+			return nil, fmt.Errorf(
+				"unexpected fixture failure: invalid Event=%v", ei.Event())
 		}
-		if err := fn(join(dir, ei.Name())); err != nil {
-			t.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
+		evs, err := fn(join(dir, ei.Name()))
+		if err != nil {
+			return nil, fmt.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
 		}
+		return evs, nil
 	}
 	cas.clean = func() {
 		assert(os.RemoveAll(dir))
@@ -306,7 +309,7 @@ var timeout = time.Second
 type Cases struct {
 	t     *testing.T
 	walk  func(filepath.WalkFunc) error
-	exec  func(EventInfo)
+	exec  func(EventInfo) ([]Event, error)
 	clean func()
 }
 
@@ -330,10 +333,28 @@ func (cas Cases) ExpectEvents(w Watcher, e Event, ei []EventInfo) {
 	}
 	go func() {
 		for _, ei := range ei {
-			cas.exec(ei)
-			if err := equal(<-c, ei); err != nil {
+			evs, err := cas.exec(ei)
+			if err != nil {
 				done <- err
 				return
+			}
+			for _, ev := range evs {
+				if ev&e == 0 {
+					continue
+				}
+				got := <-c
+				if got.Event() == ei.Event() {
+					if err := equal(got, ei); err != nil {
+						done <- err
+						return
+					}
+				} else {
+					if got.Event() != ev {
+						done <- fmt.Errorf(
+							"got invalid event %v, want %v", got.Event(), ev)
+						return
+					}
+				}
 			}
 		}
 		done <- nil

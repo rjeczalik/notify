@@ -50,7 +50,7 @@ var estr = map[Event]string{
 	IN_MODIFY:        "notify.IN_MODIFY",
 	IN_ATTRIB:        "notify.IN_ATTRIB",
 	IN_CLOSE_WRITE:   "notify.IN_CLOSE_WRITE",
-	IN_CLOSE_NOWRITE: "notify.IN_CLOSE_NO_WRITE",
+	IN_CLOSE_NOWRITE: "notify.IN_CLOSE_NOWRITE",
 	IN_OPEN:          "notify.IN_OPEN",
 	IN_MOVED_FROM:    "notify.IN_MOVED_FROM",
 	IN_MOVED_TO:      "notify.IN_MOVED_TO",
