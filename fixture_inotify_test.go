@@ -7,6 +7,9 @@ import (
 	"os"
 )
 
+// TODO(rjeczalik): This file can be merged with watcher_inotify_test as long as inotify
+// has only one test file. This is not Java XD
+
 // TODO(pknap)
 var inotify = map[Event][]Event{
 	IN_ACCESS: {IN_OPEN, IN_MODIFY, IN_CLOSE_WRITE, IN_OPEN, IN_ACCESS, IN_CLOSE_NOWRITE},

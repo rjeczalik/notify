@@ -7,6 +7,11 @@ import (
 	"github.com/rjeczalik/fs"
 )
 
+// TODO(rjeczalik): Make ExpectCalls scoped - add Mock.Test(), refactor tests.
+
+// TODO(rjeczalik): Refactor Cases -> WatcherTest, Mock -> RuntimeTest, move
+// Mock.Test to fixture.Runtime and fixture.Cases -> fixture.Watcher.
+
 // TODO(rjeczalik): fixture_test contains mocks and fixtures for Watcher tests.
 // mock_test - for Runtime tests: merge them into one file.
 
@@ -87,12 +92,12 @@ func ExecCall(r *Runtime, c Call) error {
 func (m Mock) ExpectCalls(t *testing.T, cc []CallCases) {
 	spy, n := &Spy{}, 0
 	r := newRuntime(spy, m.fs)
-	for _, cc := range cc {
+	for i, cc := range cc {
 		if err := r.Watch(cc.Watch.P, dummy, cc.Watch.E); err != nil {
-			t.Fatalf("want err=nil; got %v (call=%v)", err, cc.Watch)
+			t.Fatalf("want err=nil; got %v (i=%d)", err, i)
 		}
 		if cas := (*spy)[n:]; !reflect.DeepEqual(cas, Spy(cc.Expect)) {
-			t.Errorf("want cas=%v; got %v (call=%v)", cc.Expect, cas, cc.Watch)
+			t.Errorf("want cas=%v; got %v (i=%d)", cc.Expect, cas, i)
 		}
 		n = len(*spy)
 	}
