@@ -5,6 +5,7 @@ package notify
 import "testing"
 
 func TestFsnotify(t *testing.T) {
+	t.Skip("Duplicate of TestRuntimeWatcher, it's here for doc purposes")
 	ei := []EventInfo{
 		EI("github.com/rjeczalik/fs/fs_test.go", Create),
 		EI("github.com/rjeczalik/fs/binfs/", Create),

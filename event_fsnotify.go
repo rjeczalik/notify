@@ -23,11 +23,11 @@ const (
 )
 
 var estr = map[Event]string{
-	FSN_CREATE: "create",
-	FSN_REMOVE: "delete",
-	FSN_WRITE:  "write",
-	FSN_RENAME: "move",
-	FSN_CHMOD:  "chmod",
+	FSN_CREATE: "notify.Create",
+	FSN_REMOVE: "notify.Delete",
+	FSN_WRITE:  "notify.Write",
+	FSN_RENAME: "notify.Move",
+	FSN_CHMOD:  "notify.Chmod",
 }
 
 var ekind = map[Event]Event{

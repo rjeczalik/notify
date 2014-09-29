@@ -239,6 +239,9 @@ func (f FixtureFunc) Cases(t *testing.T) (cas Cases) {
 		t.Fatalf("unexpected fixture mktree failure: want n=%d; got %d", ntree, n)
 	}
 	cas.t = t
+	cas.path = func(s string) string {
+		return filepath.Join(dir, filepath.FromSlash(s))
+	}
 	cas.walk = func(fn filepath.WalkFunc) error {
 		return fsutil.Rel(tree, dir).Walk(sep, fn)
 	}
@@ -305,6 +308,7 @@ var timeout = time.Second
 // Cases TODO
 type Cases struct {
 	t     *testing.T
+	path  func(string) string
 	walk  func(filepath.WalkFunc) error
 	exec  func(EventInfo) error
 	clean func()
@@ -318,11 +322,12 @@ type Cases struct {
 func (cas Cases) ExpectEvents(w Watcher, e Event, ei []EventInfo) {
 	done, c, stop := make(chan error), make(chan EventInfo, len(ei)), make(chan struct{})
 	defer func() {
-		if err := cas.walk(unwatch(w)); err != nil {
-			cas.t.Fatal(err)
-		}
+		err := cas.walk(unwatch(w))
 		close(stop)
 		cas.clean()
+		if err != nil {
+			cas.t.Fatal(err)
+		}
 	}()
 	w.Fanin(c, stop)
 	if err := cas.walk(watch(w, e)); err != nil {
@@ -351,14 +356,16 @@ func (cas Cases) ExpectEvents(w Watcher, e Event, ei []EventInfo) {
 	}
 }
 
+// ExpectEventList TODO
 func (cas Cases) ExpectEventList(w Watcher, e Event, ei map[EventInfo][]Event) {
 	done, c, stop := make(chan error), make(chan EventInfo, len(ei)), make(chan struct{})
 	defer func() {
-		if err := cas.walk(unwatch(w)); err != nil {
-			cas.t.Fatal(err)
-		}
+		err := cas.walk(unwatch(w))
 		close(stop)
 		cas.clean()
+		if err != nil {
+			cas.t.Fatal(err)
+		}
 	}()
 	w.Fanin(c, stop)
 	if err := cas.walk(watch(w, e)); err != nil {

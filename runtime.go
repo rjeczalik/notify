@@ -20,19 +20,22 @@ type Runtime struct {
 	// Watcher implements the OS filesystem event notification.
 	Watcher RecursiveWatcher
 
-	// Tree TODO
-	Tree map[string]interface{}
-
-	native bool // whether RecursiveWatch is native or emulated
+	tree   map[string]interface{}
+	native bool
 	c      <-chan EventInfo
 	stop   chan struct{}
 }
 
 // NewRuntime TODO
 func NewRuntime() *Runtime {
-	w, c := NewWatcher(), make(chan EventInfo)
+	return newRuntime(NewWatcher())
+}
+
+// NewRuntime TODO
+func newRuntime(w Watcher) *Runtime {
+	w, c := w, make(chan EventInfo)
 	r := &Runtime{
-		Tree: make(map[string]interface{}),
+		tree: make(map[string]interface{}),
 		stop: make(chan struct{}),
 		c:    c,
 	}
@@ -51,8 +54,8 @@ func NewRuntime() *Runtime {
 }
 
 // Watch TODO
-func (r Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
-	var isrec bool
+func (r *Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
+	isrec := false
 	if strings.HasSuffix(p, "...") {
 		p, isrec = p[:len(p)-3], true
 	}
@@ -67,38 +70,11 @@ func (r Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err error
 			Err:  os.ErrInvalid,
 		}
 	}
-	dir, s := r.Tree, filepath.Base(p)
-	fn := func(s string) bool {
-		d, ok := dir[s]
-		if !ok {
-			d := make(map[string]interface{})
-			dir[s], dir = d, d
-			return true
-		}
-		if d, ok := d.(map[string]interface{}); ok {
-			dir = d
-			return true
-		}
-		return false
-	}
-	if !walkpath(p, fn) {
-		return &os.PathError{
-			Op:   "notify.Watch",
-			Path: p,
-			Err:  os.ErrInvalid,
-		}
-	}
-	e := joinevents(events)
-	if isdir {
-		// TODO
-		return r.watchDir(s, dir, c, e)
-	}
-	// TODO
-	return r.watchFile(s, dir, c, e)
+	return r.watch(p, joinevents(events), c, isdir, isrec)
 }
 
 // Stop TODO
-func (r Runtime) Stop(c chan<- EventInfo) {
+func (r *Runtime) Stop(c chan<- EventInfo) {
 	panic("TODO(rjeczalik)")
 }
 
@@ -117,19 +93,72 @@ func (r *Runtime) loop() {
 	for {
 		select {
 		case ei := <-r.c:
-			println("TODO: handle event", ei)
+			r.dispatch(ei)
 		case <-r.stop:
 			return
 		}
 	}
 }
 
-func (r Runtime) watchFile(s string, dir map[string]interface{},
-	ch chan<- EventInfo, e Event) (err error) {
-	return errors.New("TODO")
+func (r *Runtime) dispatch(ei EventInfo) {
+	println("TODO: dispatching event", ei)
 }
 
-func (r Runtime) watchDir(s string, dir map[string]interface{},
-	ch chan<- EventInfo, e Event) (err error) {
-	return errors.New("TODO")
+// Watch registers user's chan in the notification tree and, if needed, sets
+// also a watch-point. It tries to do this efficiently, that's why it
+// implements a strategy, which covers the following scenarios:
+//
+//   1. Watch-point exist and its event-set is sufficient.
+//   2. Watch-point exist but its event-set needs to be expanded.
+//   3. Watch-point exist but is-non recursive and recursive one was requested.
+//   3a. Watcher is natively recursive.
+//   3b. Watcher is not natively recursive.
+//   4. Watch-point does not exist and was requested for a directory, but more
+//      than 0 watch-points already exist watching files.
+//   5. ?
+func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool) error {
+	dir, s, err := r.lookup(p)
+	if err != nil {
+		return err
+	}
+	_, _ = dir, s
+	switch {
+	case isdir && isrec: // 1, 2, 3, 4
+	case isdir: // 1, 2, 4
+		if err = r.Watcher.Watch(p, e); err != nil {
+			return err
+		}
+	default: // 1, 2
+	}
+	return nil
+}
+
+func (r *Runtime) lookup(p string) (dir map[string]interface{}, s string, err error) {
+	dir, s = r.tree, filepath.Base(p)
+	fn := func(s string) bool {
+		d, ok := dir[s]
+		if !ok {
+			d := make(map[string]interface{})
+			dir[s], dir = d, d
+			return true
+		}
+		if d, ok := d.(map[string]interface{}); ok {
+			dir = d
+			return true
+		}
+		return false
+	}
+	if !walkpath(p, fn) {
+		return nil, "", &os.PathError{
+			Op:   "notify.Watch",
+			Path: p,
+			Err:  os.ErrInvalid,
+		}
+	}
+	return
+}
+
+func (r *Runtime) walkdir(p string, fn func(string) error) error {
+	// TODO
+	return errors.New("TODO(rjeczalik)")
 }
