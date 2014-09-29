@@ -203,7 +203,6 @@ var fixture = FixtureFunc{
 			return err
 		}
 		return f.Close()
-
 	},
 	Move: func(p string) error {
 		return os.Rename(p, p+".moved")
@@ -243,14 +242,15 @@ func (f FixtureFunc) Cases(t *testing.T) (cas Cases) {
 	cas.walk = func(fn filepath.WalkFunc) error {
 		return fsutil.Rel(tree, dir).Walk(sep, fn)
 	}
-	cas.exec = func(ei EventInfo) {
+	cas.exec = func(ei EventInfo) error {
 		fn, ok := f[ei.Event()]
 		if !ok {
-			t.Fatalf("unexpected fixture failure: invalid Event=%v", ei.Event())
+			return fmt.Errorf("unexpected fixture failure: invalid Event=%v", ei.Event())
 		}
 		if err := fn(join(dir, ei.Name())); err != nil {
-			t.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
+			return fmt.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
 		}
+		return nil
 	}
 	cas.clean = func() {
 		assert(os.RemoveAll(dir))
@@ -306,7 +306,7 @@ var timeout = time.Second
 type Cases struct {
 	t     *testing.T
 	walk  func(filepath.WalkFunc) error
-	exec  func(EventInfo)
+	exec  func(EventInfo) error
 	clean func()
 }
 
@@ -330,7 +330,10 @@ func (cas Cases) ExpectEvents(w Watcher, e Event, ei []EventInfo) {
 	}
 	go func() {
 		for _, ei := range ei {
-			cas.exec(ei)
+			if err := cas.exec(ei); err != nil {
+				done <- err
+				return
+			}
 			if err := equal(<-c, ei); err != nil {
 				done <- err
 				return
@@ -346,5 +349,54 @@ func (cas Cases) ExpectEvents(w Watcher, e Event, ei []EventInfo) {
 			cas.t.Fatal(err)
 		}
 	}
+}
 
+func (cas Cases) ExpectEventList(w Watcher, e Event, ei map[EventInfo][]Event) {
+	done, c, stop := make(chan error), make(chan EventInfo, len(ei)), make(chan struct{})
+	defer func() {
+		if err := cas.walk(unwatch(w)); err != nil {
+			cas.t.Fatal(err)
+		}
+		close(stop)
+		cas.clean()
+	}()
+	w.Fanin(c, stop)
+	if err := cas.walk(watch(w, e)); err != nil {
+		cas.t.Fatal(err)
+	}
+	go func() {
+		for ei, evs := range ei {
+			if err := cas.exec(ei); err != nil {
+				done <- err
+				return
+			}
+			for _, ev := range evs {
+				if ev&e == 0 {
+					continue
+				}
+				got := <-c
+				if got.Event() == ei.Event() {
+					if err := equal(got, ei); err != nil {
+						done <- err
+						return
+					}
+				} else {
+					if got.Event() != ev {
+						done <- fmt.Errorf(
+							"got invalid event %v, want %v", got.Event(), ev)
+						return
+					}
+				}
+			}
+		}
+		done <- nil
+	}()
+	select {
+	case <-time.After(timeout):
+		cas.t.Fatalf("test has timed out after %v", timeout)
+	case err := <-done:
+		if err != nil {
+			cas.t.Fatal(err)
+		}
+	}
 }
