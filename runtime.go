@@ -5,15 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/rjeczalik/fs"
 )
 
-func isdir(p string) (bool, error) {
-	fi, err := os.Stat(p)
-	if err != nil {
-		return false, err
-	}
-	return fi.IsDir(), nil
-}
+// TODO(rjeczalik): Add mock for Runtime which does not require fixture for unittesting
 
 // Runtime TODO
 type Runtime struct {
@@ -22,22 +18,24 @@ type Runtime struct {
 
 	tree   map[string]interface{}
 	native bool
-	c      <-chan EventInfo
 	stop   chan struct{}
+	c      <-chan EventInfo
+	fs     fs.Filesystem
 }
 
 // NewRuntime TODO
 func NewRuntime() *Runtime {
-	return newRuntime(NewWatcher())
+	return newRuntime(NewWatcher(), fs.Default)
 }
 
 // NewRuntime TODO
-func newRuntime(w Watcher) *Runtime {
+func newRuntime(w Watcher, fs fs.Filesystem) *Runtime {
 	w, c := w, make(chan EventInfo)
 	r := &Runtime{
 		tree: make(map[string]interface{}),
 		stop: make(chan struct{}),
 		c:    c,
+		fs:   fs,
 	}
 	rw, ok := w.(RecursiveWatcher)
 	if ok {
@@ -59,7 +57,7 @@ func (r *Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 	if strings.HasSuffix(p, "...") {
 		p, isrec = p[:len(p)-3], true
 	}
-	isdir, err := isdir(p)
+	isdir, err := r.isdir(p)
 	if err != nil {
 		return
 	}
@@ -161,4 +159,12 @@ func (r *Runtime) lookup(p string) (dir map[string]interface{}, s string, err er
 func (r *Runtime) walkdir(p string, fn func(string) error) error {
 	// TODO
 	return errors.New("TODO(rjeczalik)")
+}
+
+func (r *Runtime) isdir(p string) (bool, error) {
+	fi, err := r.fs.Stat(p)
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
 }
