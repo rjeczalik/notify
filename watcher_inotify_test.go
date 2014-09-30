@@ -2,7 +2,46 @@
 
 package notify
 
-import "testing"
+import (
+	"io"
+	"os"
+	"testing"
+)
+
+// Access describes a set of access events.
+var access = []Event{
+	IN_OPEN,
+	IN_MODIFY,
+	IN_CLOSE_WRITE,
+	IN_OPEN,
+	IN_ACCESS,
+	IN_CLOSE_NOWRITE,
+}
+
+// Fixturext extends the default feature with an action executor for an IN_ACCESS
+// event.
+var fixturext = Fixture(FixtureFunc{
+	IN_ACCESS: func(p string) error {
+		f, err := os.OpenFile(p, os.O_RDWR, 0755)
+		if err != nil {
+			return err
+		}
+		if _, err := f.WriteString(p); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+		f, err = os.Open(p)
+		if err != nil {
+			return err
+		}
+		if _, err = f.Read([]byte{0x00}); err != nil && err != io.EOF {
+			f.Close()
+			return err
+		}
+		return f.Close()
+	},
+})
 
 func TestEventMaskEvent(t *testing.T) {
 	tests := []struct {
@@ -84,14 +123,14 @@ func TestEventMaskEvent(t *testing.T) {
 
 	for i, test := range tests {
 		if e := decodemask(uint32(test.passed), uint32(test.got)); e != test.received {
-			t.Errorf("want event=%v, got %v (test: %d)", test.received, e, i)
+			t.Errorf("want event=%v; got %v (i=%d)", test.received, e, i)
 		}
 	}
 }
 
 func TestInotify(t *testing.T) {
 	ei := map[EventInfo][]Event{
-		EI("github.com/rjeczalik/fs/fs.go", IN_ACCESS): inotify[IN_ACCESS],
+		EI("github.com/rjeczalik/fs/fs.go", IN_ACCESS): access,
 		// EI("github.com/rjeczalik/fs/binfs/", IN_MODIFY),
 		// EI("github.com/rjeczalik/fs/binfs.go", IN_ATTRIB),
 		// EI("github.com/rjeczalik/fs/binfs_test.go", IN_CLOSE_WRITE),
@@ -104,5 +143,5 @@ func TestInotify(t *testing.T) {
 		// EI("github.com/rjeczalik/fs/binfs/", IN_DELETE_SELF),
 		// EI("github.com/rjeczalik/fs/binfs/", IN_MOVE_SELF),
 	}
-	fixtureos.Cases(t).ExpectEventList(NewWatcher(), IN_ALL_EVENTS, ei)
+	fixturext.Cases(t).ExpectEventList(NewWatcher(), IN_ALL_EVENTS, ei)
 }
