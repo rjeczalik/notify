@@ -66,7 +66,7 @@ type Mock struct {
 }
 
 // Test TODO(rjeczalik): rename mock to mockdesc, and test to mock?
-var test = Mock{fs: tree}
+var xtest = Mock{fs: tree}
 
 // CallCases TODO
 type CallCases struct {
@@ -91,7 +91,7 @@ func ExecCall(r *Runtime, c Call) error {
 // ExpectCalls TODO
 func (m Mock) ExpectCalls(t *testing.T, cc []CallCases) {
 	spy, n := &Spy{}, 0
-	r := newRuntime(spy, m.fs)
+	r := NewRuntimeFS(spy, m.fs)
 	for i, cc := range cc {
 		if err := r.Watch(cc.Watch.P, dummy, cc.Watch.E); err != nil {
 			t.Fatalf("want err=nil; got %v (i=%d)", err, i)

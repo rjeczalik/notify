@@ -1,32 +1,24 @@
-package notify
+package notify_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rjeczalik/notify"
+	"github.com/rjeczalik/notify/test"
+)
 
 func TestRuntime(t *testing.T) {
-	cases := [...]CallCases{
-		0: {
-			Watch: Call{P: "/github.com/rjeczalik/fakerpc", E: Delete},
-			Expect: []Call{
-				{T: TypeFanin},
-				{T: TypeWatch, P: "/github.com/rjeczalik/fakerpc", E: Delete},
-			},
-		},
-		1: {
-			Watch: Call{P: "/github.com/rjeczalik/fakerpc/...", E: Delete},
-			Expect: []Call{
-				{T: TypeFanin},
-				{T: TypeWatch, P: "/github.com/rjeczalik/fakerpc", E: Delete},
-				{T: TypeWatch, P: "/github.com/rjeczalik/fakerpc/cli", E: Delete},
-				{T: TypeWatch, P: "/github.com/rjeczalik/fakerpc/cmd", E: Delete},
-			},
-		},
-		2: {
-			Watch: Call{P: "/github.com/rjeczalik/fakerpc/LICENSE", E: Write},
-			Expect: []Call{
-				{T: TypeFanin},
-				{T: TypeWatch, P: "/github.com/rjeczalik/fakerpc/LICENSE", E: Write},
-			},
+	cases := map[notify.EventInfo][]test.Call{
+		test.EI("/github.com/rjeczalik/fakerpc", notify.Delete): {
+			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc", E: notify.Delete},
+			// },
+			// test.EI("/github.com/rjeczalik/fakerpc/...", notify.Delete): {
+			// {F: test.Watch, P: "/github.com/rjeczalik/fakerpc", E: notify.Delete},
+			// {F: test.Watch, P: "/github.com/rjeczalik/fakerpc/cli", E: notify.Delete},
+			// {F: test.Watch, P: "/github.com/rjeczalik/fakerpc/cmd", E: notify.Delete},
+			// },
+			// test.EI("/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
+			// {F: test.Watch, P: "/github.com/rjeczalik/fakerpc/LICENSE", E: notify.Write},
 		}}
-	// TODO(rjeczalik): Enable rest of test-cases.
-	test.ExpectCalls(t, cases[:1])
+	test.ExpectCalls(t, cases)
 }

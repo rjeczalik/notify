@@ -25,11 +25,13 @@ type Runtime struct {
 
 // NewRuntime TODO
 func NewRuntime() *Runtime {
-	return newRuntime(NewWatcher(), fs.Default)
+	return NewRuntimeFS(NewWatcher(), fs.Default)
 }
 
-// NewRuntime TODO
-func newRuntime(w Watcher, fs fs.Filesystem) *Runtime {
+// NewRuntimeFS TODO
+//
+// TODO(rjeczalik): Move to internal package.
+func NewRuntimeFS(w Watcher, fs fs.Filesystem) *Runtime {
 	w, c := w, make(chan EventInfo)
 	r := &Runtime{
 		tree: make(map[string]interface{}),
