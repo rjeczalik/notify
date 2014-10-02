@@ -1,4 +1,4 @@
-// +build dragonfly freebsd netbsd openbsd
+// +build darwin dragonfly freebsd netbsd openbsd
 // +build !fsnotify
 
 package notify
