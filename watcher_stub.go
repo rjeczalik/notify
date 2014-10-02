@@ -1,4 +1,4 @@
-// +build !linux,!fsnotify
+// +build !linux,!fsnotify,!freebsd,!dragonfly,!netbsd,!openbsd
 
 package notify
 
