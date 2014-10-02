@@ -63,15 +63,15 @@ func (k *kqueue) monitor() {
 	for {
 		var kevn [1]syscall.Kevent_t
 		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
-		// TODO: some sort of other error handling?
+		// ignore failure to capture an event.
 		if err != nil {
-			panic(err)
+			continue
 		}
 		if n > 0 {
 			k.Lock()
 			w := k.idLkp[int(kevn[0].Ident)]
 			if w == nil {
-				// TODO: some sort of other error handling?
+				panic("kqueue: missing config for event")
 			}
 			if w.dir {
 				// If it's dir and delete we have to send it and continue, because
@@ -88,7 +88,8 @@ func (k *kqueue) monitor() {
 					if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
 						if err := k.watch(p, w.eDir, false, fi.IsDir()); err != nil {
 							if err != errNoNewWatch {
-								// TODO: some sort of other error handling?
+								// TODO: pass error via chan because state of monitoring is
+								// invalid.
 								panic(err)
 							}
 						} else {
@@ -99,7 +100,7 @@ func (k *kqueue) monitor() {
 					}
 					return nil
 				}); err != nil {
-					// TODO: some sort of other error handling?
+					// TODO: pass error via chan because state of monitoring is invalid.
 					panic(err)
 				}
 			} else {

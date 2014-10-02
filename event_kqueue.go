@@ -56,5 +56,4 @@ var ekind = map[Event]Event{
 	syscall.NOTE_WRITE:  Write,
 	syscall.NOTE_RENAME: Move,
 	syscall.NOTE_DELETE: Delete,
-	Create:              Create,
 }
