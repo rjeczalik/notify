@@ -77,34 +77,33 @@ func (k *kqueue) monitor() {
 				// If it's dir and delete we have to send it and continue, because
 				// other processing relies on opening (in this case not existing) dir.
 				if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
-					k.c <- &event{w.dir, w.p, Event(kevn[0].Fflags), &kevn[0]}
+					k.c <- &event{w.dir, w.p, Event(kevn[0].Fflags) & (w.eDir | w.eNonDir),
+						&kevn[0]}
 					delete(k.idLkp, w.fd)
 					delete(k.pthLkp, w.p)
 					k.Unlock()
 					continue
 				}
-				if err := k.walk(w.p, func(fi os.FileInfo) error {
-					p := filepath.Join(w.p, fi.Name())
-					if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
+				if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
+					if err := k.walk(w.p, func(fi os.FileInfo) error {
+						p := filepath.Join(w.p, fi.Name())
 						if err := k.watch(p, w.eDir, false, fi.IsDir()); err != nil {
 							if err != errNoNewWatch {
 								// TODO: pass error via chan because state of monitoring is
 								// invalid.
 								panic(err)
 							}
-						} else {
-							k.c <- &event{w.dir, p, Create, nil}
+						} else if (w.eDir & Create) != 0 {
+							k.c <- &event{fi.IsDir(), p, Create, nil}
 						}
-					} else {
-						k.c <- &event{w.dir, w.p, Event(kevn[0].Fflags), &kevn[0]}
+						return nil
+					}); err != nil {
+						// TODO: pass error via chan because state of monitoring is invalid.
+						panic(err)
 					}
-					return nil
-				}); err != nil {
-					// TODO: pass error via chan because state of monitoring is invalid.
-					panic(err)
 				}
 			} else {
-				k.c <- &event{w.dir, w.p, Event(kevn[0].Fflags), &kevn[0]}
+				k.c <- &event{w.dir, w.p, Event(kevn[0].Fflags) & (w.eDir | w.eNonDir), &kevn[0]}
 			}
 			if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
 				delete(k.idLkp, w.fd)
@@ -169,6 +168,8 @@ func (k *kqueue) Watch(p string, e Event) error {
 	if dir, err = isdir(p); err != nil {
 		return err
 	}
+	k.Lock()
+	defer k.Unlock()
 	if err = k.watch(p, e, true, dir); err != nil {
 		if err == errNoNewWatch {
 			return nil
@@ -213,7 +214,7 @@ func (k *kqueue) watch(p string, e Event, direct, dir bool) error {
 	}
 	var kevn [1]syscall.Kevent_t
 	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_ADD|syscall.EV_CLEAR)
-	kevn[0].Fflags = uint32(w.eDir | w.eNonDir)
+	kevn[0].Fflags = uint32((w.eDir | w.eNonDir) &^ Create)
 	if _, err := syscall.Kevent(*k.fd, kevn[:], nil, nil); err != nil {
 		return err
 	}

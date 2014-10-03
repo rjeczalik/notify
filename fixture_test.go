@@ -294,7 +294,8 @@ func equal(lhs, rhs EventInfo) error {
 	rhse, rhsp, rhsb := rhs.Event(), rhs.Name(), rhs.IsDir()
 	// TODO(rjeczalik): Get tmpdir from the fixture, join here and compare
 	// full paths.
-	if lhse != rhse || !strings.HasSuffix(lhsp, filepath.Clean(rhsp)) {
+	// Take into account lhsb, rhsb (not taken because of fsnotify for delete).
+	if lhse != rhse || !strings.HasSuffix(filepath.Clean(lhsp), filepath.Clean(rhsp)) {
 		return fmt.Errorf("want EventInfo{Event: %v, Name: %s, IsDir: %v}; "+
 			"got EventInfo{Event: %v, Name: %s, IsDir:%v}", rhse, rhsp, rhsb,
 			lhse, lhsp, lhsb)

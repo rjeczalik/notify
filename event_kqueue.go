@@ -7,7 +7,7 @@ import "syscall"
 
 // TODO: sometimes something needs to be done with something...
 const (
-	Create Event = 111111
+	Create Event = 0x100
 	Delete       = NOTE_DELETE
 	Write        = NOTE_WRITE
 	Move         = NOTE_RENAME
