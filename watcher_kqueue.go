@@ -169,6 +169,8 @@ func (k *kqueue) Watch(p string, e Event) error {
 	if dir, err = isdir(p); err != nil {
 		return err
 	}
+	k.Lock()
+	defer k.Unlock()
 	if err = k.watch(p, e, true, dir); err != nil {
 		if err == errNoNewWatch {
 			return nil
