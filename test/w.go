@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,7 +66,7 @@ type w struct {
 	actions Actions
 	path    string
 	t       *testing.T
-	iswatch bool
+	iswatch uint32
 }
 
 // W TODO
@@ -136,19 +137,17 @@ var ErrNotWatched = errors.New("notify/test: path is not being watched")
 //
 // TODO(rjeczalik): Replace with Watcher.RecursiveWatch.
 func (w *w) WatchAll(wr notify.Watcher, e notify.Event) error {
-	if w.iswatch {
+	if !atomic.CompareAndSwapUint32(&w.iswatch, 0, 1) {
 		return ErrAlreadyWatched
 	}
-	w.iswatch = true
 	return w.walk(watch(wr, e))
 }
 
 // UnwatchAll is a temporary implementation for RecursiveUnwatch.
 func (w *w) UnwatchAll(wr notify.Watcher) error {
-	if !w.iswatch {
+	if !atomic.CompareAndSwapUint32(&w.iswatch, 1, 0) {
 		return ErrNotWatched
 	}
-	w.iswatch = false
 	return w.walk(unwatch(wr))
 }
 
