@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/rjeczalik/notify"
 	"github.com/rjeczalik/notify/test"
 )
 
@@ -72,5 +73,5 @@ func TestInotify(t *testing.T) {
 		// test.EI("github.com/rjeczalik/fs/binfs/", notify.IN_DELETE_SELF),
 		// test.EI("github.com/rjeczalik/fs/binfs/", notify.IN_MOVE_SELF),
 	}
-	ExpectInotifyEvents(t, NewWatcher(), notify.IN_ALL_EVENTS, ei)
+	ExpectInotifyEvents(t, notify.NewWatcher(), notify.IN_ALL_EVENTS, ei)
 }
