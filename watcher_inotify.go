@@ -21,20 +21,20 @@ const maxEventSize = syscall.SizeofInotifyEvent + syscall.PathMax + 1
 // TODO(ppknap) : This type should be dropped. It is useless since we use it only
 // here. Use:
 //
-//   var handlers struct {
+//   var global struct {
 //     ...
 //   }
-type handlersType struct {
+type inotify struct {
 	sync.RWMutex
 	m      map[int32]*watched
 	fd     *int
 	buffer [64 * maxEventSize]byte
-	// TODO(ppknap) : I don't like this:<.
-	c chan EventInfo
+	c      chan<- EventInfo
+	wg     sync.WaitGroup
 }
 
 // TODO(ppknap) : doc.
-var handlers *handlersType
+var global *inotify
 
 // TODO(ppknap) : doc.
 type watched struct {
@@ -44,71 +44,71 @@ type watched struct {
 
 // TODO(ppknap) : doc.
 func init() {
-	handlers = newInotify()
-	go loop()
+	global = newInotify()
 }
 
 // NewInotify TODO
-func newInotify() *handlersType {
+func newInotify() *inotify {
 	fd, err := syscall.InotifyInit()
 	if err != nil {
 		panic(os.NewSyscallError("InotifyInit", err))
 	}
-	h := &handlersType{
+	h := &inotify{
 		m:  make(map[int32]*watched),
 		fd: &fd,
-		c:  make(chan EventInfo),
 	}
-	runtime.SetFinalizer(h, func(h *handlersType) { syscall.Close(*h.fd) })
+	runtime.SetFinalizer(h, func(h *inotify) { syscall.Close(*h.fd) })
 	return h
 }
 
 // NewWatcher creates new non-recursive watcher backed by inotify.
 func newWatcher() Watcher {
-	return handlers
+	return global
 }
 
 // TODO(ppknap) : doc.
-func loop() {
+func loop(stop <-chan struct{}) {
+	global.wg.Add(1)
 	for {
-		process()
-	}
-}
+		select {
+		case <-stop:
+			global.wg.Done()
+			return
+		default:
+			n, err := syscall.Read(*global.fd, global.buffer[:])
+			switch {
+			//TODO(pknap) : improve error handling + doc.
+			case err != nil || n < 0:
+				// TODO(rjeczalik): Panic, error?
+				fmt.Println(os.NewSyscallError("Read", err))
+				return
+			case n < syscall.SizeofInotifyEvent:
+				return
+			}
 
-// TODO(ppknap) : doc.
-func process() {
-	n, err := syscall.Read(*handlers.fd, handlers.buffer[:])
-	switch {
-	//TODO(pknap) : improve error handling + doc.
-	case err != nil || n < 0:
-		// TODO(rjeczalik): Panic, error?
-		fmt.Println(os.NewSyscallError("Read", err))
-		return
-	case n < syscall.SizeofInotifyEvent:
-		return
-	}
+			events := make([]*event, 0)
+			nmin := n - syscall.SizeofInotifyEvent
 
-	events := make([]*event, 0)
-	nmin := n - syscall.SizeofInotifyEvent
+			var sys *syscall.InotifyEvent
+			for pos, name := 0, ""; pos <= nmin; {
+				sys = (*syscall.InotifyEvent)(unsafe.Pointer(&global.buffer[pos]))
+				pos += syscall.SizeofInotifyEvent
 
-	var sys *syscall.InotifyEvent
-	for pos, name := 0, ""; pos <= nmin; {
-		sys = (*syscall.InotifyEvent)(unsafe.Pointer(&handlers.buffer[pos]))
-		pos += syscall.SizeofInotifyEvent
+				if name = ""; sys.Len > 0 {
+					endpos := pos + int(sys.Len)
+					name = string(bytes.TrimRight(global.buffer[pos:endpos], "\x00"))
+					pos = endpos
+				}
 
-		if name = ""; sys.Len > 0 {
-			endpos := pos + int(sys.Len)
-			name = string(bytes.TrimRight(handlers.buffer[pos:endpos], "\x00"))
-			pos = endpos
+				events = append(events, &event{sys: syscall.InotifyEvent{
+					Wd:     sys.Wd,
+					Mask:   sys.Mask,
+					Cookie: sys.Cookie,
+				}, impl: watched{name: name}})
+			}
+			send(events)
 		}
-
-		events = append(events, &event{sys: syscall.InotifyEvent{
-			Wd:     sys.Wd,
-			Mask:   sys.Mask,
-			Cookie: sys.Cookie,
-		}, impl: watched{name: name}})
 	}
-	send(events)
 }
 
 // TODO(ppknap) : doc.
@@ -119,20 +119,20 @@ func inotifywatch(name string, event Event) error {
 	if event&invalid != 0 {
 		return errors.New("invalid event")
 	}
-	wd, err := syscall.InotifyAddWatch(*handlers.fd, name, makemask(event))
+	wd, err := syscall.InotifyAddWatch(*global.fd, name, makemask(event))
 	if err != nil {
 		return os.NewSyscallError("InotifyAddWatch", err)
 	}
 
-	handlers.RLock()
-	w := handlers.m[int32(wd)]
-	handlers.RUnlock()
+	global.RLock()
+	w := global.m[int32(wd)]
+	global.RUnlock()
 
 	if w == nil {
 		w = &watched{name: name, mask: uint32(event)}
-		handlers.Lock()
-		handlers.m[int32(wd)] = w
-		handlers.Unlock()
+		global.Lock()
+		global.m[int32(wd)] = w
+		global.Unlock()
 	} else {
 		atomic.StoreUint32(&w.mask, uint32(event))
 	}
@@ -142,38 +142,38 @@ func inotifywatch(name string, event Event) error {
 // TODO(ppknap) : doc.
 func inotifyunwatch(name string) error {
 	wd := int32(-1)
-	handlers.RLock()
-	for wdkey, w := range handlers.m {
+	global.RLock()
+	for wdkey, w := range global.m {
 		if w.name == name {
 			wd = wdkey
 			break
 		}
 	}
-	handlers.RUnlock()
+	global.RUnlock()
 
 	if wd < 0 {
 		return errors.New("file/directory " + name + " is unwatched")
 	}
 	// BUG(goauthors) : watch descriptor is of type `int`, not `uint32`
-	if _, err := syscall.InotifyRmWatch(*handlers.fd, uint32(wd)); err != nil {
+	if _, err := syscall.InotifyRmWatch(*global.fd, uint32(wd)); err != nil {
 		return os.NewSyscallError("InotifyRmWatch", err)
 	}
 
-	handlers.Lock()
-	delete(handlers.m, wd)
-	handlers.Unlock()
+	global.Lock()
+	delete(global.m, wd)
+	global.Unlock()
 	return nil
 }
 
 // TODO(ppknap) : doc
 func send(events []*event) {
-	handlers.RLock()
+	global.RLock()
 	for i, event := range events {
 		if event.sys.Mask&(syscall.IN_IGNORED|syscall.IN_Q_OVERFLOW) != 0 {
 			events[i] = nil
 			continue
 		}
-		if w, ok := handlers.m[event.sys.Wd]; ok {
+		if w, ok := global.m[event.sys.Wd]; ok {
 			if event.impl.name == "" {
 				event.impl.name = w.name
 			} else {
@@ -188,7 +188,7 @@ func send(events []*event) {
 			events[i] = nil
 		}
 	}
-	handlers.RUnlock()
+	global.RUnlock()
 
 	for _, event := range events {
 		if event != nil {
@@ -198,7 +198,7 @@ func send(events []*event) {
 }
 
 func sendevent(ei EventInfo) {
-	handlers.c <- ei
+	global.c <- ei
 }
 
 // TODO(ppknap) : doc.
@@ -248,28 +248,18 @@ func decodemask(mask, syse uint32) Event {
 }
 
 // Watch implements notify.Watcher interface.
-func (h *handlersType) Watch(p string, e Event) error {
+func (i *inotify) Watch(p string, e Event) error {
 	return inotifywatch(p, e)
 }
 
 // Unwatch implements notify.Watcher interface.
-func (h *handlersType) Unwatch(p string) error {
+func (i *inotify) Unwatch(p string) error {
 	return inotifyunwatch(p)
 }
 
 // Fanin implements notify.Watcher interface.
-func (h *handlersType) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
-	go func() {
-		for {
-			select {
-			case ei := <-h.c:
-				c <- ei
-			case <-stop:
-				// TODO(pknap): Cleanup inotify if needed, so it's possible to
-				// initialise it again by newWatcher. All the watches must
-				// be removed from outside this point.
-				return
-			}
-		}
-	}()
+func (i *inotify) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
+	i.wg.Wait() // Waits for close of previous loop() - only for test purpose.
+	i.c = c
+	go loop(stop)
 }

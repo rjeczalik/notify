@@ -166,6 +166,7 @@ func (w *w) Close() error {
 func (w *w) ExpectEvent(wr notify.Watcher, ei []notify.EventInfo) {
 	done, c, stop := make(chan error), make(chan notify.EventInfo, len(ei)), make(chan struct{})
 	wr.Fanin(c, stop)
+	defer close(stop)
 	go func() {
 		for _, ei := range ei {
 			if err := w.exec(ei); err != nil {
@@ -197,6 +198,7 @@ func (w *w) ExpectEvent(wr notify.Watcher, ei []notify.EventInfo) {
 func (w *w) ExpectEvents(wr notify.Watcher, ei map[notify.EventInfo][]notify.Event) {
 	done, c, stop := make(chan error), make(chan notify.EventInfo, len(ei)), make(chan struct{})
 	wr.Fanin(c, stop)
+	defer close(stop)
 	go func() {
 		for ei, events := range ei {
 			if err := w.exec(ei); err != nil {
