@@ -20,6 +20,7 @@ func count(fs fs.Filesystem) (n int) {
 		n++
 		return nil
 	})
+	n-- // Root dir (/) does not count.
 	return
 }
 
