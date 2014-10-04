@@ -94,8 +94,8 @@ func (w w) equal(want, got notify.EventInfo) error {
 		return fmt.Errorf("want EventInfo.Name()=%q to be rooted at %q", gotp,
 			w.path)
 	}
-	// Strip the temp path from the event's origin.
-	gotp = gotp[len(w.path)+1:]
+	// Strip the temp path from the event's origin and convert to slashes.
+	gotp = filepath.ToSlash(gotp[len(w.path)+1:])
 	// Strip trailing slash from expected path.
 	if n := len(wantp) - 1; wantp[n] == '/' {
 		wantp = wantp[:n]
