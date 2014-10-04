@@ -95,9 +95,9 @@ func (w w) equal(want, got notify.EventInfo) error {
 	}
 	// Strip the temp path from the event's origin.
 	gotp = gotp[len(w.path)+1:]
-	// Make the path follow path specification of the EI helper function.
-	if gotb && !strings.HasSuffix(gotp, sep) {
-		gotp = gotp + sep
+	// Strip trailing slash from expected path.
+	if n := len(wantp) - 1; wantp[n] == '/' {
+		wantp = wantp[:n]
 	}
 	// Take into account wantb, gotb (not taken because of fsnotify for delete).
 	if wante != gote || wantp != gotp {
