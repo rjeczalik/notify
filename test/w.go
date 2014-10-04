@@ -233,7 +233,8 @@ func (w *w) ExpectEvents(wr notify.Watcher, ei map[notify.EventInfo][]notify.Eve
 }
 
 // TODO(rjeczalik): Create helper method which will implement running global test
-// methods using reflect package.
+// methods using reflect package (aim is to remove duplication in ExpectEvent and
+// ExpectEvents via generic generator function).
 
 // ExpectEvent TODO
 func ExpectEvent(t *testing.T, wr notify.Watcher, e notify.Event, ei []notify.EventInfo) {
