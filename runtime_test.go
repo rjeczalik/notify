@@ -7,7 +7,7 @@ import (
 	"github.com/rjeczalik/notify/test"
 )
 
-func TestRuntimeBasicWatchpoint(t *testing.T) {
+func TestRuntimeBasicWatcher(t *testing.T) {
 	cases := map[notify.EventInfo][]test.Call{
 		test.EI("/github.com/rjeczalik/fakerpc/", notify.Delete): {
 			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc/", E: notify.Delete},
@@ -21,10 +21,28 @@ func TestRuntimeBasicWatchpoint(t *testing.T) {
 		test.EI("/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
 			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc/LICENSE", E: notify.Write},
 		},
-		test.EI("/github.com/rjeczalik/fakerpc/LICENSE", notify.Write, test.Unwatch): {
+		test.EI(test.Unwatch, "/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
 			{F: test.Unwatch, P: "/github.com/rjeczalik/fakerpc/LICENSE"},
 		},
 	}
+	test.ExpectCallsFunc(t, test.Watcher, cases)
+}
+
+func TestRuntimeBasicRewatcher(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
+	cases := map[notify.EventInfo][]test.Call{}
+	test.ExpectCallsFunc(t, test.Rewatcher, cases)
+}
+
+func TestRuntimeBasicRecursiveWatcher(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
+	cases := map[notify.EventInfo][]test.Call{}
+	test.ExpectCallsFunc(t, test.RecursiveWatcher, cases)
+}
+
+func TestRuntimeBasicInterface(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
+	cases := map[notify.EventInfo][]test.Call{}
 	test.ExpectCalls(t, cases)
 }
 
@@ -39,7 +57,7 @@ func TestRuntimeExpandOrSchrinkEventSet(t *testing.T) {
 			{F: test.Rewatch, P: "/github.com/rjeczalik/fs/", E: notify.Create,
 				N: notify.Create | notify.Delete},
 		},
-		test.EI("/github.com/rjeczalik/fs/", notify.Create, test.Unwatch): {
+		test.EI(test.Unwatch, "/github.com/rjeczalik/fs/", notify.Create): {
 			{F: test.Rewatch, P: "/github.com/rjeczalik/fs/", E: notify.Create | notify.Delete,
 				N: notify.Delete},
 		},

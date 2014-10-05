@@ -59,19 +59,19 @@ func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 			Rewatcher
 			RecursiveWatcher
 		}{Watcher: w}
+		if re, ok := w.(Rewatcher); ok {
+			i.Rewatcher = re
+		} else {
+			i.Rewatcher = Re{
+				Watcher: w,
+			}
+		}
 		if rw, ok := w.(RecursiveWatcher); ok {
 			i.RecursiveWatcher = rw
 		} else {
 			i.RecursiveWatcher = Recursive{
 				Watcher: w,
 				Runtime: r,
-			}
-		}
-		if re, ok := w.(Rewatcher); ok {
-			i.Rewatcher = re
-		} else {
-			i.Rewatcher = Re{
-				Watcher: w,
 			}
 		}
 		r.i = i

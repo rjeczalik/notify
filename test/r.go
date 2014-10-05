@@ -44,21 +44,54 @@ type pe struct {
 	e notify.Event
 }
 
+// WatcherFunc is used for initializing spy mock.
+type WatcherFunc func(*Spy) notify.Watcher
+
+// Interface is a default WatcherFunc which returns a Watcher which implements
+// notify.Interface.
+func Interface(spy *Spy) notify.Watcher {
+	return struct{ notify.Interface }{spy}
+}
+
+// Watcher is a WatcherFunc returning a Watcher which implements notify.Watcher
+// interface only.
+func Watcher(spy *Spy) notify.Watcher {
+	return struct{ notify.Watcher }{spy}
+}
+
+// Rewatcher is a WatcherFunc returning a Watcher which complementary to notify.Watcher
+// implements also notify.RecursiveWatcher interface.
+func Rewatcher(spy *Spy) notify.Watcher {
+	return struct {
+		notify.Watcher
+		notify.Rewatcher
+	}{spy, spy}
+}
+
+// RecursiveWatcher is a WatcherFunc returning a Watcher which complementary to
+// notify.Watcher implements also notify.RecursiveWatcher interface.
+func RecursiveWatcher(spy *Spy) notify.Watcher {
+	return struct {
+		notify.Watcher
+		notify.RecursiveWatcher
+	}{spy, spy}
+}
+
 // R represents a fixture for notify.Runtime testing.
 type r struct {
 	c   map[pe]chan<- notify.EventInfo
 	t   *testing.T
 	r   *notify.Runtime
-	spy spy
+	spy Spy
 	n   int
 }
 
 // R gives new fixture for notify.Runtime testing. It initializes a new Runtime
 // with a spy Watcher mock, which is used for retrospecting calls to it the Runtime
 // makes.
-func R(t *testing.T) *r {
+func R(t *testing.T, fn WatcherFunc) *r {
 	r := &r{c: make(map[pe]chan<- notify.EventInfo), t: t, n: 1}
-	r.r = notify.NewRuntimeWatcher(&r.spy, FS)
+	r.r = notify.NewRuntimeWatcher(fn(&r.spy), FS)
 	return r
 }
 
@@ -92,56 +125,69 @@ func (r *r) ExpectCalls(cases map[notify.EventInfo][]Call) {
 		if err := r.exec(ei); err != nil {
 			r.t.Fatalf("want err=nil; got %v (ei=%v)", err, ei)
 		}
-		if want, got := cases[ei], r.spy[r.n:]; !reflect.DeepEqual(got, spy(want)) {
+		if want, got := cases[ei], r.spy[r.n:]; !reflect.DeepEqual(got, Spy(want)) {
 			r.t.Errorf("want cas=%+v; got %+v (ei=%+v)", want, got, ei)
 		}
 		r.n = len(r.spy)
 	}
 }
 
-// ExpectCalls translates cases' keys into (*Runtime).Watch calls, records calls
+// ExpectCallsFunc translates cases' keys into (*Runtime).Watch calls, records calls
+// Runtime makes to a Watcher and compares them with the expected list.
+//
+// It uses fn to limit number of interfaces which Spy is going to implement.
+// A spy is a recording mock used as a Watcher implementation to initialize
+// a Runtime.
+//
+// Eventhough cases is described by a map, events are executed in the
+// order they were either defined or assigned to the cases.
+func ExpectCallsFunc(t *testing.T, fn WatcherFunc, ei map[notify.EventInfo][]Call) {
+	R(t, fn).ExpectCalls(ei)
+}
+
+// ExpectCallsFunc translates cases' keys into (*Runtime).Watch calls, records calls
 // Runtime makes to a Watcher and compares them with the expected list.
 //
 // Eventhough cases is described by a map, events are executed in the
 // order they were either defined or assigned to the cases.
 func ExpectCalls(t *testing.T, ei map[notify.EventInfo][]Call) {
-	R(t).ExpectCalls(ei)
+	ExpectCallsFunc(t, Interface, ei)
 }
 
 // Spy is a mock for notify.Watcher interface, which records every call.
-type spy []Call
+type Spy []Call
 
 // Watch implements notify.Watcher interface.
-func (s *spy) Watch(p string, e notify.Event) (err error) {
+func (s *Spy) Watch(p string, e notify.Event) (err error) {
 	*s = append(*s, Call{F: Watch, P: p, E: e})
 	return
 }
 
 // Unwatch implements notify.Watcher interface.
-func (s *spy) Unwatch(p string) (err error) {
+func (s *Spy) Unwatch(p string) (err error) {
 	*s = append(*s, Call{F: Unwatch, P: p})
 	return
 }
 
 // Fanin implements notify.Watcher interface.
-func (s *spy) Fanin(chan<- notify.EventInfo, <-chan struct{}) {
+func (s *Spy) Fanin(chan<- notify.EventInfo, <-chan struct{}) {
 	*s = append(*s, Call{F: Fanin})
 }
 
 // Rewatch implements notify.Rewatcher interface.
-func (s *spy) Rewatch(p string, old, new notify.Event) (err error) {
+func (s *Spy) Rewatch(p string, old, new notify.Event) (err error) {
 	*s = append(*s, Call{F: Rewatch, P: p, E: old, N: new})
 	return
 }
 
 // RecursiveWatch implements notify.RecursiveWatcher interface.
-func (s *spy) RecursiveWatch(p string, e notify.Event) (err error) {
+func (s *Spy) RecursiveWatch(p string, e notify.Event) (err error) {
 	*s = append(*s, Call{F: RecursiveWatch, P: p, E: e})
 	return
 }
 
 // RecursiveUnwatch implements notify.RecursiveWatcher interface.
-func (s *spy) RecursiveUnwatch(p string) (err error) {
+func (s *Spy) RecursiveUnwatch(p string) (err error) {
 	*s = append(*s, Call{F: RecursiveUnwatch, P: p})
 	return
 }
