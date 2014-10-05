@@ -19,11 +19,12 @@ func init() {
 type FuncType string
 
 const (
-	Invalid = FuncType("Invalid")
-	Watch   = FuncType("Watch")
-	Rewatch = FuncType("Rewatch")
-	Unwatch = FuncType("Unwatch")
-	Fanin   = FuncType("Fanin")
+	Watch            = FuncType("Watch")
+	Unwatch          = FuncType("Unwatch")
+	Fanin            = FuncType("Fanin")
+	Rewatch          = FuncType("Rewatch")
+	RecursiveWatch   = FuncType("RecursiveWatch")
+	RecursiveUnwatch = FuncType("RecursiveUnwatch")
 )
 
 // Call represents single call to notify.Watcher issued by the notify.Runtime
@@ -50,7 +51,7 @@ type r struct {
 // makes.
 func R(t *testing.T) *r {
 	r := &r{t: t}
-	r.r = notify.NewRuntimeFS(&r.spy, FS)
+	r.r = notify.NewRuntimeWatcher(&r.spy, FS)
 	return r
 }
 
@@ -92,12 +93,6 @@ func (s *spy) Watch(p string, e notify.Event) (err error) {
 	return
 }
 
-// Rewatch implements notify.Watcher interface.
-func (s *spy) Rewatch(p string, old, new notify.Event) (err error) {
-	*s = append(*s, Call{F: Rewatch, P: p, E: old, N: new})
-	return
-}
-
 // Unwatch implements notify.Watcher interface.
 func (s *spy) Unwatch(p string) (err error) {
 	*s = append(*s, Call{F: Unwatch, P: p})
@@ -107,4 +102,22 @@ func (s *spy) Unwatch(p string) (err error) {
 // Fanin implements notify.Watcher interface.
 func (s *spy) Fanin(chan<- notify.EventInfo, <-chan struct{}) {
 	*s = append(*s, Call{F: Fanin})
+}
+
+// Rewatch implements notify.Rewatcher interface.
+func (s *spy) Rewatch(p string, old, new notify.Event) (err error) {
+	*s = append(*s, Call{F: Rewatch, P: p, E: old, N: new})
+	return
+}
+
+// RecursiveWatch implements notify.RecursiveWatcher interface.
+func (s *spy) RecursiveWatch(p string, e notify.Event) (err error) {
+	*s = append(*s, Call{F: RecursiveWatch, P: p, E: e})
+	return
+}
+
+// RecursiveUnwatch implements notify.RecursiveWatcher interface.
+func (s *spy) RecursiveUnwatch(p string) (err error) {
+	*s = append(*s, Call{F: RecursiveUnwatch, P: p})
+	return
 }

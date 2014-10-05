@@ -1,8 +1,12 @@
 package notify
 
-// NewWatcher TODO
+// TODO(rjeczalik): Rework inline doc.
+
+// NewWatcher gives new watcher, which is a layer on top of system-specific
+// filesystem event notification functionalities.
+//
+// The newWatcher function must be implemented by each supported platform.
 func NewWatcher() Watcher {
-	// newWatcher is implemented per supported platform
 	return newWatcher()
 }
 
@@ -23,7 +27,7 @@ type Watcher interface {
 	// manner, so you may want to not bother with synchronization from the beginning,
 	// it may be added later, e.g. when notify runtime  is going to be changed to some
 	// producer-consumer model.
-	Watch(string, Event) error
+	Watch(path string, event Event) error
 
 	// Unwatch requests a watcher deletion for the given path and given event set.
 	//
@@ -31,7 +35,7 @@ type Watcher interface {
 	// manner, so you may want to not bother with synchronization from the beginning,
 	// it may be added later, e.g. when notify runtime is going to be changed to some
 	// 1:M producer-consumer model.
-	Unwatch(string) error
+	Unwatch(path string) error
 
 	// Fanin requests to fan in all events from all the created watchers into c.
 	// It is guaranteed the c is non-nil. All unexpected events are ignored.
@@ -43,11 +47,18 @@ type Watcher interface {
 	Fanin(c chan<- EventInfo, stop <-chan struct{})
 }
 
+// Rewatcher provides an interface for modyfing existing watch-points, like
+// expanding its event set.
+type Rewatcher interface {
+	// Rewatch modifies exisiting watch-point under for the given path. It passes
+	// the existing event set currently registered for the given path, and the
+	// new, requested event set.
+	Rewatch(path string, old, new Event) error
+}
+
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support
 // recursive watching over directories.
 type RecursiveWatcher interface {
-	Watcher
-
 	// RecursiveWatch watches the path passed recursively for changes. It is
 	// guaranteed that the given path points to a valid directory and the path
 	// is stripped from "/...".
@@ -64,12 +75,17 @@ type RecursiveWatcher interface {
 	//
 	// The following methods may be called on the Watcher:
 	//
-	//   notify.global.Watcher.Watch("/home/notify", notify.Create)
-	//   notify.global.Watcher.Watch("/home/notify/Music", notify.Create)
-	//   notify.global.Watcher.Watch("/home/notify/Documents", notify.Create)
-	//   notify.global.Watcher.Watch("/home/notify/Downloads", notify.Create)
+	//   notify.r.i.Watch("/home/notify", notify.Create)
+	//   notify.r.i.Watch("/home/notify/Music", notify.Create)
+	//   notify.r.i.Watch("/home/notify/Documents", notify.Create)
+	//   notify.r.i.Watch("/home/notify/Downloads", notify.Create)
 	//   ...
 	//
-	// TODO(rjeczalik): Rework.
-	RecursiveWatch(string, Event) error
+	RecursiveWatch(path string, event Event) error
+
+	// RecursiveUnwatch removes a recursive watch-point given by the path. For
+	// native recursive implementation there is no difference in functionality
+	// between Unwatch and RecursiveUnwatch, however for those platforms, that
+	// requires emulation for recursive watch-points, the implementation differs.
+	RecursiveUnwatch(path string) error
 }
