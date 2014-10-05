@@ -66,9 +66,16 @@ var eityp = reflect.TypeOf((notify.EventInfo)(nil))
 
 type ei struct {
 	p string
+	f FuncType
 	i int
 	e notify.Event
 	b bool
+}
+
+// Indexer provides an interface for assinging unique ids to elements, typically
+// in an auto-increment way.
+type Indexer interface {
+	Index() int
 }
 
 // EI returns new EventInfo for the given path and event.
@@ -80,24 +87,70 @@ type ei struct {
 //   - path="/var/tmp/notify/", which points to a directory
 //
 // The returned EventInfo has an extra functionality - each instance holds
-// an auto-incremented ID. If EventInfo returned by EI is used as a map's key,
+// an auto-incremented index. If EventInfo returned by EI is used as a map's key,
 // those map keys can be sorted using SortKeys method.
-func EI(path string, event notify.Event) notify.EventInfo {
-	ei := ei{
-		p: path,
-		i: c,
-		e: event,
-		b: isDir(path),
+//
+// The arguments passed to EI can be one or more of:
+//
+//   - notify.EventInfo: initializes all values of the returned EventInfo
+//   - notify.Event: expands the returned EventInfo event set
+//   - test.FuncType: assignes an action, which will get triggered when ei is executed
+//   - string: initializes path, returned via Name()
+//
+// The event set of the returned EventInfo gets initialized to notify.All if no
+// other event is passed. EI panics when unexpected type is passed.
+//
+// When len(args)==0 the returned EventInfo is zero-value with auto-incremented
+// index.
+//
+// TODO(rjeczalik): Feels too magic, something simpler?
+func EI(args ...interface{}) notify.EventInfo {
+	e, id := ei{}, false
+	for _, v := range args {
+		switch v := v.(type) {
+		case ei:
+			e, id = v, true
+		case Indexer:
+			e.i, id = v.Index(), true
+		case FuncType:
+			e.f = v
+		case notify.Event:
+			e.e |= v
+		case string:
+			e.p = v
+		case notify.EventInfo:
+			e.p, e.e, e.b = v.Name(), v.Event(), v.IsDir()
+			if i, ok := v.(Indexer); ok {
+				e.i = i.Index()
+			}
+		default:
+			panic(fmt.Sprintf("test.EI(%+v): %T: unexpected argument type", args, v))
+		}
 	}
-	c++
-	return ei
+	if len(args) != 0 {
+		if e.e == 0 {
+			e.e = notify.All
+		}
+		if e.f == "" {
+			e.f = Watch
+		}
+		e.b = isDir(e.p)
+	}
+	if !id {
+		e.i = c
+		c++
+	}
+	return e
 }
 
 // Implements notify.EventInfo interface.
 func (e ei) Event() notify.Event { return e.e }
 func (e ei) IsDir() bool         { return e.b }
 func (e ei) Name() string        { return e.p }
-func (e ei) Sys() interface{}    { return nil }
+func (e ei) Sys() interface{}    { return e.f }
+
+// Index implements Indexer interface.
+func (e ei) Index() int { return e.i }
 
 // Eislice implements sort.Interface for notify.EventInfo slice. It expects each
 // element to be implemented by a ei type.
@@ -105,10 +158,11 @@ type eislice []notify.EventInfo
 
 func (e eislice) Len() int           { return len(e) }
 func (e eislice) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
-func (e eislice) Less(i, j int) bool { return e[i].(ei).i < e[i].(ei).i }
+func (e eislice) Less(i, j int) bool { return e[i].(Indexer).Index() < e[j].(Indexer).Index() }
 
 // SortKeys sorts and returns keys of the m map. The m must be of map[notify.EventInfo]T
-// type. The notify.EventInfo interface must be implemented by ei type.
+// type. The type implementing notify.EventInfo interface must alse implement
+// an Indexer one.
 //
 // For the following map:
 //
@@ -126,13 +180,16 @@ func SortKeys(m interface{}) (key []notify.EventInfo) {
 	}
 	for _, v := range v.MapKeys() {
 		if e, ok := v.Interface().(notify.EventInfo); ok {
-			if ei, ok := e.(ei); ok {
-				key = append(key, ei)
+			if _, ok = e.(Indexer); ok {
+				key = append(key, e)
 				continue
 			}
 		}
 		panic(fmt.Sprintf("want typeof(m)=map[notify.EventInfo]T; got %T", m))
 	}
-	sort.Sort(eislice(key))
+	if len(key) == 0 {
+		return nil
+	}
+	sort.Stable(eislice(key))
 	return
 }

@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 
 // Dummy is a dummy channel, non-nil but closed. Used for mocked calls to
 // Watcher.Watch when no-one cares about getting notifications back.
-var dummy = make(chan notify.EventInfo)
+var dummy chan<- notify.EventInfo = make(chan notify.EventInfo)
 
 func init() {
 	close(dummy)
@@ -38,8 +39,14 @@ type Call struct {
 	N notify.Event
 }
 
+type pe struct {
+	p string
+	e notify.Event
+}
+
 // R represents a fixture for notify.Runtime testing.
 type r struct {
+	c   map[pe]chan<- notify.EventInfo
 	t   *testing.T
 	r   *notify.Runtime
 	spy spy
@@ -50,9 +57,27 @@ type r struct {
 // with a spy Watcher mock, which is used for retrospecting calls to it the Runtime
 // makes.
 func R(t *testing.T) *r {
-	r := &r{t: t}
+	r := &r{c: make(map[pe]chan<- notify.EventInfo), t: t, n: 1}
 	r.r = notify.NewRuntimeWatcher(&r.spy, FS)
 	return r
+}
+
+func (r *r) exec(ei notify.EventInfo) (err error) {
+	pe := pe{p: ei.Name(), e: ei.Event()}
+	if f, ok := ei.Sys().(FuncType); ok && f == Unwatch {
+		c, ok := r.c[pe]
+		if !ok {
+			panic(fmt.Sprintf("notify/test: unexpected Stop of channel pe=%+v", pe))
+		}
+		r.r.Stop(c)
+		return nil
+	}
+	c, ok := r.c[pe]
+	if !ok {
+		c = make(chan notify.EventInfo)
+		r.c[pe] = c
+	}
+	return r.r.Watch(pe.p, c, pe.e)
 }
 
 // ExpectCalls translates values specified by the cases' keys into Watch calls
@@ -62,14 +87,13 @@ func R(t *testing.T) *r {
 // Eventhough cases is described by a map, events are executed in the
 // order they were either defined or assigned to the cases.
 func (r *r) ExpectCalls(cases map[notify.EventInfo][]Call) {
-	n := 1
 	// Sort keys to ensure cases are executed in chronological order.
 	for _, ei := range SortKeys(cases) {
-		if err := r.r.Watch(ei.Name(), dummy, ei.Event()); err != nil {
+		if err := r.exec(ei); err != nil {
 			r.t.Fatalf("want err=nil; got %v (ei=%v)", err, ei)
 		}
-		if want, got := cases[ei], (r.spy)[n:]; !reflect.DeepEqual(got, spy(want)) {
-			r.t.Errorf("want cas=%v; got %v (ei=%v)", want, got, ei)
+		if want, got := cases[ei], r.spy[r.n:]; !reflect.DeepEqual(got, spy(want)) {
+			r.t.Errorf("want cas=%+v; got %+v (ei=%+v)", want, got, ei)
 		}
 		r.n = len(r.spy)
 	}

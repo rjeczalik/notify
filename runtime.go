@@ -26,15 +26,10 @@ type Interface interface {
 	RecursiveWatcher
 }
 
-type interfac struct {
-	Watcher
-	Rewatcher
-	RecursiveWatcher
-}
-
 // Runtime TODO
 type Runtime struct {
 	tree map[string]interface{}
+	ch   map[chan<- EventInfo]string
 	stop chan struct{}
 	c    <-chan EventInfo
 	fs   fs.Filesystem
@@ -48,29 +43,39 @@ func NewRuntime() *Runtime {
 
 // NewRuntimeWatcher TODO
 func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
-	w, c, i := w, make(chan EventInfo), interfac{Watcher: w}
+	c := make(chan EventInfo)
 	r := &Runtime{
 		tree: make(map[string]interface{}),
+		ch:   make(map[chan<- EventInfo]string),
 		stop: make(chan struct{}),
 		c:    c,
 		fs:   fs,
 	}
-	if rw, ok := w.(RecursiveWatcher); ok {
-		i.RecursiveWatcher = rw
+	if i, ok := w.(Interface); ok {
+		r.i = i
 	} else {
-		i.RecursiveWatcher = Recursive{
-			Watcher: w,
-			Runtime: r,
+		i := struct {
+			Watcher
+			Rewatcher
+			RecursiveWatcher
+		}{Watcher: w}
+		if rw, ok := w.(RecursiveWatcher); ok {
+			i.RecursiveWatcher = rw
+		} else {
+			i.RecursiveWatcher = Recursive{
+				Watcher: w,
+				Runtime: r,
+			}
 		}
-	}
-	if re, ok := w.(Rewatcher); ok {
-		i.Rewatcher = re
-	} else {
-		i.Rewatcher = Re{
-			Watcher: w,
+		if re, ok := w.(Rewatcher); ok {
+			i.Rewatcher = re
+		} else {
+			i.Rewatcher = Re{
+				Watcher: w,
+			}
 		}
+		r.i = i
 	}
-	r.i = i
 	r.i.Fanin(c, r.stop)
 	go r.loop()
 	return r
@@ -78,6 +83,9 @@ func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 
 // Watch TODO
 func (r *Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err error) {
+	if c == nil {
+		panic("notify: Watch using nil channel")
+	}
 	isrec := false
 	if strings.HasSuffix(p, "...") {
 		p, isrec = p[:len(p)-3], true
@@ -98,7 +106,9 @@ func (r *Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 
 // Stop TODO
 func (r *Runtime) Stop(c chan<- EventInfo) {
-	panic("(*Runtime.Stop) TODO(rjeczalik)")
+	if p, ok := r.ch[c]; ok {
+		r.i.Unwatch(p)
+	}
 }
 
 // Close stops the runtime, resulting it does not send any more notifications.
@@ -134,8 +144,8 @@ func (r *Runtime) dispatch(ei EventInfo) {
 //   1. Watch-point exist and its event-set is sufficient.
 //   2. Watch-point exist but its event-set needs to be expanded.
 //   3. Watch-point exist but is-non recursive and recursive one was requested.
-//   3a. i is natively recursive.
-//   3b. i is not natively recursive.
+//   3a. Watcher is natively recursive.
+//   3b. Watcher is not natively recursive.
 //   4. Watch-point does not exist and was requested for a directory, but more
 //      than 0 watch-points already exist watching files.
 //   5. ?
@@ -152,7 +162,11 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 			return err
 		}
 	default: // 1, 2
+		if err = r.i.Watch(p, e); err != nil {
+			return err
+		}
 	}
+	r.ch[c] = p
 	return nil
 }
 
