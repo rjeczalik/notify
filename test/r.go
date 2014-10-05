@@ -62,6 +62,7 @@ func R(t *testing.T) *r {
 // order they were either defined or assigned to the cases.
 func (r *r) ExpectCalls(cases map[notify.EventInfo][]Call) {
 	n := 1
+	// Sort keys to ensure cases are executed in chronological order.
 	for _, ei := range SortKeys(cases) {
 		if err := r.r.Watch(ei.Name(), dummy, ei.Event()); err != nil {
 			r.t.Fatalf("want err=nil; got %v (ei=%v)", err, ei)
