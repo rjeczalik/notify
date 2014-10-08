@@ -8,12 +8,21 @@ type Event uint32
 // All TODO
 const All = Create | Delete | Write | Move
 
+var estr = map[Event]string{
+	Create: "notify.Create",
+	Delete: "notify.Delete",
+	Write:  "notify.Write",
+	Move:   "notify.Move",
+}
+
 // String implements fmt.Stringer interface.
 func (e Event) String() string {
 	var s []string
-	for ev, str := range estr {
-		if e&ev == ev {
-			s = append(s, str)
+	for _, strmap := range []map[Event]string{estr, osestr} {
+		for ev, str := range strmap {
+			if e&ev == ev {
+				s = append(s, str)
+			}
 		}
 	}
 	return strings.Join(s, "|")

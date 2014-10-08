@@ -22,12 +22,8 @@ const (
 	FSN_ALL    = FSN_CREATE | FSN_REMOVE | FSN_WRITE | FSN_RENAME | FSN_CHMOD
 )
 
-var estr = map[Event]string{
-	FSN_CREATE: "notify.Create",
-	FSN_REMOVE: "notify.Delete",
-	FSN_WRITE:  "notify.Write",
-	FSN_RENAME: "notify.Move",
-	FSN_CHMOD:  "notify.Chmod",
+var osestr = map[Event]string{
+	FSN_CHMOD: "notify.Chmod",
 }
 
 var ekind = map[Event]Event{

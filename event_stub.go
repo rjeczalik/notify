@@ -19,12 +19,7 @@ const (
 	EV_STUB_ALL    = Event(0x0000000f)
 )
 
-var estr = map[Event]string{
-	Create: "create",
-	Delete: "delete",
-	Write:  "write",
-	Move:   "move",
-}
+var osestr = map[Event]string{}
 
 var ekind = map[Event]Event{
 	Move: Create, // TODO(rjeczalik): Move (fsnotify.Rename) does not work, workaround?

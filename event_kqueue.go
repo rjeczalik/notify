@@ -37,11 +37,7 @@ const (
 )
 
 // TODO: eh..
-var estr = map[Event]string{
-	Create: "notify.Create",
-	Delete: "notify.Delete",
-	Write:  "notify.Write",
-	Move:   "notify.Move",
+var osestr = map[Event]string{
 	//	NOTE_DELETE: "notify.NOTE_DELETE",
 	//	NOTE_WRITE:  "notify.NOTE_WRITE",
 	NOTE_EXTEND: "notify.NOTE_EXTEND",

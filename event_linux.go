@@ -41,11 +41,7 @@ const (
 
 const invalid = ^(All | IN_ALL_EVENTS)
 
-var estr = map[Event]string{
-	Create:           "notify.Create",
-	Delete:           "notify.Delete",
-	Write:            "notify.Write",
-	Move:             "notify.Move",
+var osestr = map[Event]string{
 	IN_ACCESS:        "notify.IN_ACCESS",
 	IN_MODIFY:        "notify.IN_MODIFY",
 	IN_ATTRIB:        "notify.IN_ATTRIB",
