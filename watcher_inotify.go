@@ -235,13 +235,13 @@ func decodemask(mask, syse uint32) Event {
 	switch {
 	case mask&syse != 0:
 		return Event(syse)
-	case imask&makemask(Create)&syse != 0:
+	case imask&(IN_CREATE|IN_MOVED_TO)&syse != 0:
 		return Create
-	case imask&makemask(Delete)&syse != 0:
+	case imask&(IN_DELETE|IN_DELETE_SELF)&syse != 0:
 		return Delete
-	case imask&makemask(Write)&syse != 0:
+	case imask&(IN_MODIFY)&syse != 0:
 		return Write
-	case imask&makemask(Move)&syse != 0:
+	case imask&(IN_MOVED_FROM|IN_MOVE_SELF)&syse != 0:
 		return Move
 	}
 	panic("notify: cannot decode internal mask")
