@@ -1,5 +1,7 @@
 package notify
 
+import "errors"
+
 // TODO(rjeczalik): Rework inline doc.
 
 // NewWatcher gives new watcher, which is a layer on top of system-specific
@@ -88,4 +90,33 @@ type RecursiveWatcher interface {
 	// between Unwatch and RecursiveUnwatch, however for those platforms, that
 	// requires emulation for recursive watch-points, the implementation differs.
 	RecursiveUnwatch(path string) error
+}
+
+// recursive TODO
+type recursive struct {
+	Watcher Watcher
+	Runtime *Runtime
+}
+
+// recursiveWatch TODO
+func (r recursive) RecursiveWatch(p string, e Event) error {
+	return errors.New("RecurisveWatch TODO(rjeczalik)")
+}
+
+// recursiveUnwatch TODO
+func (r recursive) RecursiveUnwatch(p string) error {
+	return errors.New("RecurisveUnwatch TODO(rjeczalik)")
+}
+
+// rewatch TODO
+type rewatch struct {
+	Watcher Watcher
+}
+
+// rewatchwatch TODO
+func (r rewatch) Rewatch(p string, old, new Event) error {
+	if err := r.Watcher.Unwatch(p); err != nil {
+		return err
+	}
+	return r.Watcher.Watch(p, new)
 }

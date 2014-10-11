@@ -3,20 +3,34 @@ package notify_test
 import (
 	"testing"
 
-	"github.com/rjeczalik/notify"
+	. "github.com/rjeczalik/notify"
 	"github.com/rjeczalik/notify/test"
 )
 
-func TestRuntimeBasicWatcher(t *testing.T) {
-	cases := map[notify.EventInfo][]test.Call{
-		test.EI("/github.com/rjeczalik/fakerpc/", notify.Delete): {
-			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc/", E: notify.Delete},
+func TestRuntime_DirectorySimple(t *testing.T) {
+	cases := map[EventInfo][]test.Call{
+		test.EI("/github.com/rjeczalik/fakerpc/", Create|Delete|Move): {
+			{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Delete | Create | Move,
+			},
 		},
-		test.EI("/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
-			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc/LICENSE", E: notify.Write},
+		test.EI("/github.com/rjeczalik/fakerpc/", Delete|Move): {},
+		test.EI("/github.com/rjeczalik/fakerpc/", Move):        {},
+		test.EI("/github.com/rjeczalik/fs/", Create|Create): {
+			{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fs/",
+				E: Create,
+			},
 		},
-		test.EI(test.Unwatch, "/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
-			{F: test.Unwatch, P: "/github.com/rjeczalik/fakerpc/LICENSE"},
+		test.EI("/github.com/rjeczalik/fs/", Create): {},
+		test.EI(test.Unwatch, "/github.com/rjeczalik/fs/", Create): {
+			{
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fs/",
+			},
 		},
 	}
 	test.ExpectCallsFunc(t, test.Watcher, cases)
