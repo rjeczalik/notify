@@ -130,6 +130,7 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 			}
 			delete(subscribers, c)
 			// BUG Update r.ev[path].
+			// UG Unwatch?
 		}
 	}
 	delete(r.ch, c)
@@ -178,10 +179,6 @@ func (r *Runtime) addpath(c chan<- EventInfo, p string) {
 
 // Watch registers user's chan in the notification tree and, if needed, sets
 // also a watch-point.
-//
-// Watching a directory, simple scenarios:
-//
-//   -
 func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool) error {
 	parent, name, err := r.lookup(p)
 	if err != nil {

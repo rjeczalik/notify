@@ -103,7 +103,7 @@ type Indexer interface {
 // When len(args)==0 the returned EventInfo is zero-value with auto-incremented
 // index.
 //
-// TODO(rjeczalik): Feels too magic, something simpler?
+// TODO(rjeczalik): Remove altogether with w.go refactoring.
 func EI(args ...interface{}) notify.EventInfo {
 	e, id := ei{}, false
 	for _, v := range args {
