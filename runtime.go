@@ -4,10 +4,60 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/rjeczalik/fs"
 )
+
+// None is an empty event diff, think null object.
+var None EventDiff
+
+// EventDiff describes a change to an event set - EventDiff[0] is an old state,
+// while EventDiff[1] is a new state. If event set has not changed (old == new),
+// functions typically return None value.
+type EventDiff [2]Event
+
+// Subscriber TODO
+//
+// The nil key holds total event set - logical sum for all registered events.
+// It speeds up computing EventDiff for Subscribe method.
+type Subscriber map[chan<- EventInfo]Event
+
+// Subscribe TODO
+//
+// Subscribe assumes neither c nor e are nil or zero values.
+func (sub Subscriber) Subscribe(c chan<- EventInfo, e Event) (diff EventDiff) {
+	sub[c] |= e
+	diff[0] = sub[nil]
+	diff[1] = diff[0] | e
+	sub[nil] = diff[1]
+	if diff[0] == diff[1] {
+		return None
+	}
+	return
+}
+
+// Unsubscribe TODO
+func (sub Subscriber) Unsubscribe(c chan<- EventInfo) (diff EventDiff) {
+	delete(sub, c)
+	diff[0] = sub[nil]
+	// Recalculate total event set.
+	delete(sub, nil)
+	for _, e := range sub {
+		diff[1] |= e
+	}
+	sub[nil] = diff[1]
+	if diff[0] == diff[1] {
+		return None
+	}
+	return
+}
+
+// Total TODO
+func (sub Subscriber) Total() Event {
+	return sub[nil]
+}
 
 // Interface TODO
 type Interface interface {
@@ -28,13 +78,13 @@ type Interface interface {
 
 // Runtime TODO
 type Runtime struct {
-	tree map[string]interface{}
-	ch   map[chan<- EventInfo]map[string]struct{} // cache path registrations per channel
-	ev   map[string]Event                         // cache total event set per path
-	stop chan struct{}
-	c    <-chan EventInfo
-	fs   fs.Filesystem
-	i    Interface
+	tree  map[string]interface{}
+	path  map[chan<- EventInfo][]string // cache path registrations per channel
+	total map[string]Event              // cache total event set per path
+	stop  chan struct{}
+	c     <-chan EventInfo
+	fs    fs.Filesystem
+	i     Interface
 }
 
 // NewRuntime TODO
@@ -46,12 +96,12 @@ func NewRuntime() *Runtime {
 func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 	c := make(chan EventInfo)
 	r := &Runtime{
-		tree: make(map[string]interface{}),
-		ch:   make(map[chan<- EventInfo]map[string]struct{}),
-		ev:   make(map[string]Event),
-		stop: make(chan struct{}),
-		c:    c,
-		fs:   fs,
+		tree:  make(map[string]interface{}),
+		path:  make(map[chan<- EventInfo][]string),
+		total: make(map[string]Event),
+		stop:  make(chan struct{}),
+		c:     c,
+		fs:    fs,
 	}
 	if i, ok := w.(Interface); ok {
 		r.i = i
@@ -108,32 +158,34 @@ func (r *Runtime) Watch(p string, c chan<- EventInfo, events ...Event) (err erro
 
 // Stop TODO
 func (r *Runtime) Stop(c chan<- EventInfo) {
-	// TODO Unwatch / rewatch watch-points.
-	if paths, ok := r.ch[c]; ok {
-		for path := range paths {
-			_ = r.i.Unwatch(path) // TODO handle errors?
-			// TODO(rjeczalik): If channel c is set to watch the same path, deep
-			// in the directory tree at different tree level, doing separate
-			// lookups for each is highly inefficient - it should be possible
-			// to remove more channel subscription at one lookup.
-			var subscribers map[chan<- EventInfo]Event
-			parent, name, _ := r.lookup(path) // TODO
+	if paths, ok := r.path[c]; ok {
+		// TODO(rjeczalik): If channel c is set to watch the same path, deep
+		// in the directory tree at different tree level, doing separate
+		// lookups for each is highly inefficient - it should be possible
+		// to remove more channel subscription at one lookup.
+		for _, path := range paths {
+			var sub Subscriber
+			parent, name, _ := r.lookup(path) // TODO error?
 			switch v := parent[name].(type) {
 			case map[string]interface{}: // dir
-				if v, ok := v[""].(map[chan<- EventInfo]Event); ok {
-					subscribers = v
-				} else {
-					// TODO error handling?
-				}
-			case map[chan<- EventInfo]Event: // file
-				subscribers = v
+				// NOTE !ok means channel was already removed. Bug?
+				sub = v[""].(Subscriber)
+			case Subscriber:
+				sub = v
+			default:
+				panic("bug")
 			}
-			delete(subscribers, c)
-			// BUG Update r.ev[path].
-			// UG Unwatch?
+			if diff := sub.Unsubscribe(c); diff != None {
+				if diff[1] == 0 {
+					_ = r.i.Unwatch(path) // TODO error?
+				} else {
+					_ = r.i.Rewatch(path, diff[0], diff[1]) // TODO error?
+				}
+			}
+			r.total[path] = sub.Total()
 		}
+		delete(r.path, c)
 	}
-	delete(r.ch, c)
 }
 
 // Close stops the runtime, resulting it does not send any more notifications.
@@ -163,18 +215,29 @@ func (r *Runtime) dispatch(ei EventInfo) {
 }
 
 func (r *Runtime) tryRewatch(p string, e Event) error {
-	if old := r.ev[p]; old&e != e {
-		r.ev[p] |= e
-		return r.i.Rewatch(p, old, r.ev[p])
+	if old := r.total[p]; old&e != e {
+		r.total[p] |= e
+		return r.i.Rewatch(p, old, r.total[p])
 	}
 	return nil
 }
 
-func (r *Runtime) addpath(c chan<- EventInfo, p string) {
-	if _, ok := r.ch[c]; !ok {
-		r.ch[c] = make(map[string]struct{})
+func (r *Runtime) cachepath(c chan<- EventInfo, p string) {
+	if paths := r.path[c]; len(paths) == 0 {
+		r.path[c] = []string{p}
+	} else {
+		switch i := sort.StringSlice(paths).Search(p); {
+		case i == len(paths):
+			r.path[c] = append(r.path[c], p)
+		case paths[i] == p:
+			return
+		default:
+			paths = append(paths, "")
+			copy(paths[i+1:], paths[i:])
+			paths[i], r.path[c] = p, paths
+			println(paths)
+		}
 	}
-	r.ch[c][p] = struct{}{}
 }
 
 // Watch registers user's chan in the notification tree and, if needed, sets
@@ -188,55 +251,40 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 	case isdir && isrec:
 		return errors.New("(*Runtime).Watch TODO(rjeczalik)")
 	case isdir:
-		// See whether the channel needs to be subscribded and whether its existing
-		// event set is sufficient - only if the directory is being watched.
-		if v, ok := parent[name]; ok {
-			dir := v.(map[string]interface{})
-			// See whether the watch-point and already subscribded channel has
-			// sufficient event - expand or rewatch any that hasn't.
-			if v, ok = dir[""]; ok {
-				subs := v.(map[chan<- EventInfo]Event)
-				if subdEvent, ok := subs[c]; ok {
-					// If current event set for already subscribded channel is
-					// not enough, expand it. If current watch-point has too
-					// small event set - rewatch it as well.
-					if e&subdEvent != e {
-						if err := r.tryRewatch(p, e); err != nil {
-							return err
-						}
-						subs[c] = subdEvent | e
-					}
-					// Channel already registered, event set ok - move one.
-				} else {
-					// See if event set is sufficient or expand it if needed.
-					if err := r.tryRewatch(p, e); err != nil {
-						return err
-					}
-					subs[c] = e
-				}
-			} else {
-				// Create a watch-point and subscribe the channel. There may
-				// be other file subscription within this directory.
-				//
-				// TODO(rjeczalik): Consider removing watch-points for subscribded
-				// channels watching single files within the directory.
-				dir[""] = map[chan<- EventInfo]Event{c: e}
-				r.addpath(c, p)
-				if err := r.i.Watch(p, e); err != nil {
-					return err
-				}
-				r.ev[p] = e
-			}
+		var dir map[string]interface{}
+		var sub Subscriber
+		var err error
+		// Get or create dir for the current watch-point.
+		if v, ok := parent[name].(map[string]interface{}); ok {
+			dir = v
 		} else {
-			// Create a watch-point and subscribe the channel. There are no other
-			// channel subscriptions within the directory.
-			parent[name] = map[string]interface{}{"": map[chan<- EventInfo]Event{c: e}}
-			r.addpath(c, p)
-			if err := r.i.Watch(p, e); err != nil {
+			dir = map[string]interface{}{}
+			parent[name] = dir
+		}
+		// Get or create subscribers map for the current watch-point
+		if v, ok := dir[""].(Subscriber); ok {
+			sub = v
+		} else {
+			sub = Subscriber{}
+			dir[""] = sub
+		}
+		// Subscribe channel to the current watch-point.
+		if diff := sub.Subscribe(c, e); diff != None {
+			if diff[0] == 0 {
+				// No existing watch-point for the path, create new one.
+				err = r.i.Watch(p, diff[1])
+			} else {
+				// Not sufficient event set, expand it.
+				err = r.i.Rewatch(p, diff[0], diff[1])
+			}
+			if err != nil {
 				return err
 			}
-			r.ev[p] = e
 		}
+		// Cache some values. Probably temporary until the data structure
+		// for the watch-point tree gets reimplemented.
+		r.cachepath(c, p)
+		r.total[p] = sub.Total()
 	default:
 		return errors.New("(*Runtime).Watch TODO(rjeczalik)")
 	}

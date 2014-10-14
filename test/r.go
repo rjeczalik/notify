@@ -120,7 +120,7 @@ func (r *r) ExpectCalls(cases []CallCase) {
 			r.t.Fatalf("want Runtime.%s(...)=nil; got %v (call=%+v)", cas.Call.F,
 				err, cas.Call)
 		}
-		if got := r.spy[r.n:]; !reflect.DeepEqual(got, Spy(cas.Record)) {
+		if got := r.spy[r.n:]; (len(cas.Record) != 0 || len(got) != 0) && !reflect.DeepEqual(got, Spy(cas.Record)) {
 			r.t.Errorf("want recorded=%+v; got %+v (call=%+v)", cas.Record, got,
 				cas.Call)
 		}

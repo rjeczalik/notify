@@ -64,6 +64,13 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 		},
 		Record: []test.Call{{
 			F: test.Unwatch,
+			P: "/github.com/rjeczalik/fakerpc/",
+		}, {
+			F: test.Watch,
+			P: "/github.com/rjeczalik/fakerpc/",
+			E: Delete | Move,
+		}, {
+			F: test.Unwatch,
 			P: "/github.com/rjeczalik/fs/",
 		}},
 	}}
