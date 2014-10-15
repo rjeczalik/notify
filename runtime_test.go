@@ -16,11 +16,12 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 			P: "/github.com/rjeczalik/fakerpc/",
 			E: Create | Delete | Move,
 		},
-		Record: []test.Call{{
-			F: test.Watch,
-			P: "/github.com/rjeczalik/fakerpc/",
-			E: Delete | Create | Move,
-		}},
+		Record: test.Record{
+			test.All: {{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Delete | Create | Move,
+			}}},
 	}, {
 		Call: test.Call{
 			F: test.Watch,
@@ -44,11 +45,12 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 			P: "/github.com/rjeczalik/fs/",
 			E: Create | Delete,
 		},
-		Record: []test.Call{{
-			F: test.Watch,
-			P: "/github.com/rjeczalik/fs/",
-			E: Create | Delete,
-		}},
+		Record: test.Record{
+			test.All: {{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fs/",
+				E: Create | Delete,
+			}}},
 	}, {
 		Call: test.Call{
 			F: test.Watch,
@@ -62,17 +64,28 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 			F: test.Stop,
 			C: ch(0),
 		},
-		Record: []test.Call{{
-			F: test.Unwatch,
-			P: "/github.com/rjeczalik/fakerpc/",
-		}, {
-			F: test.Watch,
-			P: "/github.com/rjeczalik/fakerpc/",
-			E: Delete | Move,
-		}, {
-			F: test.Unwatch,
-			P: "/github.com/rjeczalik/fs/",
-		}},
+		Record: test.Record{
+			test.Watcher: {{
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fakerpc/",
+			}, {
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Delete | Move,
+			}, {
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fs/",
+			}},
+			test.Rewatcher | test.Recursive: {{
+				F: test.Rewatch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Create | Delete | Move,
+				N: Delete | Move,
+			}, {
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fs/",
+			}},
+		},
 	}}
-	test.ExpectCallsFunc(t, test.RuntimeWatcher, cases[:])
+	test.ExpectCalls(t, cases[:])
 }

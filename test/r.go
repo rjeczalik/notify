@@ -1,19 +1,12 @@
 package test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/rjeczalik/notify"
 )
-
-// Dummy is a dummy channel, non-nil but closed. Used for mocked calls to
-// Watcher.Watch when no-one cares about getting notifications back.
-var dummy chan<- notify.EventInfo = make(chan notify.EventInfo)
-
-func init() {
-	close(dummy)
-}
 
 // FuncType represents enums for notify.Watcher interface.
 type FuncType string
@@ -28,56 +21,32 @@ const (
 	Stop             = FuncType("Stop")
 )
 
-// Call represents single call to notify.Watcher issued by the notify.Runtime
-// and recorded by a spy notify.Watcher mock.
+// RuntimeType TODO
+type RuntimeType uint8
+
+const (
+	Watcher   RuntimeType = 1 << iota // implements Watcher only
+	Rewatcher                         // implements Watcher + Rewatcher
+	Recursive                         // implements Watcher + Rewatcher + Recursive
+)
+
+// All TODO
 //
-// TODO(rjeczalik): Merge/embed notify.EventInfo here?
-type Call struct {
-	F FuncType
-	C chan<- notify.EventInfo
-	P string
-	E notify.Event // regular Event argument and old Event from a Rewatch call
-	N notify.Event // new Event argument from a Rewatch call
-}
+// NOTE(rjeczalik): For use with Record type only.
+const All RuntimeType = Watcher | Rewatcher | Recursive
 
-// CallCase describes a single test case. Call describes either Watch or Stop
-// invocation made on a Runtime, while Record describes all internal calls
-// to the Watcher implementation made by Runtime during that call.
-type CallCase struct {
-	Call   Call   // call invoked on Runtime
-	Record []Call // intermediate calls recorded during above call
-}
+// Strings implements fmt.Stringer interface.
+func (typ RuntimeType) String() string {
+	switch typ {
+	case Watcher:
+		return "RuntimeWatcher"
+	case Rewatcher:
+		return "RuntimeRewatcher"
+	case Recursive:
+		return "RuntimeRecursive"
+	}
 
-// RuntimeFunc is used for initializing spy mock.
-type RuntimeFunc func(*Spy) notify.Watcher
-
-// Watcher is a RuntimeFunc returning a Watcher which implements notify.Watcher
-// interface only.
-func RuntimeWatcher(spy *Spy) notify.Watcher {
-	return struct{ notify.Watcher }{spy}
-}
-
-// RuntimeRewatcher is a RuntimeFunc returning a Watcher which complementary to
-// notify.Watcher implements also notify.Rewatcher interface.
-func RuntimeRewatcher(spy *Spy) notify.Watcher {
-	return struct {
-		notify.Watcher
-		notify.Rewatcher
-	}{spy, spy}
-}
-
-// RuntimeInterface is a default RuntimeFunc which returns a Watcher which implements
-// notify.RuntimeInterface.
-func RuntimeInterface(spy *Spy) notify.Watcher {
-	return struct{ notify.Interface }{spy}
-}
-
-// R represents a fixture for notify.Runtime testing.
-type r struct {
-	t   *testing.T
-	r   *notify.Runtime
-	spy Spy
-	n   int
+	return "<invalid runtime type>"
 }
 
 // Channels is a utility function which creates pool of chan <- notify.EventInfo.
@@ -91,64 +60,137 @@ func Channels(n int) func(int) chan<- notify.EventInfo {
 	}
 }
 
+// Call represents single call to notify.Watcher issued by the notify.Runtime
+// and recorded by a spy notify.Watcher mock.
+//
+// TODO(rjeczalik): Merge/embed notify.EventInfo here?
+type Call struct {
+	F FuncType
+	C chan<- notify.EventInfo
+	P string
+	E notify.Event // regular Event argument and old Event from a Rewatch call
+	N notify.Event // new Event argument from a Rewatch call
+}
+
+// Record TODO
+type Record map[RuntimeType][]Call
+
+// CallCase describes a single test case. Call describes either Watch or Stop
+// invocation made on a Runtime, while Record describes all internal calls
+// to the Watcher implementation made by Runtime during that call.
+type CallCase struct {
+	Call   Call   // call invoked on Runtime
+	Record Record // intermediate calls recorded during above call
+}
+
+type runtime struct {
+	runtime *notify.Runtime
+	spy     Spy
+	n       int
+}
+
+func (rt *runtime) invoke(call Call) error {
+	switch call.F {
+	case Watch:
+		return rt.runtime.Watch(call.P, call.C, call.E)
+	case Stop:
+		rt.runtime.Stop(call.C)
+		return nil
+	}
+	panic("test.(*runtime).invoke: invalid Runtime call: " + call.F)
+}
+
+// R represents a fixture for notify.Runtime testing.
+type r struct {
+	t *testing.T
+	r map[RuntimeType]*runtime
+}
+
 // R gives new fixture for notify.Runtime testing. It initializes a new Runtime
 // with a spy Watcher mock, which is used for retrospecting calls to it the Runtime
 // makes.
-func R(t *testing.T, fn RuntimeFunc) *r {
-	r := &r{t: t, n: 1}
-	r.r = notify.NewRuntimeWatcher(fn(&r.spy), FS)
-	return r
-}
-
-func (r *r) invoke(call Call) error {
-	switch call.F {
-	case Watch:
-		return r.r.Watch(call.P, call.C, call.E)
-	case Stop:
-		r.r.Stop(call.C)
-		return nil
+func R(t *testing.T) *r {
+	r := &r{
+		t: t,
+		r: map[RuntimeType]*runtime{
+			Watcher:   &runtime{n: 1},
+			Rewatcher: &runtime{n: 1},
+			Recursive: &runtime{n: 1},
+		},
 	}
-	panic("test.invoke: invalid Runtime call: " + call.F)
+	for typ, rt := range r.r {
+		rt.runtime = notify.NewRuntimeWatcher(SpyWatcher(typ, &rt.spy), FS)
+	}
+	return r
 }
 
 // ExpectCalls translates values specified by the cases' keys into Watch calls
 // executed on the fixture's Runtime. A spy Watcher mock records calls to it
 // and compares with the expected ones for each key in the list.
 func (r *r) ExpectCalls(cases []CallCase) {
-	for _, cas := range cases {
-		if err := r.invoke(cas.Call); err != nil {
-			r.t.Fatalf("want Runtime.%s(...)=nil; got %v (call=%+v)", cas.Call.F,
-				err, cas.Call)
+	var record []Call
+	for i, cas := range cases {
+		for typ, rt := range r.r {
+			// Invoke call and record underlying calls.
+			if err := rt.invoke(cas.Call); err != nil {
+				r.t.Fatalf("want Runtime.%s(...)=nil; got %v (i=%d, typ=%v)",
+					cas.Call.F, err, i, typ)
+			}
+			// Skip if expected and got records were empty.
+			got := rt.spy[rt.n:]
+			if len(cas.Record) == 0 && len(got) == 0 {
+				continue
+			}
+			// Find expected records for typ Runtime.
+			if rec, ok := cas.Record[typ]; ok {
+				record = rec
+			} else {
+				for rectyp, rec := range cas.Record {
+					if rectyp&typ != 0 {
+						record = rec
+						break
+					}
+				}
+			}
+			if !reflect.DeepEqual(got, Spy(record)) {
+				r.t.Errorf("want recorded=%+v; got %+v (i=%d, typ=%v)",
+					record, got, i, typ)
+			}
+			rt.n = len(rt.spy)
 		}
-		if got := r.spy[r.n:]; (len(cas.Record) != 0 || len(got) != 0) && !reflect.DeepEqual(got, Spy(cas.Record)) {
-			r.t.Errorf("want recorded=%+v; got %+v (call=%+v)", cas.Record, got,
-				cas.Call)
-		}
-		r.n = len(r.spy)
 	}
 }
 
-// ExpectCallsFunc translates cases' keys into (*Runtime).Watch calls, records calls
+// ExpectCalls translates cases' keys into (*Runtime).Watch calls, records calls
 // Runtime makes to a Watcher and compares them with the expected list.
-//
-// It uses fn to limit number of interfaces which Spy is going to implement.
-// A spy is a recording mock used as a Watcher implementation to initialize
-// a Runtime.
-func ExpectCallsFunc(t *testing.T, fn RuntimeFunc, cases []CallCase) {
-	R(t, fn).ExpectCalls(cases)
-}
-
-// ExpectCallsFunc translates cases' keys into (*Runtime).Watch calls, records calls
-// Runtime makes to a Watcher and compares them with the expected list.
-//
-// Eventhough cases is described by a map, events are executed in the
-// order they were either defined or assigned to the cases.
 func ExpectCalls(t *testing.T, cases []CallCase) {
-	ExpectCallsFunc(t, RuntimeInterface, cases)
+	R(t).ExpectCalls(cases)
 }
 
 // Spy is a mock for notify.Watcher interface, which records every call.
 type Spy []Call
+
+// SpyWatcher TODO
+func SpyWatcher(typ RuntimeType, spy *Spy) notify.Watcher {
+	switch typ {
+	case Watcher:
+		return struct {
+			notify.Watcher
+		}{spy}
+	case Rewatcher:
+		return struct {
+			notify.Watcher
+			notify.Rewatcher
+		}{spy, spy}
+	case Recursive:
+		return struct {
+			notify.Watcher
+			notify.Rewatcher
+			notify.RecursiveWatcher
+		}{spy, spy, spy}
+	}
+	panic(fmt.Sprintf("notify/test: unsupported runtime type: %d (%s)", typ, typ.String()))
+}
 
 // Watch implements notify.Watcher interface.
 func (s *Spy) Watch(p string, e notify.Event) (err error) {
