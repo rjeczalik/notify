@@ -78,13 +78,12 @@ type Interface interface {
 
 // Runtime TODO
 type Runtime struct {
-	tree  map[string]interface{}
-	path  map[chan<- EventInfo][]string // cache path registrations per channel
-	total map[string]Event              // cache total event set per path
-	stop  chan struct{}
-	c     <-chan EventInfo
-	fs    fs.Filesystem
-	i     Interface
+	tree map[string]interface{}
+	path map[chan<- EventInfo][]string // cache path registrations per channel
+	stop chan struct{}
+	c    <-chan EventInfo
+	fs   fs.Filesystem
+	i    Interface
 }
 
 // NewRuntime TODO
@@ -96,12 +95,11 @@ func NewRuntime() *Runtime {
 func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 	c := make(chan EventInfo)
 	r := &Runtime{
-		tree:  make(map[string]interface{}),
-		path:  make(map[chan<- EventInfo][]string),
-		total: make(map[string]Event),
-		stop:  make(chan struct{}),
-		c:     c,
-		fs:    fs,
+		tree: make(map[string]interface{}),
+		path: make(map[chan<- EventInfo][]string),
+		stop: make(chan struct{}),
+		c:    c,
+		fs:   fs,
 	}
 	if i, ok := w.(Interface); ok {
 		r.i = i
@@ -182,7 +180,6 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 					_ = r.i.Rewatch(path, diff[0], diff[1]) // TODO error?
 				}
 			}
-			r.total[path] = sub.Total()
 		}
 		delete(r.path, c)
 	}
@@ -214,14 +211,6 @@ func (r *Runtime) dispatch(ei EventInfo) {
 	println("TODO: dispatching event", ei)
 }
 
-func (r *Runtime) tryRewatch(p string, e Event) error {
-	if old := r.total[p]; old&e != e {
-		r.total[p] |= e
-		return r.i.Rewatch(p, old, r.total[p])
-	}
-	return nil
-}
-
 func (r *Runtime) cachepath(c chan<- EventInfo, p string) {
 	if paths := r.path[c]; len(paths) == 0 {
 		r.path[c] = []string{p}
@@ -235,7 +224,6 @@ func (r *Runtime) cachepath(c chan<- EventInfo, p string) {
 			paths = append(paths, "")
 			copy(paths[i+1:], paths[i:])
 			paths[i], r.path[c] = p, paths
-			println(paths)
 		}
 	}
 }
@@ -284,7 +272,6 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 		// Cache some values. Probably temporary until the data structure
 		// for the watch-point tree gets reimplemented.
 		r.cachepath(c, p)
-		r.total[p] = sub.Total()
 	default:
 		return errors.New("(*Runtime).Watch TODO(rjeczalik)")
 	}
