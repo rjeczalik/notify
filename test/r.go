@@ -14,7 +14,7 @@ type FuncType string
 const (
 	Watch            = FuncType("Watch")
 	Unwatch          = FuncType("Unwatch")
-	Fanin            = FuncType("Fanin")
+	Dispatch            = FuncType("Dispatch")
 	Rewatch          = FuncType("Rewatch")
 	RecursiveWatch   = FuncType("RecursiveWatch")
 	RecursiveUnwatch = FuncType("RecursiveUnwatch")
@@ -204,9 +204,9 @@ func (s *Spy) Unwatch(p string) (err error) {
 	return
 }
 
-// Fanin implements notify.Watcher interface.
-func (s *Spy) Fanin(chan<- notify.EventInfo, <-chan struct{}) {
-	*s = append(*s, Call{F: Fanin})
+// Dispatch implements notify.Watcher interface.
+func (s *Spy) Dispatch(chan<- notify.EventInfo, <-chan struct{}) {
+	*s = append(*s, Call{F: Dispatch})
 }
 
 // Rewatch implements notify.Rewatcher interface.

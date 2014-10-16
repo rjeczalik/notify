@@ -126,7 +126,7 @@ func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 		}
 		r.i = i
 	}
-	r.i.Fanin(c, r.stop)
+	r.i.Dispatch(c, r.stop)
 	go r.loop()
 	return r
 }

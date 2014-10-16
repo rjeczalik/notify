@@ -165,7 +165,7 @@ func (w *w) Close() error {
 // the time test took has exceeded default global timeout.
 func (w *w) ExpectEvent(wr notify.Watcher, ei []notify.EventInfo) {
 	done, c, stop := make(chan error), make(chan notify.EventInfo, len(ei)), make(chan struct{})
-	wr.Fanin(c, stop)
+	wr.Dispatch(c, stop)
 	defer close(stop)
 	go func() {
 		for _, ei := range ei {
@@ -200,7 +200,7 @@ func (w *w) ExpectEvent(wr notify.Watcher, ei []notify.EventInfo) {
 // order they were either defined or assigned to the cases.
 func (w *w) ExpectEvents(wr notify.Watcher, cases map[notify.EventInfo][]notify.Event) {
 	done, c, stop := make(chan error), make(chan notify.EventInfo, len(cases)), make(chan struct{})
-	wr.Fanin(c, stop)
+	wr.Dispatch(c, stop)
 	defer close(stop)
 	go func() {
 		// Sort keys to ensure cases are executed in chronological order.

@@ -39,14 +39,14 @@ type Watcher interface {
 	// 1:M producer-consumer model.
 	Unwatch(path string) error
 
-	// Fanin requests to fan in all events from all the created watchers into c.
+	// Dispatch requests to fan in all events from all the created watchers into c.
 	// It is guaranteed the c is non-nil. All unexpected events are ignored.
 	//
-	// The Fanin method is called once on package init by the notify runtime.
+	// The Dispatch method is called once on package init by the notify runtime.
 	//
 	// The stop channel is closed when the notify runtime is stopped and is no
 	// longer receiving events sent to c.
-	Fanin(c chan<- EventInfo, stop <-chan struct{})
+	Dispatch(c chan<- EventInfo, stop <-chan struct{})
 }
 
 // Rewatcher provides an interface for modyfing existing watch-points, like

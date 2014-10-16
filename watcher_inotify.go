@@ -257,8 +257,8 @@ func (i *inotify) Unwatch(p string) error {
 	return inotifyunwatch(p)
 }
 
-// Fanin implements notify.Watcher interface.
-func (i *inotify) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
+// Dispatch implements notify.Watcher interface.
+func (i *inotify) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	i.wg.Wait() // Waits for close of previous loop() - only for test purpose.
 	i.c = c
 	go loop(stop)
