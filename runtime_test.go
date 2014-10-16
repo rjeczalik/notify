@@ -8,11 +8,11 @@ import (
 )
 
 func TestRuntime_DirectorySimple(t *testing.T) {
-	ch := test.Channels(3)
-	cases := [...]test.CallCase{{
+	scope, ch := test.R(t), test.Channels(3)
+	calls := [...]test.CallCase{{
 		Call: test.Call{
 			F: test.Watch,
-			C: ch(0),
+			C: ch[0],
 			P: "/github.com/rjeczalik/fakerpc/",
 			E: Create | Delete | Move,
 		},
@@ -25,7 +25,7 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 	}, {
 		Call: test.Call{
 			F: test.Watch,
-			C: ch(1),
+			C: ch[1],
 			P: "/github.com/rjeczalik/fakerpc/",
 			E: Delete | Move,
 		},
@@ -33,7 +33,7 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 	}, {
 		Call: test.Call{
 			F: test.Watch,
-			C: ch(2),
+			C: ch[2],
 			P: "/github.com/rjeczalik/fakerpc/",
 			E: Move,
 		},
@@ -41,7 +41,7 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 	}, {
 		Call: test.Call{
 			F: test.Watch,
-			C: ch(0),
+			C: ch[0],
 			P: "/github.com/rjeczalik/fs/",
 			E: Create | Delete,
 		},
@@ -54,7 +54,7 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 	}, {
 		Call: test.Call{
 			F: test.Watch,
-			C: ch(0),
+			C: ch[0],
 			P: "/github.com/rjeczalik/fs/",
 			E: Create,
 		},
@@ -62,7 +62,7 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 	}, {
 		Call: test.Call{
 			F: test.Stop,
-			C: ch(0),
+			C: ch[0],
 		},
 		Record: test.Record{
 			test.Watcher: {{
@@ -87,5 +87,19 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 			}},
 		},
 	}}
-	test.ExpectCalls(t, cases[:])
+	events := [...]test.EventCase{{
+		Event: test.Event{
+			P: "/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
+			E: Delete,
+		},
+		Receiver: test.Chans{ch[1]},
+	}, {
+		Event: test.Event{
+			P: "/github.com/rjeczalik/fakerpc/.travis.yml",
+			E: Move,
+		},
+		Receiver: test.Chans{ch[1], ch[2]},
+	}}
+	scope.ExpectCalls(calls[:])
+	scope.ExpectEvents(events[:])
 }

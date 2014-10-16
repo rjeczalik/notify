@@ -2,6 +2,7 @@ package notify
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -54,9 +55,17 @@ func (sub Subscriber) Unsubscribe(c chan<- EventInfo) (diff EventDiff) {
 	return
 }
 
-// Total TODO
-func (sub Subscriber) Total() Event {
-	return sub[nil]
+// Dispatch TODO
+func (sub Subscriber) Dispatch(ei EventInfo) {
+	e := ei.Event()
+	if sub[nil]&e != e {
+		return
+	}
+	for subch, sube := range sub {
+		if subch != nil && sube&e == e {
+			subch <- ei
+		}
+	}
 }
 
 // Interface TODO
@@ -200,7 +209,7 @@ func (r *Runtime) loop() {
 	for {
 		select {
 		case ei := <-r.c:
-			r.dispatch(ei)
+			go r.dispatch(ei)
 		case <-r.stop:
 			return
 		}
@@ -208,7 +217,26 @@ func (r *Runtime) loop() {
 }
 
 func (r *Runtime) dispatch(ei EventInfo) {
-	println("TODO: dispatching event", ei)
+	parent, name, err := r.lookup(ei.Name())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	var sub Subscriber
+	switch v := parent[name].(type) {
+	case Subscriber:
+		sub = v
+	case map[string]interface{}:
+		if v, ok := v[""].(Subscriber); ok {
+			sub = v
+		}
+	}
+	if sub != nil {
+		sub.Dispatch(ei)
+	}
+	if sub, ok := parent[""].(Subscriber); ok {
+		sub.Dispatch(ei)
+	}
 }
 
 func (r *Runtime) cachepath(c chan<- EventInfo, p string) {
@@ -278,9 +306,11 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 	return nil
 }
 
-func (r *Runtime) lookup(p string) (dir map[string]interface{}, s string, err error) {
-	dir, s = r.tree, filepath.Base(p)
+func (r *Runtime) lookup(p string) (parent map[string]interface{}, s string, err error) {
+	s = filepath.Base(p)
+	dir := r.tree
 	fn := func(s string) bool {
+		parent = dir
 		d, ok := dir[s]
 		if !ok {
 			d := make(map[string]interface{})
