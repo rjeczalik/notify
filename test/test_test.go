@@ -32,8 +32,8 @@ func TestEI(t *testing.T) {
 			[]interface{}{"will get overwritten", notify.Delete, "/", notify.Write},
 		},
 		{
-			ei{i: 0, p: "/tmp", e: notify.All, f: Fanin},
-			[]interface{}{"/home", EI(".", notify.All, EI("/tmp", Watch)), Fanin},
+			ei{i: 0, p: "/tmp", e: notify.All, f: Dispatch},
+			[]interface{}{"/home", EI(".", notify.All, EI("/tmp", Watch)), Dispatch},
 		},
 	}
 	for i, cas := range cases {

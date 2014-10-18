@@ -61,8 +61,8 @@ func (fs fsnotify) Unwatch(p string) error {
 	return fs.w.Remove(p)
 }
 
-// Fanin implements notify.Watcher interface.
-func (fs fsnotify) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
+// Dispatch implements notify.Watcher interface.
+func (fs fsnotify) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	go func() {
 		for {
 			select {

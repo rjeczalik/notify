@@ -303,8 +303,8 @@ func isdir(p string) (bool, error) {
 	return fi.IsDir(), nil
 }
 
-// Fanin implements `Watcher` interface.
-func (k *kqueue) Fanin(c chan<- EventInfo, stop <-chan struct{}) {
+// Dispatch implements `Watcher` interface.
+func (k *kqueue) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	go func() {
 		for {
 			select {

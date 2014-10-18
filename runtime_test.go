@@ -3,76 +3,103 @@ package notify_test
 import (
 	"testing"
 
-	"github.com/rjeczalik/notify"
+	. "github.com/rjeczalik/notify"
 	"github.com/rjeczalik/notify/test"
 )
 
-func TestRuntimeBasicWatcher(t *testing.T) {
-	cases := map[notify.EventInfo][]test.Call{
-		test.EI("/github.com/rjeczalik/fakerpc/", notify.Delete): {
-			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc/", E: notify.Delete},
+func TestRuntime_DirectorySimple(t *testing.T) {
+	scope, ch := test.R(t), test.Channels(3)
+	calls := [...]test.CallCase{{
+		Call: test.Call{
+			F: test.Watch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/fakerpc/",
+			E: Create | Delete | Move,
 		},
-		// TODO(rjeczalik): Uncomment after Recursive implementation is complete.
-		// test.EI("/github.com/rjeczalik/fakerpc/...", notify.Delete): {
-		//   {F: test.Watch, P: "/github.com/rjeczalik/fakerpc", E: notify.Delete},
-		//   {F: test.Watch, P: "/github.com/rjeczalik/fakerpc/cli", E: notify.Delete},
-		//   {F: test.Watch, P: "/github.com/rjeczalik/fakerpc/cmd", E: notify.Delete},
-		// },
-		test.EI("/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
-			{F: test.Watch, P: "/github.com/rjeczalik/fakerpc/LICENSE", E: notify.Write},
+		Record: test.Record{
+			test.All: {{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Delete | Create | Move,
+			}}},
+	}, {
+		Call: test.Call{
+			F: test.Watch,
+			C: ch[1],
+			P: "/github.com/rjeczalik/fakerpc/",
+			E: Delete | Move,
 		},
-		test.EI(test.Unwatch, "/github.com/rjeczalik/fakerpc/LICENSE", notify.Write): {
-			{F: test.Unwatch, P: "/github.com/rjeczalik/fakerpc/LICENSE"},
+		Record: nil,
+	}, {
+		Call: test.Call{
+			F: test.Watch,
+			C: ch[2],
+			P: "/github.com/rjeczalik/fakerpc/",
+			E: Move,
 		},
-	}
-	test.ExpectCallsFunc(t, test.Watcher, cases)
-}
-
-func TestRuntimeBasicRewatcher(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
-	cases := map[notify.EventInfo][]test.Call{}
-	test.ExpectCallsFunc(t, test.Rewatcher, cases)
-}
-
-func TestRuntimeBasicRecursiveWatcher(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
-	cases := map[notify.EventInfo][]test.Call{}
-	test.ExpectCallsFunc(t, test.RecursiveWatcher, cases)
-}
-
-func TestRuntimeBasicInterface(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
-	cases := map[notify.EventInfo][]test.Call{}
-	test.ExpectCalls(t, cases)
-}
-
-// TODO(rjeczalik)
-func TestRuntimeExpandOrSchrinkEventSet(t *testing.T) {
-	t.Skip("(wip)")
-	cases := map[notify.EventInfo][]test.Call{
-		test.EI("/github.com/rjeczalik/fs/", notify.Create): {
-			{F: test.Watch, P: "/github.com/rjeczalik/fs/", E: notify.Create},
+		Record: nil,
+	}, {
+		Call: test.Call{
+			F: test.Watch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/fs/",
+			E: Create | Delete,
 		},
-		test.EI("/github.com/rjeczalik/fs/", notify.Delete): {
-			{F: test.Rewatch, P: "/github.com/rjeczalik/fs/", E: notify.Create,
-				N: notify.Create | notify.Delete},
+		Record: test.Record{
+			test.All: {{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fs/",
+				E: Create | Delete,
+			}}},
+	}, {
+		Call: test.Call{
+			F: test.Watch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/fs/",
+			E: Create,
 		},
-		test.EI(test.Unwatch, "/github.com/rjeczalik/fs/", notify.Create): {
-			{F: test.Rewatch, P: "/github.com/rjeczalik/fs/", E: notify.Create | notify.Delete,
-				N: notify.Delete},
+		Record: nil,
+	}, {
+		Call: test.Call{
+			F: test.Stop,
+			C: ch[0],
 		},
-	}
-	test.ExpectCalls(t, cases)
-}
-
-// TODO(rjeczalik)
-func TestRuntimeMoveFilesToDirWatchpoint(t *testing.T) {
-	cases := map[notify.EventInfo][]test.Call{}
-	test.ExpectCalls(t, cases)
-}
-
-// TODO(rjeczalik)
-func TestRuntimeWatchpointReferenceCount(t *testing.T) {
-	cases := map[notify.EventInfo][]test.Call{}
-	test.ExpectCalls(t, cases)
+		Record: test.Record{
+			test.Watcher: {{
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fakerpc/",
+			}, {
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Delete | Move,
+			}, {
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fs/",
+			}},
+			test.Rewatcher | test.Recursive: {{
+				F: test.Rewatch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Create | Delete | Move,
+				N: Delete | Move,
+			}, {
+				F: test.Unwatch,
+				P: "/github.com/rjeczalik/fs/",
+			}},
+		},
+	}}
+	events := [...]test.EventCase{{
+		Event: test.Event{
+			P: "/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
+			E: Delete,
+		},
+		Receiver: test.Chans{ch[1]},
+	}, {
+		Event: test.Event{
+			P: "/github.com/rjeczalik/fakerpc/.travis.yml",
+			E: Move,
+		},
+		Receiver: test.Chans{ch[1], ch[2]},
+	}}
+	scope.ExpectCalls(calls[:])
+	scope.ExpectEvents(events[:])
 }
