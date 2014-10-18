@@ -39,15 +39,12 @@ func main() {
 		die(usage)
 	}
 	ch := make(chan notify.EventInfo)
-	go func() {
-		for ei := range ch {
-			fmt.Printf("event: name=%s, type=%v\n", ei.Name(), ei.Event())
-		}
-	}()
 	if len(os.Args) > 1 {
 		notify.Watch(os.Args[1], ch, parse(os.Args[2:])...)
 	} else {
-		notify.Watch(os.Args[1], ch)
+		notify.Watch(os.Args[1], ch, notify.All)
 	}
-	select {}
+	for ei := range ch {
+		fmt.Printf("event: name=%s, type=%v\n", ei.Name(), ei.Event())
+	}
 }
