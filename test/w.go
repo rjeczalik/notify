@@ -103,8 +103,8 @@ func (w w) equal(want, got notify.EventInfo) error {
 	// Take into account wantb, gotb (not taken because of fsnotify for delete).
 	if wante != gote || wantp != gotp {
 		return fmt.Errorf("want EventInfo{Event: %v, Name: %s, IsDir: %v}; "+
-			"got EventInfo{Event: %v, Name: %s, IsDir:%v}", gote, gotp, gotb,
-			wante, wantp, wantb)
+			"got EventInfo{Event: %v, Name: %s, IsDir: %v}", wante, wantp, wantb,
+			gote, gotp, gotb)
 	}
 	return nil
 
