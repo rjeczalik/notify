@@ -71,23 +71,6 @@ func (sub Subscriber) Dispatch(ei EventInfo) {
 	}
 }
 
-// Interface TODO
-type Interface interface {
-	// Watcher provides a minimum functionality required, that must be implemented
-	// for each supported platform.
-	Watcher
-
-	// Rewatcher provides an interface for modyfing existing watch-points, like
-	// expanding its event set. If the native Watcher does not implement it, it
-	// is emulated by the notify Runtime.
-	Rewatcher
-
-	// RecusiveWatcher provides an interface for watching directories recursively
-	// fo events. If the native Watcher does not implement it, it is emulated by
-	// the notify Runtime.
-	RecursiveWatcher
-}
-
 // Runtime TODO
 type Runtime struct {
 	tree map[string]interface{}
@@ -95,7 +78,7 @@ type Runtime struct {
 	stop chan struct{}
 	c    <-chan EventInfo
 	fs   fs.Filesystem
-	i    Interface
+	os   WatcherWithTraits
 }
 
 // NewRuntime TODO
@@ -113,32 +96,8 @@ func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 		c:    c,
 		fs:   fs,
 	}
-	if i, ok := w.(Interface); ok {
-		r.i = i
-	} else {
-		i := struct {
-			Watcher
-			Rewatcher
-			RecursiveWatcher
-		}{Watcher: w}
-		if re, ok := w.(Rewatcher); ok {
-			i.Rewatcher = re
-		} else {
-			i.Rewatcher = rewatch{
-				Watcher: w,
-			}
-		}
-		if rw, ok := w.(RecursiveWatcher); ok {
-			i.RecursiveWatcher = rw
-		} else {
-			i.RecursiveWatcher = recursive{
-				Watcher: w,
-				Runtime: r,
-			}
-		}
-		r.i = i
-	}
-	r.i.Dispatch(c, r.stop)
+	r.os = TraitUp(r, w)
+	r.os.Dispatch(c, r.stop)
 	go r.loop()
 	return r
 }
@@ -184,9 +143,9 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 			}
 			if diff := sub.Unsubscribe(c); diff != None {
 				if diff[1] == 0 {
-					_ = r.i.Unwatch(path) // TODO error?
+					_ = r.os.Unwatch(path) // TODO error?
 				} else {
-					_ = r.i.Rewatch(path, diff[0], diff[1]) // TODO error?
+					_ = r.os.Rewatch(path, diff[0], diff[1]) // TODO error?
 				}
 			}
 		}
@@ -288,10 +247,10 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 		if diff := sub.Subscribe(c, e); diff != None {
 			if diff[0] == 0 {
 				// No existing watch-point for the path, create new one.
-				err = r.i.Watch(p, diff[1])
+				err = r.os.Watch(p, diff[1])
 			} else {
 				// Not sufficient event set, expand it.
-				err = r.i.Rewatch(p, diff[0], diff[1])
+				err = r.os.Rewatch(p, diff[0], diff[1])
 			}
 			if err != nil {
 				return err

@@ -77,10 +77,10 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 				P: "/github.com/rjeczalik/fs/",
 			}},
 			test.Rewatcher | test.Recursive: {{
-				F: test.Rewatch,
-				P: "/github.com/rjeczalik/fakerpc/",
-				E: Create | Delete | Move,
-				N: Delete | Move,
+				F:  test.Rewatch,
+				P:  "/github.com/rjeczalik/fakerpc/",
+				E:  Create | Delete | Move,
+				NE: Delete | Move,
 			}, {
 				F: test.Unwatch,
 				P: "/github.com/rjeczalik/fs/",

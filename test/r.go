@@ -19,6 +19,7 @@ const (
 	Rewatch          = FuncType("Rewatch")
 	RecursiveWatch   = FuncType("RecursiveWatch")
 	RecursiveUnwatch = FuncType("RecursiveUnwatch")
+	RecursiveRewatch = FuncType("RecursiveRewatch")
 	Stop             = FuncType("Stop")
 )
 
@@ -64,11 +65,12 @@ func Channels(n int) []chan notify.EventInfo {
 //
 // TODO(rjeczalik): Merge/embed notify.EventInfo here?
 type Call struct {
-	F FuncType
-	C chan notify.EventInfo
-	P string
-	E notify.Event // regular Event argument and old Event from a Rewatch call
-	N notify.Event // new Event argument from a Rewatch call
+	F  FuncType
+	C  chan notify.EventInfo
+	P  string       // regular Path argument and old path from RecursiveRewatch call
+	NP string       // new Path argument from RecursiveRewatch call
+	E  notify.Event // regular Event argument and old Event from a Rewatch call
+	NE notify.Event // new Event argument from Rewatch call
 }
 
 // Event TODO
@@ -271,7 +273,8 @@ func SpyWatcher(typ RuntimeType, rt *runtime) notify.Watcher {
 			notify.Watcher
 			notify.Rewatcher
 			notify.RecursiveWatcher
-		}{rt, rt, rt}
+			notify.RecursiveRewatcher
+		}{rt, rt, rt, rt}
 	}
 	panic(fmt.Sprintf("notify/test: unsupported runtime type: %d (%s)", typ, typ.String()))
 }
@@ -289,8 +292,8 @@ func (s *Spy) Unwatch(p string) (err error) {
 }
 
 // Rewatch implements notify.Rewatcher interface.
-func (s *Spy) Rewatch(p string, old, new notify.Event) (err error) {
-	*s = append(*s, Call{F: Rewatch, P: p, E: old, N: new})
+func (s *Spy) Rewatch(p string, olde, newe notify.Event) (err error) {
+	*s = append(*s, Call{F: Rewatch, P: p, E: olde, NE: newe})
 	return
 }
 
@@ -303,5 +306,11 @@ func (s *Spy) RecursiveWatch(p string, e notify.Event) (err error) {
 // RecursiveUnwatch implements notify.RecursiveWatcher interface.
 func (s *Spy) RecursiveUnwatch(p string) (err error) {
 	*s = append(*s, Call{F: RecursiveUnwatch, P: p})
+	return
+}
+
+// RecursiveRewatch implements notify.RecursiveRewatcher interface.
+func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe notify.Event) (err error) {
+	*s = append(*s, Call{F: RecursiveRewatch, P: oldp, NP: newp, E: olde, NE: newe})
 	return
 }

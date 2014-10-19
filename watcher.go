@@ -1,7 +1,5 @@
 package notify
 
-import "errors"
-
 // TODO(rjeczalik): Rework inline doc.
 
 // NewWatcher gives new watcher, which is a layer on top of system-specific
@@ -51,38 +49,54 @@ type Watcher interface {
 
 // Rewatcher provides an interface for modyfing existing watch-points, like
 // expanding its event set.
+//
+// It is guaranteed that Runtime will not pass to Rewatch:
+//
+//   - a zero value for any of its arguments
+//   - old and new Events which are equal (which means nop)
+//
+// Rewatch modifies exisiting watch-point under for the given path. It passes
+// the existing event set currently registered for the given path, and the
+// new, requested event set.
 type Rewatcher interface {
-	// Rewatch modifies exisiting watch-point under for the given path. It passes
-	// the existing event set currently registered for the given path, and the
-	// new, requested event set.
 	Rewatch(path string, old, new Event) error
+}
+
+// RecursiveRewatcher provides an interface for modyfing and/or relocating
+// existing recursive watch-points.
+//
+// To relocate a watch-point means to unwatch oldpath and set a watch-point on
+// newpath.
+//
+// To modify a watch-point means either to expand or shrink its event set.
+//
+// Runtime can want to either relocate, modify or relocate and modify a watch-point
+// via single RecursiveRewatch call.
+//
+// If oldpath == newpath, the watch-point is expected to change its event set value
+// from oldevent to newevent.
+//
+// If oldevent == newevent, the watch-point is expected to relocate from oldpath
+// to the newpath.
+//
+// If oldpath != newpath and oldevent != newevent, the watch-point is expected
+// to relocate from oldpath to the newpath first and then change its event set
+// value from oldevent to the newevent. In other words the end result must be
+// a watch-point set on newpath with newevent value of its event set.
+//
+// It is guaranteed that Runtime will not pass to RecurisveRewatch:
+//
+//   - a zero value for any of its arguments
+//   - arguments which are simultanously equal: oldpath == newpath and
+//     oldevent == newevent (which basically means a nop)
+type RecursiveRewatcher interface {
+	RecursiveRewatch(oldpath, newpath string, oldevent, newevent Event) error
 }
 
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support
 // recursive watching over directories.
 type RecursiveWatcher interface {
-	// RecursiveWatch watches the path passed recursively for changes. It is
-	// guaranteed that the given path points to a valid directory and the path
-	// is stripped from "/...".
-	//
-	//   notify.Watch("/home/notify/...",notify.Create)
-	//
-	// whole "/home/notify" for either file or directory create events.
-	//
-	// Implementations that do not support recursive watchers will get that feature
-	// emulated by notify runtime - it means that more Watch and Unwatch methods
-	// are going to be called, e.g. for the following Watch:
-	//
-	//   notify.Watch("/home/notify", notify.Recursive, notify.Create)
-	//
-	// The following methods may be called on the Watcher:
-	//
-	//   notify.r.i.Watch("/home/notify", notify.Create)
-	//   notify.r.i.Watch("/home/notify/Music", notify.Create)
-	//   notify.r.i.Watch("/home/notify/Documents", notify.Create)
-	//   notify.r.i.Watch("/home/notify/Downloads", notify.Create)
-	//   ...
-	//
+	// RecursiveWatch TODO
 	RecursiveWatch(path string, event Event) error
 
 	// RecursiveUnwatch removes a recursive watch-point given by the path. For
@@ -90,33 +104,4 @@ type RecursiveWatcher interface {
 	// between Unwatch and RecursiveUnwatch, however for those platforms, that
 	// requires emulation for recursive watch-points, the implementation differs.
 	RecursiveUnwatch(path string) error
-}
-
-// recursive TODO
-type recursive struct {
-	Watcher Watcher
-	Runtime *Runtime
-}
-
-// recursiveWatch TODO
-func (r recursive) RecursiveWatch(p string, e Event) error {
-	return errors.New("RecurisveWatch TODO(rjeczalik)")
-}
-
-// recursiveUnwatch TODO
-func (r recursive) RecursiveUnwatch(p string) error {
-	return errors.New("RecurisveUnwatch TODO(rjeczalik)")
-}
-
-// rewatch TODO
-type rewatch struct {
-	Watcher Watcher
-}
-
-// rewatchwatch TODO
-func (r rewatch) Rewatch(p string, old, new Event) error {
-	if err := r.Watcher.Unwatch(p); err != nil {
-		return err
-	}
-	return r.Watcher.Watch(p, new)
 }

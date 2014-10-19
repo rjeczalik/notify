@@ -100,7 +100,7 @@ func TestWalkpath(t *testing.T) {
 			continue
 		}
 		// Because reflect.DeepEqual([]string(nil), []string{}) gives false.
-		if len(cas.p)+len(p) == 0 {
+		if len(cas.p) == 0 && len(p) == 0 {
 			continue
 		}
 		if !reflect.DeepEqual(p, cas.p) {
