@@ -54,7 +54,7 @@ func (typ RuntimeType) String() string {
 func Channels(n int) []chan notify.EventInfo {
 	ch := make([]chan notify.EventInfo, n)
 	for i := range ch {
-		ch[i] = make(chan notify.EventInfo)
+		ch[i] = make(chan notify.EventInfo, 16)
 	}
 	return ch
 }

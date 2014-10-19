@@ -63,7 +63,10 @@ func (sub Subscriber) Dispatch(ei EventInfo) {
 	}
 	for subch, sube := range sub {
 		if subch != nil && sube&e == e {
-			subch <- ei
+			select {
+			case subch <- ei:
+			default:
+			}
 		}
 	}
 }
@@ -102,7 +105,7 @@ func NewRuntime() *Runtime {
 
 // NewRuntimeWatcher TODO
 func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
-	c := make(chan EventInfo)
+	c := make(chan EventInfo, 128)
 	r := &Runtime{
 		tree: make(map[string]interface{}),
 		path: make(map[chan<- EventInfo][]string),
@@ -175,12 +178,9 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 			parent, name, _ := r.lookup(path) // TODO error?
 			switch v := parent[name].(type) {
 			case map[string]interface{}: // dir
-				// NOTE !ok means channel was already removed. Bug?
 				sub = v[""].(Subscriber)
 			case Subscriber:
 				sub = v
-			default:
-				panic("bug")
 			}
 			if diff := sub.Unsubscribe(c); diff != None {
 				if diff[1] == 0 {
@@ -209,7 +209,7 @@ func (r *Runtime) loop() {
 	for {
 		select {
 		case ei := <-r.c:
-			go r.dispatch(ei)
+			r.dispatch(ei)
 		case <-r.stop:
 			return
 		}
