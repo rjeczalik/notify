@@ -164,6 +164,9 @@ func (w *w) Close() error {
 // It immadiately fails and stops if either expected event was not received or
 // the time test took has exceeded default global timeout.
 func (w *w) ExpectEvent(wr notify.Watcher, ei []notify.EventInfo) {
+	if wr == nil {
+		w.t.Skip("TODO: ExpectEvent on nil Watcher")
+	}
 	done, c, stop := make(chan error), make(chan notify.EventInfo, len(ei)), make(chan struct{})
 	wr.Dispatch(c, stop)
 	defer close(stop)
@@ -199,6 +202,9 @@ func (w *w) ExpectEvent(wr notify.Watcher, ei []notify.EventInfo) {
 // Eventhough cases is described by a map, events are executed in the
 // order they were either defined or assigned to the cases.
 func (w *w) ExpectEvents(wr notify.Watcher, cases map[notify.EventInfo][]notify.Event) {
+	if wr == nil {
+		w.t.Skip("TODO: ExpectEvent on nil Watcher")
+	}
 	done, c, stop := make(chan error), make(chan notify.EventInfo, len(cases)), make(chan struct{})
 	wr.Dispatch(c, stop)
 	defer close(stop)
@@ -243,6 +249,9 @@ func (w *w) ExpectEvents(wr notify.Watcher, cases map[notify.EventInfo][]notify.
 
 // ExpectEvent TODO
 func ExpectEvent(t *testing.T, wr notify.Watcher, e notify.Event, ei []notify.EventInfo) {
+	if wr == nil {
+		t.Skip("TODO: ExpectEvent on nil Watcher")
+	}
 	w := W(t, defaultActions)
 	defer w.Close()
 	if err := w.WatchAll(wr, e); err != nil {
@@ -254,6 +263,9 @@ func ExpectEvent(t *testing.T, wr notify.Watcher, e notify.Event, ei []notify.Ev
 
 // ExpectEvents TODO
 func ExpectEvents(t *testing.T, wr notify.Watcher, e notify.Event, ei map[notify.EventInfo][]notify.Event) {
+	if wr == nil {
+		t.Skip("TODO: ExpectEvent on nil Watcher")
+	}
 	w := W(t, defaultActions)
 	defer w.Close()
 	if err := w.WatchAll(wr, e); err != nil {

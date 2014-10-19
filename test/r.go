@@ -155,6 +155,7 @@ func R(t *testing.T) *r {
 // executed on the fixture's Runtime. A spy Watcher mock records calls to it
 // and compares with the expected ones for each key in the list.
 func (r *r) ExpectCalls(cases []CallCase) {
+	SlashCases(cases)
 	var record []Call
 	for i, cas := range cases {
 		for typ, rt := range r.r {
@@ -210,6 +211,7 @@ func equal(want, got notify.EventInfo) error {
 
 // ExpectEvents TODO
 func (r *r) ExpectEvents(cases []EventCase) {
+	SlashCases(cases)
 	for i, cas := range cases {
 		for typ, rt := range r.r {
 			n := len(cas.Receiver)

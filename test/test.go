@@ -56,7 +56,7 @@ func walkfn(w notify.Watcher, fn func(notify.Watcher, string) error) filepath.Wa
 // Join TODO
 func join(base, name string) (p string) {
 	p = filepath.Join(base, filepath.FromSlash(name))
-	if name[len(name)-1] == '/' {
+	if name[len(name)-1] == os.PathSeparator {
 		p = p + sep
 	}
 	return
@@ -117,7 +117,7 @@ func EI(args ...interface{}) notify.EventInfo {
 		case notify.Event:
 			e.e |= v
 		case string:
-			e.p = v
+			e.p = filepath.FromSlash(v)
 		case notify.EventInfo:
 			e.p, e.e, e.b = v.Name(), v.Event(), v.IsDir()
 			if i, ok := v.(Indexer); ok {
