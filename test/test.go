@@ -17,7 +17,7 @@ var c int
 // IsDir reports whether p points to a directory. A path that ends with a trailing
 // path separator are assumed to be a directory.
 func isDir(p string) bool {
-	return strings.HasSuffix(p, sep)
+	return strings.HasSuffix(p, sep) || strings.HasSuffix(p, sep+"...")
 }
 
 // Nonnil TODO

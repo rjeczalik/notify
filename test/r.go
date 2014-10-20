@@ -47,17 +47,41 @@ func (typ RuntimeType) String() string {
 	case Recursive:
 		return "RuntimeRecursive"
 	}
-	return "<invalid runtime type>"
+	return "<unknown runtime type>"
 }
 
-// Channels is a utility function which creates slice of opened notify.EventInfo
-// channels.
-func Channels(n int) []chan notify.EventInfo {
-	ch := make([]chan notify.EventInfo, n)
-	for i := range ch {
-		ch[i] = make(chan notify.EventInfo, 16)
+// Chans is a utility function which gives slice of opened channels for
+// notify.EventInfo type.
+//
+// Chans TODO
+func Chans(v ...interface{}) []chan notify.EventInfo {
+	switch n := len(v); n {
+	case 0:
+		panic("notify: called test.Chans with no arguments")
+	case 1:
+		switch v := v[0].(type) {
+		case int:
+			ch := make([]chan notify.EventInfo, v)
+			for i := range ch {
+				ch[i] = make(chan notify.EventInfo, 16)
+			}
+			return ch
+		case chan notify.EventInfo:
+			return []chan notify.EventInfo{v}
+		default:
+			panic("notify: called test.Chans with unsupported argument type")
+		}
+	default:
+		ch := make([]chan notify.EventInfo, n)
+		for i := range ch {
+			c, ok := v[i].(chan notify.EventInfo)
+			if !ok {
+				panic("notify: called test.Chans with unsupported argument type")
+			}
+			ch[i] = c
+		}
+		return ch
 	}
-	return ch
 }
 
 // Call represents single call to notify.Watcher issued by the notify.Runtime
@@ -96,13 +120,10 @@ type CallCase struct {
 	Record Record // intermediate calls recorded during above call
 }
 
-// Chans TODO
-type Chans []<-chan notify.EventInfo
-
 // EventCase TODO
 type EventCase struct {
 	Event    Event
-	Receiver Chans
+	Receiver []chan notify.EventInfo // receiver only
 }
 
 type runtime struct {
@@ -136,18 +157,19 @@ type r struct {
 // R gives new fixture for notify.Runtime testing. It initializes a new Runtime
 // with a spy Watcher mock, which is used for retrospecting calls to it the Runtime
 // makes.
-func R(t *testing.T) *r {
+func R(t *testing.T, types ...RuntimeType) *r {
+	if len(types) == 0 {
+		types = []RuntimeType{Watcher, Rewatcher, Recursive}
+	}
 	r := &r{
 		t: t,
-		r: map[RuntimeType]*runtime{
-			Watcher:   &runtime{},
-			Rewatcher: &runtime{},
-			Recursive: &runtime{},
-		},
+		r: make(map[RuntimeType]*runtime, len(types)),
 	}
-	for typ, rt := range r.r {
+	for _, typ := range types {
 		// TODO(rjeczalik): Copy FS to allow for modying tree via Create and
 		// Delete events.
+		rt := &runtime{}
+		r.r[typ] = rt
 		rt.runtime = notify.NewRuntimeWatcher(SpyWatcher(typ, rt), FS)
 	}
 	return r
@@ -231,7 +253,7 @@ func (r *r) ExpectEvents(cases []EventCase) {
 						r.t.Fatalf("notify/test: unexpected chan close (i=%d, "+
 							"typ=%v, j=%d", i, typ, j)
 					}
-					ch := cases[j].Chan.Interface().(<-chan notify.EventInfo)
+					ch := cases[j].Chan.Interface().(chan notify.EventInfo)
 					ev[ch] = v.Interface().(notify.EventInfo)
 					cases[j], cases = cases[n-1], cases[:n-1]
 				}

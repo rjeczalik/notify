@@ -7,8 +7,8 @@ import (
 	"github.com/rjeczalik/notify/test"
 )
 
-func TestRuntime_DirectorySimple(t *testing.T) {
-	scope, ch := test.R(t), test.Channels(3)
+func TestRuntime_Directory(t *testing.T) {
+	scope, ch := test.R(t), test.Chans(3)
 	calls := [...]test.CallCase{{
 		Call: test.Call{
 			F: test.Watch,
@@ -92,14 +92,46 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 			P: "/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
 			E: Delete,
 		},
-		Receiver: test.Chans{0: ch[1]},
+		Receiver: test.Chans(ch[1]),
 	}, {
 		Event: test.Event{
 			P: "/github.com/rjeczalik/fakerpc/.travis.yml",
 			E: Move,
 		},
-		Receiver: test.Chans{0: ch[1], 1: ch[2]},
+		Receiver: test.Chans(ch[1], ch[2]),
 	}}
 	scope.ExpectCalls(calls[:])
 	scope.ExpectEvents(events[:])
+}
+
+func TestRuntime_RecursiveDirectory(t *testing.T) {
+	scope, ch := test.R(t, test.Watcher), test.Chans(5)
+	calls := [...]test.CallCase{{
+		Call: test.Call{
+			F: test.Watch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/fakerpc/...",
+			E: Create | Delete,
+		},
+		Record: test.Record{
+			test.Watcher: {{
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/",
+				E: Create | Delete,
+			}, {
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/cli/",
+				E: Create | Delete,
+			}, {
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/cmd",
+				E: Create | Delete,
+			}, {
+				F: test.Watch,
+				P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+				E: Create | Delete,
+			}},
+		},
+	}}
+	scope.ExpectCalls(calls[:])
 }

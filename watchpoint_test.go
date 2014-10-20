@@ -26,7 +26,7 @@ func call(wp WatchPoint, fn interface{}, args []interface{}) EventDiff {
 }
 
 func TestWatchPoint(t *testing.T) {
-	ch := test.Channels(5)
+	ch := test.Chans(5)
 	cases := [...]struct {
 		fn    interface{}
 		args  []interface{}

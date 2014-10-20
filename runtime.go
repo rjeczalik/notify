@@ -46,7 +46,7 @@ type Runtime struct {
 	stop chan struct{}
 	c    <-chan EventInfo
 	fs   fs.Filesystem
-	os   WatcherWithTraits
+	os   Interface
 }
 
 // NewRuntime TODO
@@ -64,10 +64,33 @@ func NewRuntimeWatcher(w Watcher, fs fs.Filesystem) *Runtime {
 		c:    c,
 		fs:   fs,
 	}
-	r.os = TraitUp(r, w)
+	r.buildos(w)
 	r.os.Dispatch(c, r.stop)
 	go r.loop()
 	return r
+}
+
+func (r *Runtime) buildos(w Watcher) {
+	if os, ok := w.(Interface); ok {
+		r.os = os
+		return
+	}
+	os := struct {
+		Watcher
+		Rewatcher
+		RecursiveWatcher
+		RecursiveRewatcher
+	}{w, r, r, r}
+	if rew, ok := w.(Rewatcher); ok {
+		os.Rewatcher = rew
+	}
+	if rec, ok := w.(RecursiveWatcher); ok {
+		os.RecursiveWatcher = rec
+	}
+	if recrew, ok := w.(RecursiveRewatcher); ok {
+		os.RecursiveRewatcher = recrew
+	}
+	r.os = os
 }
 
 // Watch TODO
@@ -102,7 +125,7 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 		// to remove more channel wpscription at one lookup.
 		for _, path := range paths {
 			var wp WatchPoint
-			parent, name, _ := r.lookup(path) // TODO error?
+			parent, name, _ := r.buildpath(path) // TODO error?
 			switch v := parent[name].(type) {
 			case map[string]interface{}: // dir
 				wp = v[""].(WatchPoint)
@@ -111,9 +134,13 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 			}
 			if diff := wp.Del(c); diff != None {
 				if diff[1] == 0 {
-					_ = r.os.Unwatch(path) // TODO error?
+					if err := r.os.Unwatch(path); err != nil {
+						panic("notify: Unwatch failed with: " + err.Error())
+					}
 				} else {
-					_ = r.os.Rewatch(path, diff[0], diff[1]) // TODO error?
+					if err := r.os.Rewatch(path, diff[0], diff[1]); err != nil {
+						panic("notify: Rewatch failed with: " + err.Error())
+					}
 				}
 			}
 		}
@@ -132,6 +159,32 @@ func (r *Runtime) Close() (err error) {
 	return
 }
 
+// RecursiveWatch implements notify.RecursiveWatcher interface.
+func (r *Runtime) RecursiveWatch(p string, e Event) error {
+	return errors.New("RecurisveWatch TODO(rjeczalik)")
+}
+
+// RecursiveUnwatch implements notify.RecursiveWatcher interface.
+func (r *Runtime) RecursiveUnwatch(p string) error {
+	return errors.New("RecurisveUnwatch TODO(rjeczalik)")
+}
+
+// Rewatch implements notify.Rewatcher interface.
+func (r *Runtime) Rewatch(p string, olde, newe Event) error {
+	if err := r.os.Unwatch(p); err != nil {
+		return err
+	}
+	return r.os.Watch(p, newe)
+}
+
+// RecursiveRewatch implements notify.RecursiveRewatcher interface.
+func (r *Runtime) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
+	if err := r.os.RecursiveUnwatch(oldp); err != nil {
+		return err
+	}
+	return r.os.RecursiveWatch(newp, newe)
+}
+
 func (r *Runtime) loop() {
 	for {
 		select {
@@ -144,7 +197,7 @@ func (r *Runtime) loop() {
 }
 
 func (r *Runtime) dispatch(ei EventInfo) {
-	parent, name, err := r.lookup(ei.Name())
+	parent, name, err := r.buildpath(ei.Name())
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -186,7 +239,7 @@ func (r *Runtime) cachepath(c chan<- EventInfo, p string) {
 // Watch registers user's chan in the notification tree and, if needed, sets
 // also a watch-point.
 func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool) error {
-	parent, name, err := r.lookup(p)
+	parent, name, err := r.buildpath(p)
 	if err != nil {
 		return err
 	}
@@ -215,6 +268,8 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 		if diff := wp.Add(c, e); diff != None {
 			if diff[0] == 0 {
 				// No existing watch-point for the path, create new one.
+				//
+				// TODO(rjeczalik): Move file watchpoints to newly created dir one?
 				err = r.os.Watch(p, diff[1])
 			} else {
 				// Not sufficient event set, expand it.
@@ -233,7 +288,11 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 	return nil
 }
 
-func (r *Runtime) lookup(p string) (parent map[string]interface{}, s string, err error) {
+func (r *Runtime) walkwp(p string, fn func(string, wp WatchPoint) bool) bool {
+	return false
+}
+
+func (r *Runtime) buildpath(p string) (parent map[string]interface{}, s string, err error) {
 	s = filepath.Base(p)
 	dir := r.tree
 	fn := func(s string) bool {
