@@ -7,12 +7,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"syscall"
 )
 
-// TODO: Close fd on exit.
-// TODO: Close kqueue fd on exit.
+// TODO: Close fd on exit -> verify if finalizer works.
+// TODO: Close kqueue fd on exit -> verify if finalizer works.
 // TODO: Take into account currently monitored files with those read from dir.
 // TODO: Write whole bunch of additional tests (which btw most likely won't
 //       pass by default...).
@@ -49,13 +50,30 @@ func newWatcher() Watcher {
 		pthLkp: make(map[string]*watched, 0),
 		c:      make(chan EventInfo),
 	}
+	runtime.SetFinalizer(k, func(k *kqueue) {
+		for i := range k.idLkp {
+			syscall.Close(k.idLkp[i].fd)
+		}
+		if k.fd != nil {
+			syscall.Close(*k.fd)
+		}
+	})
 	return k
 }
 
+// sendEvents sends reported events one by one through chan.
 func (k *kqueue) sendEvents(evn []event) {
 	for i := range evn {
 		k.c <- &evn[i]
 	}
+}
+
+// del closes fd for `watched` and removes it from internal cache of monitored
+// files/directories.
+func (k *kqueue) del(w *watched) {
+	syscall.Close(w.fd)
+	delete(k.idLkp, w.fd)
+	delete(k.pthLkp, w.p)
 }
 
 // monitor reads reported kqueue events and forwards them further after
@@ -69,7 +87,7 @@ func (k *kqueue) monitor() {
 	var evn []event
 	for {
 		k.sendEvents(evn)
-		evn = evn[:0]
+		evn = make([]event, 0)
 		var kevn [1]syscall.Kevent_t
 		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
 		// ignore failure to capture an event.
@@ -90,9 +108,7 @@ func (k *kqueue) monitor() {
 					// we have to filter it out explicitly.
 					evn = append(evn, event{w.dir, w.p,
 						Event(kevn[0].Fflags) & (w.eDir | w.eNonDir) & ^Write, &kevn[0]})
-					syscall.Close(w.fd)
-					delete(k.idLkp, w.fd)
-					delete(k.pthLkp, w.p)
+					k.del(w)
 					k.Unlock()
 					continue
 				}
@@ -119,9 +135,7 @@ func (k *kqueue) monitor() {
 					Event(kevn[0].Fflags) & (w.eDir | w.eNonDir), &kevn[0]})
 			}
 			if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
-				syscall.Close(w.fd)
-				delete(k.idLkp, w.fd)
-				delete(k.pthLkp, w.p)
+				k.del(w)
 			}
 			k.Unlock()
 		}
@@ -172,7 +186,6 @@ func (k *kqueue) init() (err error) {
 }
 
 // Watch implements Watcher interface.
-// TODO: Maybe go one more time if called on already watched dir? Or maybe not?
 func (k *kqueue) Watch(p string, e Event) error {
 	var err error
 	if err = k.init(); err != nil {
@@ -259,10 +272,7 @@ func (k *kqueue) unwatch(p string, direct bool) (err error) {
 			return
 		}
 	} else {
-		syscall.Close(w.fd)
-		delete(k.idLkp, w.fd)
-		delete(k.pthLkp, w.p)
-		syscall.Close(w.fd)
+		k.del(w)
 	}
 	return
 }
