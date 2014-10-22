@@ -92,13 +92,13 @@ func TestRuntime_DirectorySimple(t *testing.T) {
 			P: "/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
 			E: Delete,
 		},
-		Receiver: test.Chans{ch[1]},
+		Receiver: test.Chans{0: ch[1]},
 	}, {
 		Event: test.Event{
 			P: "/github.com/rjeczalik/fakerpc/.travis.yml",
 			E: Move,
 		},
-		Receiver: test.Chans{ch[1], ch[2]},
+		Receiver: test.Chans{0: ch[1], 1: ch[2]},
 	}}
 	scope.ExpectCalls(calls[:])
 	scope.ExpectEvents(events[:])
