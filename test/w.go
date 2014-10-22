@@ -94,10 +94,10 @@ func (w w) equal(want, got notify.EventInfo) error {
 		return fmt.Errorf("want EventInfo.Name()=%q to be rooted at %q", gotp,
 			w.path)
 	}
-	// Strip the temp path from the event's origin and convert to slashes.
-	gotp = filepath.ToSlash(gotp[len(w.path)+1:])
+	// Strip the temp path from the event's origin.
+	gotp = gotp[len(w.path)+1:]
 	// Strip trailing slash from expected path.
-	if n := len(wantp) - 1; wantp[n] == '/' {
+	if n := len(wantp) - 1; wantp[n] == os.PathSeparator {
 		wantp = wantp[:n]
 	}
 	// Take into account wantb, gotb (not taken because of fsnotify for delete).
@@ -115,7 +115,7 @@ func (w w) exec(ei notify.EventInfo) error {
 	if !ok {
 		return fmt.Errorf("unexpected fixture failure: invalid Event=%v", ei.Event())
 	}
-	if err := fn(join(w.path, ei.Name())); err != nil {
+	if err := fn(filepath.Join(w.path, filepath.FromSlash(ei.Name()))); err != nil {
 		return fmt.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
 	}
 	return nil

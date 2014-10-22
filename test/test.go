@@ -53,15 +53,6 @@ func walkfn(w notify.Watcher, fn func(notify.Watcher, string) error) filepath.Wa
 	}
 }
 
-// Join TODO
-func join(base, name string) (p string) {
-	p = filepath.Join(base, filepath.FromSlash(name))
-	if name[len(name)-1] == os.PathSeparator {
-		p = p + sep
-	}
-	return
-}
-
 var eityp = reflect.TypeOf((notify.EventInfo)(nil))
 
 type ei struct {
