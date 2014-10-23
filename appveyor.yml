@@ -13,7 +13,6 @@ install:
  - go version
  - go get code.google.com/p/go.tools/cmd/vet
  - go get -v -t ./...
- - go get -v -t ./...
 
 build_script:
  - go tool vet -all .
