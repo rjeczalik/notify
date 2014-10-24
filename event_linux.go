@@ -9,6 +9,7 @@ const (
 	Delete
 	Write
 	Move
+	Recursive // An internal event, in final version won't be exported.
 )
 
 // Inotify events.

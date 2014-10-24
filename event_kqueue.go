@@ -7,10 +7,11 @@ import "syscall"
 
 // TODO: sometimes something needs to be done with something...
 const (
-	Create Event = 0x100
-	Delete       = NOTE_DELETE
-	Write        = NOTE_WRITE
-	Move         = NOTE_RENAME
+	Create    = Event(0x0100)
+	Delete    = NOTE_DELETE
+	Write     = NOTE_WRITE
+	Move      = NOTE_RENAME
+	Recursive = Event(0x0200) // An internal event, in final version won't be exported.
 )
 
 const (
