@@ -11,64 +11,32 @@ import (
 	"github.com/rjeczalik/fs"
 )
 
-// None is an empty event diff, think null object.
-var None EventDiff
+// Interface TODO
+type Interface interface {
+	// Watcher provides a minimum functionality required, that must be implemented
+	// for each supported platform.
+	Watcher
 
-// EventDiff describes a change to an event set - EventDiff[0] is an old state,
-// while EventDiff[1] is a new state. If event set has not changed (old == new),
-// functions typically return None value.
-type EventDiff [2]Event
+	// Rewatcher provides an interface for modyfing existing watch-points, like
+	// expanding its event set.
+	//
+	// If the native Watcher does not implement it, it is emulated by the notify
+	// Runtime.
+	Rewatcher
 
-// Subscriber TODO
-//
-// The nil key holds total event set - logical sum for all registered events.
-// It speeds up computing EventDiff for Subscribe method.
-type Subscriber map[chan<- EventInfo]Event
+	// RecusiveWatcher provides an interface for watching directories recursively
+	// for events.
+	//
+	// If the native Watcher does not implement it, it is emulated by the notify
+	// Runtime.
+	RecursiveWatcher
 
-// Subscribe TODO
-//
-// Subscribe assumes neither c nor e are nil or zero values.
-func (sub Subscriber) Subscribe(c chan<- EventInfo, e Event) (diff EventDiff) {
-	sub[c] |= e
-	diff[0] = sub[nil]
-	diff[1] = diff[0] | e
-	sub[nil] = diff[1]
-	if diff[0] == diff[1] {
-		return None
-	}
-	return
-}
-
-// Unsubscribe TODO
-func (sub Subscriber) Unsubscribe(c chan<- EventInfo) (diff EventDiff) {
-	delete(sub, c)
-	diff[0] = sub[nil]
-	// Recalculate total event set.
-	delete(sub, nil)
-	for _, e := range sub {
-		diff[1] |= e
-	}
-	sub[nil] = diff[1]
-	if diff[0] == diff[1] {
-		return None
-	}
-	return
-}
-
-// Dispatch TODO
-func (sub Subscriber) Dispatch(ei EventInfo) {
-	e := ei.Event()
-	if sub[nil]&e != e {
-		return
-	}
-	for subch, sube := range sub {
-		if subch != nil && sube&e == e {
-			select {
-			case subch <- ei:
-			default:
-			}
-		}
-	}
+	// RecursiveRewatcher provides an interface for relocating and/or modifying
+	// existing watch-points.
+	//
+	// If the native Watcher does not implement it, it is emulated by the notify
+	// Runtime.
+	RecursiveRewatcher
 }
 
 // Runtime TODO
@@ -131,17 +99,17 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 		// TODO(rjeczalik): If channel c is set to watch the same path, deep
 		// in the directory tree at different tree level, doing separate
 		// lookups for each is highly inefficient - it should be possible
-		// to remove more channel subscription at one lookup.
+		// to remove more channel wpscription at one lookup.
 		for _, path := range paths {
-			var sub Subscriber
+			var wp WatchPoint
 			parent, name, _ := r.lookup(path) // TODO error?
 			switch v := parent[name].(type) {
 			case map[string]interface{}: // dir
-				sub = v[""].(Subscriber)
-			case Subscriber:
-				sub = v
+				wp = v[""].(WatchPoint)
+			case WatchPoint:
+				wp = v
 			}
-			if diff := sub.Unsubscribe(c); diff != None {
+			if diff := wp.Del(c); diff != None {
 				if diff[1] == 0 {
 					_ = r.os.Unwatch(path) // TODO error?
 				} else {
@@ -181,20 +149,20 @@ func (r *Runtime) dispatch(ei EventInfo) {
 		fmt.Println(err)
 		return
 	}
-	var sub Subscriber
+	var wp WatchPoint
 	switch v := parent[name].(type) {
-	case Subscriber:
-		sub = v
+	case WatchPoint:
+		wp = v
 	case map[string]interface{}:
-		if v, ok := v[""].(Subscriber); ok {
-			sub = v
+		if v, ok := v[""].(WatchPoint); ok {
+			wp = v
 		}
 	}
-	if sub != nil {
-		sub.Dispatch(ei)
+	if wp != nil {
+		wp.Dispatch(ei, false)
 	}
-	if sub, ok := parent[""].(Subscriber); ok {
-		sub.Dispatch(ei)
+	if wp, ok := parent[""].(WatchPoint); ok {
+		wp.Dispatch(ei, false)
 	}
 }
 
@@ -227,7 +195,7 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 		return errors.New("(*Runtime).Watch TODO(rjeczalik)")
 	case isdir:
 		var dir map[string]interface{}
-		var sub Subscriber
+		var wp WatchPoint
 		var err error
 		// Get or create dir for the current watch-point.
 		if v, ok := parent[name].(map[string]interface{}); ok {
@@ -236,15 +204,15 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 			dir = map[string]interface{}{}
 			parent[name] = dir
 		}
-		// Get or create subscribers map for the current watch-point
-		if v, ok := dir[""].(Subscriber); ok {
-			sub = v
+		// Get or create watchpoints map for the current watch-point
+		if v, ok := dir[""].(WatchPoint); ok {
+			wp = v
 		} else {
-			sub = Subscriber{}
-			dir[""] = sub
+			wp = WatchPoint{}
+			dir[""] = wp
 		}
-		// Subscribe channel to the current watch-point.
-		if diff := sub.Subscribe(c, e); diff != None {
+		// Add channel to the current watch-point.
+		if diff := wp.Add(c, e); diff != None {
 			if diff[0] == 0 {
 				// No existing watch-point for the path, create new one.
 				err = r.os.Watch(p, diff[1])

@@ -13,6 +13,17 @@ var estr = map[Event]string{
 	Delete: "notify.Delete",
 	Write:  "notify.Write",
 	Move:   "notify.Move",
+	// Display name for Recursive internal event is added only for debugging
+	// purposes. It's an internal event after all and won't be exposed to the
+	// user. Having Recursive event printable is helpful, e.g. for reading
+	// testing failure messages:
+	//
+	//    --- FAIL: TestWatchPoint (0.00 seconds)
+	//    watchpoint_test.go:64: want diff=[notify.Delete notify.Create|notify.Delete];
+	//    got [notify.Delete notify.Delete|notify.Create] (i=1)
+	//
+	// Yup, here the got diff have Recursive event inside. Go figure.
+	Recursive: "internal.Recursive",
 }
 
 // String implements fmt.Stringer interface.
