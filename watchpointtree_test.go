@@ -26,6 +26,11 @@ func markpoint(s string) func(Point, bool) error {
 }
 
 func TestWatchPointTreeWalkPoint(t *testing.T) {
+	// For each test-case we're traversing path specified by a testcase's key
+	// over shared WatchPointTree and marking each directory using special empty
+	// key. The mark is simply the traversed path name. Each mark can be either
+	// of `visited` or `end` type. Only the last item in the path is marked with
+	// an `end` mark.
 	cases := map[string][]string{
 		"/tmp":                           {"tmp"},
 		"/home/rjeczalik":                {"home", "rjeczalik"},
@@ -58,7 +63,7 @@ func TestWatchPointTreeWalkPoint(t *testing.T) {
 		for i, dir := range dirs {
 			v, ok := it[dir]
 			if !ok {
-				t.Errorf("dir=%q not found, got nil node (path=%q, i=%d)", dir, path, i)
+				t.Errorf("dir=%q not found (path=%q, i=%d)", dir, path, i)
 				break
 			}
 			if it, ok = v.(map[string]interface{}); !ok {
@@ -82,6 +87,22 @@ func TestWatchPointTreeWalkPoint(t *testing.T) {
 				t.Errorf("want v=%v; got %v (path=%q, i=%d)", path, v, path, i)
 				continue
 			}
+			delete(it, "") // remove visitation mark
 		}
 	}
+	// Test for dangling marks - if a mark is present, WalkPoint went somewhere
+	// it shouldn't.
+	w.WalkPoint("/", func(pt Point, _ bool) error {
+		if v, ok := pt.Parent[""]; ok {
+			t.Errorf("dangling mark=%+v found at parent of %q", v, pt.Name)
+		}
+		if dir, ok := pt.Parent[pt.Name].(map[string]interface{}); ok {
+			if v, ok := dir[""]; ok {
+				t.Errorf("dangling mark=%+v found at %q", v, pt.Name)
+			}
+		} else {
+			t.Errorf("dir=%q not found", pt.Name)
+		}
+		return nil
+	})
 }
