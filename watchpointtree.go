@@ -35,6 +35,8 @@ func NewWatchPointTree() *WatchPointTree {
 type WalkPointFunc func(pt Point, last bool) error
 
 // WalkPoint TODO
+//
+// WalkPoint expectes the `p` path to be clean.
 func (w WatchPointTree) WalkPoint(p string, fn WalkPointFunc) (err error) {
 	parent, i := w.begin(p)
 	for j := 0; ; {
@@ -60,10 +62,17 @@ func (w WatchPointTree) WalkPoint(p string, fn WalkPointFunc) (err error) {
 	return
 }
 
+func issubpath(path, sub string) bool {
+	return strings.HasPrefix(path, sub) && len(path) > len(sub) && path[len(sub)] == os.PathSeparator
+}
+
 func (w WatchPointTree) begin(p string) (d map[string]interface{}, n int) {
-	if len(w.cwd.Name) != 0 {
-		if i := strings.Index(p, w.cwd.Name); i != -1 && p[i] == os.PathSeparator {
-			return w.cwd.Parent, i
+	if n := len(w.cwd.Name); n != 0 {
+		if p == w.cwd.Name {
+			return w.cwd.Parent, n
+		}
+		if issubpath(p, w.cwd.Name) {
+			return w.cwd.Parent, n + 1
 		}
 	}
 	vol := filepath.VolumeName(p)
