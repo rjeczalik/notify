@@ -34,33 +34,15 @@ func TestWalkPoint(t *testing.T) {
 	test.ExpectWalk(t, cases)
 }
 
-func TestWalkPointWithCwd(t *testing.T) {
+func TestWalkPointCwd(t *testing.T) {
 	cases := map[string]test.WalkCase{
-		"/tmp/a/b/c/d": {
-			"/tmp/a/b",
-			[]string{"c", "d"},
-		},
-		"/tmp/a": {
-			"/tmp",
-			[]string{"a"},
-		},
-		"/home/rjeczalik/src/github.com": {
-			"/home/rjeczalik",
-			[]string{"src", "github.com"},
-		},
-		"/": {
-			"",
-			[]string{},
-		},
-		"//": {
-			"/",
-			[]string{},
-		},
-		"/a/b/c/d/e/f/g/h/j/k": {
-			"/a/b/c/d/e/f",
-			[]string{"g", "h", "j", "k"},
-		},
-		"": {},
+		"/home/rjeczalik/src/github.com": {"/home/rjeczalik", []string{"src", "github.com"}},
+		"/a/b/c/d/e/f/g/h/j/k":           {"/a/b/c/d/e/f", []string{"g", "h", "j", "k"}},
+		"/tmp/a/b/c/d":                   {"/tmp/a/b", []string{"c", "d"}},
+		"/tmp/a":                         {"/tmp", []string{"a"}},
+		"/":                              {"", []string{}},
+		"//":                             {"/", []string{}},
+		"":                               {},
 	}
 	// Don't use filepath.VolumeName and make the following regular test-cases?
 	if runtime.GOOS == "windows" {
