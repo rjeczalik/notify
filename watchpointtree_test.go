@@ -173,6 +173,7 @@ func TestWalkPointWithCwd(t *testing.T) {
 	w := NewWatchPointTree()
 	for path, cas := range cases {
 		path = filepath.Clean(filepath.FromSlash(path))
+		cas.Cwd = filepath.Clean(filepath.FromSlash(cas.Cwd))
 		c := make(chan Point, 1)
 		// Prepare - look up cwd Point by walking its subpath.
 		if err := w.WalkPoint(filepath.Join(cas.Cwd, "test"), sendlast(c)); err != nil {
