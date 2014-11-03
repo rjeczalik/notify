@@ -5,16 +5,28 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/rjeczalik/fs"
 )
 
-// Point TODO
-type Point struct {
-	Name   string
-	Parent map[string]interface{}
+// ChanPointsMap TODO
+type ChanPointsMap map[chan<- EventInfo]*PointSet
+
+func (m ChanPointsMap) Add(c chan<- EventInfo, pt Point) {
+	if pts, ok := m[c]; ok {
+		pts.Add(pt)
+	} else {
+		m[c] = &PointSet{pt}
+	}
+}
+
+func (m ChanPointsMap) Del(c chan<- EventInfo, pt Point) {
+	if pts, ok := m[c]; ok {
+		if pts.Del(pt); len(*pts) == 0 {
+			delete(m, c)
+		}
+	}
 }
 
 // WatchPointTree TODO
@@ -28,9 +40,9 @@ type WatchPointTree struct {
 	// Root TODO
 	Root map[string]interface{}
 
-	paths map[chan<- EventInfo][]string
-	stop  chan struct{}
-	os    Interface
+	cpt  ChanPointsMap
+	stop chan struct{}
+	os   Interface
 }
 
 func (w *WatchPointTree) fs() fs.Filesystem {
@@ -79,18 +91,57 @@ func (w *WatchPointTree) dispatch(c <-chan EventInfo) {
 func NewWatchPointTree(wat Watcher) *WatchPointTree {
 	c := make(chan EventInfo, 128)
 	w := &WatchPointTree{
-		Root:  make(map[string]interface{}),
-		paths: make(map[chan<- EventInfo][]string),
-		stop:  make(chan struct{}),
+		Root: make(map[string]interface{}),
+		cpt:  make(ChanPointsMap),
+		stop: make(chan struct{}),
 	}
 	w.setos(wat)
 	go w.dispatch(c)
 	return w
 }
 
+func (w *WatchPointTree) isdir(p string) (bool, error) {
+	fi, err := w.fs().Stat(p)
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
+}
+
 // Watch TODO
+//
+// Watch does not support symlinks as it does not care. If user cares, p should
+// be passed to os.Readlink first.
 func (w *WatchPointTree) Watch(p string, c chan<- EventInfo, e ...Event) error {
-	return errors.New("Watch not implemented")
+	if c == nil {
+		panic("notify: Watch using nil channel")
+	}
+	// TODO(rjeczalik): Make it notify.All when len(e)==0
+	if len(e) == 0 {
+		panic("notify: Watch using empty event set")
+	}
+	isrec := false
+	if strings.HasSuffix(p, "...") {
+		p, isrec = p[:len(p)-3], true
+	}
+	isdir, err := w.isdir(p)
+	if err != nil {
+		return err
+	}
+	if isrec && !isdir {
+		return &os.PathError{
+			Op:   "notify.Watch",
+			Path: p,
+			Err:  os.ErrInvalid,
+		}
+	}
+	if p, err = filepath.Abs(p); err != nil {
+		return err
+	}
+	if isrec {
+		return w.watchrec(p, isdir, c, joinevents(e))
+	}
+	return w.watch(p, isdir, c, joinevents(e))
 }
 
 // Stop TODO
@@ -104,24 +155,75 @@ func (w *WatchPointTree) Close() error {
 	return nil
 }
 
-func (w *WatchPointTree) cachep(c chan<- EventInfo, p string) {
-	if paths := w.paths[c]; len(paths) == 0 {
-		w.paths[c] = []string{p}
+func (w *WatchPointTree) register(pt Point, isdir bool, c chan<- EventInfo, e Event) EventDiff {
+	var wp WatchPoint
+	if isdir {
+		dir, ok := pt.Parent[pt.Name].(map[string]interface{})
+		if !ok {
+			wp = WatchPoint{}
+			dir = map[string]interface{}{"": wp}
+			pt.Parent[pt.Name] = dir
+		} else if wp, ok = dir[""].(WatchPoint); !ok {
+			wp = WatchPoint{}
+			dir[""] = wp
+		}
 	} else {
-		switch i := sort.StringSlice(paths).Search(p); {
-		case paths[i] == p:
-			return
-		case len(paths) == i:
-			w.paths[c] = append(paths, p)
-		default:
-			paths = append(paths, "")
-			copy(paths[i+1:], paths[i:])
-			paths[i], w.paths[c] = p, paths
+		var ok bool
+		if wp, ok = pt.Parent[pt.Name].(WatchPoint); !ok {
+			wp = WatchPoint{}
+			pt.Parent[pt.Name] = wp
 		}
 	}
+	w.cpt.Add(c, pt)
+	return wp.Add(c, e)
 }
 
-func (w *WatchPointTree) watch(p string, isrec bool, c chan<- EventInfo, e Event) error {
+func (w *WatchPointTree) unregister(pt Point, c chan<- EventInfo) (diff EventDiff) {
+	switch v := pt.Parent[pt.Name].(type) {
+	case WatchPoint:
+		if diff = v.Del(c); diff != None && diff[1] == 0 {
+			delete(pt.Parent, pt.Name)
+		}
+		// TODO(rjeczalik) if len(pt.Parent)==0 it should be removed from its parent
+		// so the GC can collect empty nodes.
+	case map[string]interface{}:
+		if diff = v[""].(WatchPoint).Del(c); diff != None && diff[1] == 0 {
+			if delete(v, ""); len(v) == 0 {
+				delete(pt.Parent, pt.Name)
+			}
+		}
+	}
+	w.cpt.Del(c, pt)
+	return
+}
+
+func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) error {
+	var pt Point
+	err := w.WalkPoint(p, func(tmp Point, last bool) error {
+		if last {
+			pt = tmp
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	w.Cwd = Point{Name: p, Parent: pt.Parent}
+	if diff := w.register(pt, isdir, c, e); diff != None {
+		if diff[0] == 0 {
+			err = w.os.Watch(p, diff[1])
+		} else {
+			err = w.os.Rewatch(p, diff[0], diff[1])
+		}
+	}
+	if err != nil {
+		w.unregister(pt, c)
+		return err
+	}
+	return nil
+}
+
+func (w *WatchPointTree) watchrec(p string, isdir bool, c chan<- EventInfo, e Event) error {
 	return errors.New("watch TODO(rjeczalik)")
 }
 

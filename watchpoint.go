@@ -1,5 +1,7 @@
 package notify
 
+import "sort"
+
 // None is an empty event diff, think null object.
 var None EventDiff
 
@@ -73,4 +75,39 @@ func (wp WatchPoint) Dispatch(ei EventInfo, isrec bool) {
 // Recursive TODO
 func (wp WatchPoint) Recursive() bool {
 	return wp[nil]&Recursive == Recursive
+}
+
+// Point TODO
+type Point struct {
+	Name   string
+	Parent map[string]interface{}
+}
+
+// PointSet TODO
+type PointSet []Point
+
+func (p PointSet) Len() int           { return len(p) }
+func (p PointSet) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p PointSet) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+func (p PointSet) Search(pt Point) int {
+	return sort.Search(len(p), func(i int) bool { return p[i].Name >= pt.Name })
+}
+
+func (p *PointSet) Add(pt Point) {
+	switch i := p.Search(pt); {
+	case i == len(*p):
+		*p = append(*p, pt)
+	case (*p)[i].Name == pt.Name:
+		*p = append(*p, Point{})
+		copy((*p)[i+1:], (*p)[i:])
+		(*p)[i] = pt
+	}
+}
+
+func (p *PointSet) Del(pt Point) {
+	if i, n := p.Search(pt), len(*p); i != n && (*p)[i].Name == pt.Name {
+		copy((*p)[i:], (*p)[i+1:])
+		*p = (*p)[:n-1]
+	}
 }
