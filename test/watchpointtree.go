@@ -37,8 +37,8 @@ func sendlast(c chan<- notify.Point) func(notify.Point, bool) error {
 
 // WalkCase TODO
 type WalkCase struct {
-	Cwd  string
-	Walk []string
+	C string
+	W []string
 }
 
 type p struct {
@@ -131,16 +131,16 @@ func (p *p) ExpectWalk(cases map[string][]string) {
 func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
 	for path, cas := range cases {
 		path = filepath.Clean(filepath.FromSlash(path))
-		cas.Cwd = filepath.Clean(filepath.FromSlash(cas.Cwd))
+		cas.C = filepath.Clean(filepath.FromSlash(cas.C))
 		c := make(chan notify.Point, 1)
 		// Prepare - look up cwd Point by walking its subpath.
-		if err := p.w.WalkPoint(filepath.Join(cas.Cwd, "test"), sendlast(c)); err != nil {
+		if err := p.w.WalkPoint(filepath.Join(cas.C, "test"), sendlast(c)); err != nil {
 			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
 			continue
 		}
 		select {
 		case p.w.Cwd = <-c:
-			p.w.Cwd.Name = cas.Cwd
+			p.w.Cwd.Name = cas.C
 		default:
 			p.t.Errorf("unable to find cwd Point (path=%q)", path)
 		}
@@ -149,7 +149,7 @@ func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
 			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
 			continue
 		}
-		p.expectmark(p.w.Cwd.Parent, path, cas.Walk)
+		p.expectmark(p.w.Cwd.Parent, path, cas.W)
 	}
 	p.expectnomark()
 }

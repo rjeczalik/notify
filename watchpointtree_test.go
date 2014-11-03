@@ -48,12 +48,12 @@ func TestWalkPointCwd(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		cases[`C:`] = test.WalkCase{}
 		cases[`C:\`] = test.WalkCase{}
-		cases[`C\Windows\Temp`] = test.WalkCase{`C:\Windows`, []string{"Temp"}}
-		cases[`D:\Windows\Temp`] = test.WalkCase{`D:\Windows`, []string{"Temp"}}
-		cases[`E:\Windows\Temp\Local`] = test.WalkCase{`E:\Windows`, []string{"Temp", "Local"}}
-		cases[`\\host\share\Windows`] = test.WalkCase{`\\host\share`, []string{"Windows"}}
-		cases[`\\host\share\Windows\Temp`] = test.WalkCase{`\\host\share\Windows`, []string{"Temp"}}
-		cases[`\\host1\share\Windows\system32`] = test.WalkCase{`\\host1\share`, []string{"Windows", "system32"}}
+		cases[`C\Windows\Temp`] = test.WalkCase{C: `C:\Windows`, W: []string{"Temp"}}
+		cases[`D:\Windows\Temp`] = test.WalkCase{C: `D:\Windows`, W: []string{"Temp"}}
+		cases[`E:\Windows\Temp\Local`] = test.WalkCase{C: `E:\Windows`, W: []string{"Temp", "Local"}}
+		cases[`\\host\share\Windows`] = test.WalkCase{C: `\\host\share`, W: []string{"Windows"}}
+		cases[`\\host\share\Windows\Temp`] = test.WalkCase{C: `\\host\share\Windows`, W: []string{"Temp"}}
+		cases[`\\host1\share\Windows\system32`] = test.WalkCase{C: `\\host1\share`, W: []string{"Windows", "system32"}}
 	}
 	test.ExpectWalkCwd(t, cases)
 }
