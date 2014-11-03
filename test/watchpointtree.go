@@ -11,25 +11,25 @@ import (
 type visited string
 type end string
 
-func mark(s string) func(notify.Point, bool) error {
-	return func(pt notify.Point, last bool) (err error) {
+func mark(s string) func(notify.Node, bool) error {
+	return func(nd notify.Node, last bool) (err error) {
 		if last {
-			dir, ok := pt.Parent[pt.Name].(map[string]interface{})
+			dir, ok := nd.Parent[nd.Name].(map[string]interface{})
 			if !ok {
 				dir = make(map[string]interface{})
-				pt.Parent[pt.Name] = dir
+				nd.Parent[nd.Name] = dir
 			}
 			dir[""] = end(s)
 		}
-		pt.Parent[""] = visited(s)
+		nd.Parent[""] = visited(s)
 		return
 	}
 }
 
-func sendlast(c chan<- notify.Point) func(notify.Point, bool) error {
-	return func(pt notify.Point, last bool) error {
+func sendlast(c chan<- notify.Node) func(notify.Node, bool) error {
+	return func(nd notify.Node, last bool) error {
 		if last {
-			c <- pt
+			c <- nd
 		}
 		return nil
 	}
@@ -93,16 +93,16 @@ func (p *p) expectmark(it map[string]interface{}, mark string, dirs []string) {
 // Test for dangling marks - if a mark is present, WalkPoint went somewhere
 // it shouldn't.
 func (p *p) expectnomark() {
-	p.w.WalkPoint("/", func(pt notify.Point, _ bool) error {
-		if v, ok := pt.Parent[""]; ok {
-			p.t.Errorf("dangling mark=%+v found at parent of %q", v, pt.Name)
+	p.w.WalkNode("/", func(nd notify.Node, _ bool) error {
+		if v, ok := nd.Parent[""]; ok {
+			p.t.Errorf("dangling mark=%+v found at parent of %q", v, nd.Name)
 		}
-		if dir, ok := pt.Parent[pt.Name].(map[string]interface{}); ok {
+		if dir, ok := nd.Parent[nd.Name].(map[string]interface{}); ok {
 			if v, ok := dir[""]; ok {
-				p.t.Errorf("dangling mark=%+v found at %q", v, pt.Name)
+				p.t.Errorf("dangling mark=%+v found at %q", v, nd.Name)
 			}
 		} else {
-			p.t.Errorf("dir=%q not found", pt.Name)
+			p.t.Errorf("dir=%q not found", nd.Name)
 		}
 		return nil
 	})
@@ -118,7 +118,7 @@ func (p *p) expectnomark() {
 func (p *p) ExpectWalk(cases map[string][]string) {
 	for path, dirs := range cases {
 		path = filepath.Clean(filepath.FromSlash(path))
-		if err := p.w.WalkPoint(path, mark(path)); err != nil {
+		if err := p.w.WalkNode(path, mark(path)); err != nil {
 			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
 			continue
 		}
@@ -132,9 +132,9 @@ func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
 	for path, cas := range cases {
 		path = filepath.Clean(filepath.FromSlash(path))
 		cas.C = filepath.Clean(filepath.FromSlash(cas.C))
-		c := make(chan notify.Point, 1)
+		c := make(chan notify.Node, 1)
 		// Prepare - look up cwd Point by walking its subpath.
-		if err := p.w.WalkPoint(filepath.Join(cas.C, "test"), sendlast(c)); err != nil {
+		if err := p.w.WalkNode(filepath.Join(cas.C, "test"), sendlast(c)); err != nil {
 			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
 			continue
 		}
@@ -145,7 +145,7 @@ func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
 			p.t.Errorf("unable to find cwd Point (path=%q)", path)
 		}
 		// Actual test.
-		if err := p.w.WalkPoint(path, mark(path)); err != nil {
+		if err := p.w.WalkNode(path, mark(path)); err != nil {
 			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
 			continue
 		}

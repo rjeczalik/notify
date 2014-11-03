@@ -7,7 +7,7 @@ import (
 	"github.com/rjeczalik/notify/test"
 )
 
-func TestWalkPoint(t *testing.T) {
+func TestWalkNode(t *testing.T) {
 	cases := map[string][]string{
 		"/tmp":                           {"tmp"},
 		"/home/rjeczalik":                {"home", "rjeczalik"},
@@ -34,7 +34,7 @@ func TestWalkPoint(t *testing.T) {
 	test.ExpectWalk(t, cases)
 }
 
-func TestWalkPointCwd(t *testing.T) {
+func TestWalkNodeCwd(t *testing.T) {
 	cases := map[string]test.WalkCase{
 		"/home/rjeczalik/src/github.com": {"/home/rjeczalik", []string{"src", "github.com"}},
 		"/a/b/c/d/e/f/g/h/j/k":           {"/a/b/c/d/e/f", []string{"g", "h", "j", "k"}},

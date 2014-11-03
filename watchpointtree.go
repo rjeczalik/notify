@@ -5,25 +5,61 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/rjeczalik/fs"
 )
 
-// ChanPointsMap TODO
-type ChanPointsMap map[chan<- EventInfo]*PointSet
+// Node TODO
+type Node struct {
+	Name   string
+	Parent map[string]interface{}
+}
 
-func (m ChanPointsMap) Add(c chan<- EventInfo, pt Point) {
-	if pts, ok := m[c]; ok {
-		pts.Add(pt)
-	} else {
-		m[c] = &PointSet{pt}
+// NodeSet TODO
+type NodeSet []Node
+
+func (p NodeSet) Len() int           { return len(p) }
+func (p NodeSet) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p NodeSet) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+func (p NodeSet) Search(nd Node) int {
+	return sort.Search(len(p), func(i int) bool { return p[i].Name >= nd.Name })
+}
+
+func (p *NodeSet) Add(nd Node) {
+	switch i := p.Search(nd); {
+	case i == len(*p):
+		*p = append(*p, nd)
+	case (*p)[i].Name == nd.Name:
+		*p = append(*p, Node{})
+		copy((*p)[i+1:], (*p)[i:])
+		(*p)[i] = nd
 	}
 }
 
-func (m ChanPointsMap) Del(c chan<- EventInfo, pt Point) {
-	if pts, ok := m[c]; ok {
-		if pts.Del(pt); len(*pts) == 0 {
+func (p *NodeSet) Del(nd Node) {
+	if i, n := p.Search(nd), len(*p); i != n && (*p)[i].Name == nd.Name {
+		copy((*p)[i:], (*p)[i+1:])
+		*p = (*p)[:n-1]
+	}
+}
+
+// ChanNodeMap TODO
+type ChanNodeMap map[chan<- EventInfo]*NodeSet
+
+func (m ChanNodeMap) Add(c chan<- EventInfo, nd Node) {
+	if nds, ok := m[c]; ok {
+		nds.Add(nd)
+	} else {
+		m[c] = &NodeSet{nd}
+	}
+}
+
+func (m ChanNodeMap) Del(c chan<- EventInfo, nd Node) {
+	if nds, ok := m[c]; ok {
+		if nds.Del(nd); len(*nds) == 0 {
 			delete(m, c)
 		}
 	}
@@ -31,16 +67,11 @@ func (m ChanPointsMap) Del(c chan<- EventInfo, pt Point) {
 
 // WatchPointTree TODO
 type WatchPointTree struct {
-	// FS TODO
-	FS fs.Filesystem
+	FS   fs.Filesystem          // TODO
+	Cwd  Node                   // TODO
+	Root map[string]interface{} // TODO
 
-	// Cwd TODO
-	Cwd Point
-
-	// Root TODO
-	Root map[string]interface{}
-
-	cpt  ChanPointsMap
+	cnd  ChanNodeMap
 	stop chan struct{}
 	os   Interface
 }
@@ -92,7 +123,7 @@ func NewWatchPointTree(wat Watcher) *WatchPointTree {
 	c := make(chan EventInfo, 128)
 	w := &WatchPointTree{
 		Root: make(map[string]interface{}),
-		cpt:  make(ChanPointsMap),
+		cnd:  make(ChanNodeMap),
 		stop: make(chan struct{}),
 	}
 	w.setos(wat)
@@ -155,61 +186,61 @@ func (w *WatchPointTree) Close() error {
 	return nil
 }
 
-func (w *WatchPointTree) register(pt Point, isdir bool, c chan<- EventInfo, e Event) EventDiff {
+func (w *WatchPointTree) register(nd Node, isdir bool, c chan<- EventInfo, e Event) EventDiff {
 	var wp WatchPoint
 	if isdir {
-		dir, ok := pt.Parent[pt.Name].(map[string]interface{})
+		dir, ok := nd.Parent[nd.Name].(map[string]interface{})
 		if !ok {
 			wp = WatchPoint{}
 			dir = map[string]interface{}{"": wp}
-			pt.Parent[pt.Name] = dir
+			nd.Parent[nd.Name] = dir
 		} else if wp, ok = dir[""].(WatchPoint); !ok {
 			wp = WatchPoint{}
 			dir[""] = wp
 		}
 	} else {
 		var ok bool
-		if wp, ok = pt.Parent[pt.Name].(WatchPoint); !ok {
+		if wp, ok = nd.Parent[nd.Name].(WatchPoint); !ok {
 			wp = WatchPoint{}
-			pt.Parent[pt.Name] = wp
+			nd.Parent[nd.Name] = wp
 		}
 	}
-	w.cpt.Add(c, pt)
+	w.cnd.Add(c, nd)
 	return wp.Add(c, e)
 }
 
-func (w *WatchPointTree) unregister(pt Point, c chan<- EventInfo) (diff EventDiff) {
-	switch v := pt.Parent[pt.Name].(type) {
+func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff) {
+	switch v := nd.Parent[nd.Name].(type) {
 	case WatchPoint:
 		if diff = v.Del(c); diff != None && diff[1] == 0 {
-			delete(pt.Parent, pt.Name)
+			delete(nd.Parent, nd.Name)
 		}
-		// TODO(rjeczalik) if len(pt.Parent)==0 it should be removed from its parent
+		// TODO(rjeczalik) if len(nd.Parent)==0 it should be removed from its parent
 		// so the GC can collect empty nodes.
 	case map[string]interface{}:
 		if diff = v[""].(WatchPoint).Del(c); diff != None && diff[1] == 0 {
 			if delete(v, ""); len(v) == 0 {
-				delete(pt.Parent, pt.Name)
+				delete(nd.Parent, nd.Name)
 			}
 		}
 	}
-	w.cpt.Del(c, pt)
+	w.cnd.Del(c, nd)
 	return
 }
 
 func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) error {
-	var pt Point
-	err := w.WalkPoint(p, func(tmp Point, last bool) error {
+	var nd Node
+	err := w.WalkNode(p, func(tmp Node, last bool) error {
 		if last {
-			pt = tmp
+			nd = tmp
 		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	w.Cwd = Point{Name: p, Parent: pt.Parent}
-	if diff := w.register(pt, isdir, c, e); diff != None {
+	w.Cwd = Node{Name: p, Parent: nd.Parent}
+	if diff := w.register(nd, isdir, c, e); diff != None {
 		if diff[0] == 0 {
 			err = w.os.Watch(p, diff[1])
 		} else {
@@ -217,7 +248,7 @@ func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event
 		}
 	}
 	if err != nil {
-		w.unregister(pt, c)
+		w.unregister(nd, c)
 		return err
 	}
 	return nil
@@ -253,8 +284,8 @@ func (w *WatchPointTree) RecursiveRewatch(oldp, newp string, olde, newe Event) e
 	return w.os.RecursiveWatch(newp, newe)
 }
 
-// WalkPointFunc TODO
-type WalkPointFunc func(pt Point, last bool) error
+// WalkNodeFunc TODO
+type WalkNodeFunc func(nd Node, last bool) error
 
 func issubpath(path, sub string) bool {
 	return strings.HasPrefix(path, sub) && len(path) > len(sub) &&
@@ -283,30 +314,30 @@ func (w *WatchPointTree) begin(p string) (d map[string]interface{}, n int) {
 	return d, n
 }
 
-// WalkPoint TODO
+// WalkNode TODO
 //
-// WalkPoint expectes the `p` path to be clean.
-func (w *WatchPointTree) WalkPoint(p string, fn WalkPointFunc) (err error) {
+// WalkNode expectes the `p` path to be clean.
+func (w *WatchPointTree) WalkNode(p string, fn WalkNodeFunc) (err error) {
 	parent, i := w.begin(p)
 	for j := 0; ; {
 		if j = strings.IndexRune(p[i:], os.PathSeparator); j == -1 {
 			break
 		}
-		pt := Point{Name: p[i : i+j], Parent: parent}
-		if err = fn(pt, false); err != nil {
+		nd := Node{Name: p[i : i+j], Parent: parent}
+		if err = fn(nd, false); err != nil {
 			return
 		}
-		// TODO(rjeczalik): handle edge case where parent[pt.Name] is a file
-		cd, ok := parent[pt.Name].(map[string]interface{})
+		// TODO(rjeczalik): handle edge case where parent[nd.Name] is a file
+		cd, ok := parent[nd.Name].(map[string]interface{})
 		if !ok {
 			cd = make(map[string]interface{})
-			parent[pt.Name] = cd
+			parent[nd.Name] = cd
 		}
 		i += j + 1
 		parent = cd
 	}
 	if i < len(p) {
-		err = fn(Point{Name: p[i:], Parent: parent}, true)
+		err = fn(Node{Name: p[i:], Parent: parent}, true)
 	}
 	return
 }
