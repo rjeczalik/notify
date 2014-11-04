@@ -33,6 +33,7 @@ func (p *NodeSet) Add(nd Node) {
 	case i == len(*p):
 		*p = append(*p, nd)
 	case (*p)[i].Name == nd.Name:
+	default:
 		*p = append(*p, Node{})
 		copy((*p)[i+1:], (*p)[i:])
 		(*p)[i] = nd
@@ -46,10 +47,10 @@ func (p *NodeSet) Del(nd Node) {
 	}
 }
 
-// ChanNodeMap TODO
-type ChanNodeMap map[chan<- EventInfo]*NodeSet
+// ChanNodesMap TODO
+type ChanNodesMap map[chan<- EventInfo]*NodeSet
 
-func (m ChanNodeMap) Add(c chan<- EventInfo, nd Node) {
+func (m ChanNodesMap) Add(c chan<- EventInfo, nd Node) {
 	if nds, ok := m[c]; ok {
 		nds.Add(nd)
 	} else {
@@ -57,7 +58,7 @@ func (m ChanNodeMap) Add(c chan<- EventInfo, nd Node) {
 	}
 }
 
-func (m ChanNodeMap) Del(c chan<- EventInfo, nd Node) {
+func (m ChanNodesMap) Del(c chan<- EventInfo, nd Node) {
 	if nds, ok := m[c]; ok {
 		if nds.Del(nd); len(*nds) == 0 {
 			delete(m, c)
@@ -71,7 +72,7 @@ type WatchPointTree struct {
 	Cwd  Node                   // TODO
 	Root map[string]interface{} // TODO
 
-	cnd  ChanNodeMap
+	cnd  ChanNodesMap
 	stop chan struct{}
 	os   Interface
 }
@@ -123,7 +124,7 @@ func NewWatchPointTree(wat Watcher) *WatchPointTree {
 	c := make(chan EventInfo, 128)
 	w := &WatchPointTree{
 		Root: make(map[string]interface{}),
-		cnd:  make(ChanNodeMap),
+		cnd:  make(ChanNodesMap),
 		stop: make(chan struct{}),
 	}
 	w.setos(wat)
