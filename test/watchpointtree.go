@@ -11,8 +11,8 @@ import (
 type visited string
 type end string
 
-func mark(s string) func(notify.Node, bool) error {
-	return func(nd notify.Node, last bool) (err error) {
+func mark(s string) notify.WalkNodeFunc {
+	return func(_ string, nd notify.Node, last bool) (err error) {
 		if last {
 			dir, ok := nd.Parent[nd.Name].(map[string]interface{})
 			if !ok {
@@ -26,8 +26,8 @@ func mark(s string) func(notify.Node, bool) error {
 	}
 }
 
-func sendlast(c chan<- notify.Node) func(notify.Node, bool) error {
-	return func(nd notify.Node, last bool) error {
+func sendlast(c chan<- notify.Node) notify.WalkNodeFunc {
+	return func(_ string, nd notify.Node, last bool) error {
 		if last {
 			c <- nd
 		}
@@ -93,7 +93,7 @@ func (p *p) expectmark(it map[string]interface{}, mark string, dirs []string) {
 // Test for dangling marks - if a mark is present, WalkPoint went somewhere
 // it shouldn't.
 func (p *p) expectnomark() {
-	p.w.WalkNode("/", func(nd notify.Node, _ bool) error {
+	p.w.WalkNode("/", func(_ string, nd notify.Node, _ bool) error {
 		if v, ok := nd.Parent[""]; ok {
 			p.t.Errorf("dangling mark=%+v found at parent of %q", v, nd.Name)
 		}

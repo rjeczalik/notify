@@ -154,3 +154,7 @@ func TestWalkNodeCwd(t *testing.T) {
 	}
 	test.ExpectWalkCwd(t, cases)
 }
+
+func TestWalkWatchPoint(t *testing.T) {
+	// ...
+}

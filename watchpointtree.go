@@ -231,7 +231,7 @@ func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff
 
 func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) error {
 	var nd Node
-	err := w.WalkNode(p, func(tmp Node, last bool) error {
+	err := w.WalkNode(p, func(_ string, tmp Node, last bool) error {
 		if last {
 			nd = tmp
 		}
@@ -285,9 +285,6 @@ func (w *WatchPointTree) RecursiveRewatch(oldp, newp string, olde, newe Event) e
 	return w.os.RecursiveWatch(newp, newe)
 }
 
-// WalkNodeFunc TODO
-type WalkNodeFunc func(nd Node, last bool) error
-
 func issubpath(path, sub string) bool {
 	return strings.HasPrefix(path, sub) && len(path) > len(sub) &&
 		path[len(sub)] == os.PathSeparator
@@ -315,6 +312,9 @@ func (w *WatchPointTree) begin(p string) (d map[string]interface{}, n int) {
 	return d, n
 }
 
+// WalkNodeFunc TODO
+type WalkNodeFunc func(p string, nd Node, last bool) error
+
 // WalkNode TODO
 //
 // WalkNode expectes the `p` path to be clean.
@@ -325,7 +325,7 @@ func (w *WatchPointTree) WalkNode(p string, fn WalkNodeFunc) (err error) {
 			break
 		}
 		nd := Node{Name: p[i : i+j], Parent: parent}
-		if err = fn(nd, false); err != nil {
+		if err = fn(p[:i+j], nd, false); err != nil {
 			return
 		}
 		// TODO(rjeczalik): handle edge case where parent[nd.Name] is a file
@@ -338,7 +338,34 @@ func (w *WatchPointTree) WalkNode(p string, fn WalkNodeFunc) (err error) {
 		parent = cd
 	}
 	if i < len(p) {
-		err = fn(Node{Name: p[i:], Parent: parent}, true)
+		err = fn(p, Node{Name: p[i:], Parent: parent}, true)
 	}
 	return
+}
+
+// WalkWatchPointFunc TODO
+type WalkWatchPointFunc func(p string, nd Node, wp WatchPoint, last bool) error
+
+func (w *WatchPointTree) WalkWatchPoint(p string, fn WalkWatchPointFunc) error {
+	return w.WalkNode(p, func(p string, nd Node, last bool) (err error) {
+		wp, ok := nd.Parent[""].(WatchPoint)
+		if ok {
+			if err = fn(p, nd, wp, false); err != nil {
+				return
+			}
+		}
+		if last {
+			ok = false
+			switch v := nd.Parent[nd.Name].(type) {
+			case map[string]interface{}:
+				wp, ok = v[""].(WatchPoint)
+			case WatchPoint:
+				wp, ok = v, true
+			}
+			if ok {
+				err = fn(p, nd, wp, true)
+			}
+		}
+		return
+	})
 }
