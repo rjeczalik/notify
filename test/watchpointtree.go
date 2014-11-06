@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -12,22 +13,30 @@ type visited string
 type end string
 
 func mark(s string) notify.WalkNodeFunc {
-	return func(_ string, nd notify.Node, last bool) (err error) {
-		if last {
-			dir, ok := nd.Parent[nd.Name].(map[string]interface{})
-			if !ok {
-				dir = make(map[string]interface{})
-				nd.Parent[nd.Name] = dir
+	return func(nd notify.Node, last bool) (err error) {
+		if nd.Name != sep {
+			if last {
+				dir, ok := nd.Parent[nd.Name].(map[string]interface{})
+				if !ok {
+					dir = make(map[string]interface{})
+					nd.Parent[nd.Name] = dir
+				}
+				dir[""] = end(s)
 			}
-			dir[""] = end(s)
+			nd.Parent[""] = visited(s)
+		} else {
+			if last {
+				nd.Parent[""] = end(s)
+			} else {
+				nd.Parent[""] = visited(s)
+			}
 		}
-		nd.Parent[""] = visited(s)
 		return
 	}
 }
 
 func sendlast(c chan<- notify.Node) notify.WalkNodeFunc {
-	return func(_ string, nd notify.Node, last bool) error {
+	return func(nd notify.Node, last bool) error {
 		if last {
 			c <- nd
 		}
@@ -59,6 +68,21 @@ func (p *p) Close() error {
 }
 
 func (p *p) expectmark(it map[string]interface{}, mark string, dirs []string) {
+	v, ok := it[""]
+	if !ok {
+		p.t.Errorf("dir has no mark (mark=%q)", mark)
+	}
+	typ := reflect.TypeOf(visited(""))
+	if len(dirs) == 0 {
+		typ = reflect.TypeOf(end(""))
+	}
+	if got := reflect.TypeOf(v); got != typ {
+		p.t.Errorf("want typeof(v)=%v; got %v (mark=%q)", typ, got, mark)
+	}
+	if reflect.ValueOf(v).String() != mark {
+		p.t.Errorf("want v=%v; got %v (mark=%q)", mark, v, mark)
+	}
+	delete(it, "")
 	for i, dir := range dirs {
 		v, ok := it[dir]
 		if !ok {
@@ -92,19 +116,14 @@ func (p *p) expectmark(it map[string]interface{}, mark string, dirs []string) {
 
 // Test for dangling marks - if a mark is present, WalkPoint went somewhere
 // it shouldn't.
-func (p *p) expectnomark() {
-	p.w.WalkNode("/", func(_ string, nd notify.Node, _ bool) error {
-		if v, ok := nd.Parent[""]; ok {
-			p.t.Errorf("dangling mark=%+v found at parent of %q", v, nd.Name)
+func (p *p) expectnomark() error {
+	return p.w.BFS(func(v interface{}) error {
+		switch v.(type) {
+		case map[string]interface{}:
+			return nil
+		default:
+			return fmt.Errorf("want typeof(...)=map[string]interface{}; got %T=%v", v, v)
 		}
-		if dir, ok := nd.Parent[nd.Name].(map[string]interface{}); ok {
-			if v, ok := dir[""]; ok {
-				p.t.Errorf("dangling mark=%+v found at %q", v, nd.Name)
-			}
-		} else {
-			p.t.Errorf("dir=%q not found", nd.Name)
-		}
-		return nil
 	})
 }
 
@@ -124,11 +143,14 @@ func (p *p) ExpectWalk(cases map[string][]string) {
 		}
 		p.expectmark(p.w.Root, path, dirs)
 	}
-	p.expectnomark()
+	if err := p.expectnomark(); err != nil {
+		p.t.Error(err)
+	}
 }
 
 // ExpectWalkCwd TODO
 func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
+	p.t.Skip("probably to be deleted")
 	for path, cas := range cases {
 		path = filepath.Clean(filepath.FromSlash(path))
 		cas.C = filepath.Clean(filepath.FromSlash(cas.C))
@@ -139,8 +161,8 @@ func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
 			continue
 		}
 		select {
-		case p.w.Cwd = <-c:
-			p.w.Cwd.Name = cas.C
+		case nd := <-c:
+			p.w.Cwd.Parent, p.w.Cwd.Name = nd.Parent, cas.C
 		default:
 			p.t.Errorf("unable to find cwd Point (path=%q)", path)
 		}
@@ -151,7 +173,9 @@ func (p *p) ExpectWalkCwd(cases map[string]WalkCase) {
 		}
 		p.expectmark(p.w.Cwd.Parent, path, cas.W)
 	}
-	p.expectnomark()
+	if err := p.expectnomark(); err != nil {
+		p.t.Error(err)
+	}
 }
 
 // ExpectWalk TODO

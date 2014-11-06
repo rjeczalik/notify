@@ -104,6 +104,13 @@ func TestChanNodesMap(t *testing.T) {
 	}
 }
 
+func TestPointSlice(t *testing.T) {
+	cases := [...]struct{}{}
+	for i, cas := range cases {
+		_, _ = i, cas // TODO
+	}
+}
+
 func TestWalkNode(t *testing.T) {
 	cases := map[string][]string{
 		"/tmp":                           {"tmp"},

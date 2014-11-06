@@ -17,6 +17,18 @@ type Node struct {
 	Parent map[string]interface{}
 }
 
+// Point is a node which name is absolute path within the tree.
+type Path Node
+
+func (p Path) Node() Node { return Node{Name: filepath.Base(p.Name), Parent: p.Parent} }
+
+type PathSlice []Path
+
+func (p PathSlice) Len() int           { return len(p) }
+func (p PathSlice) Less(i, j int) bool { return p[i].Name >= p[j].Name }
+func (p PathSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p PathSlice) Sort()              { sort.Sort(p) }
+
 // NodeSet TODO
 type NodeSet []Node
 
@@ -69,7 +81,7 @@ func (m ChanNodesMap) Del(c chan<- EventInfo, nd Node) {
 // WatchPointTree TODO
 type WatchPointTree struct {
 	FS   fs.Filesystem          // TODO
-	Cwd  Node                   // TODO
+	Cwd  Path                   // TODO
 	Root map[string]interface{} // TODO
 
 	cnd  ChanNodesMap
@@ -229,18 +241,8 @@ func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff
 	return
 }
 
-func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) error {
-	var nd Node
-	err := w.WalkNode(p, func(_ string, tmp Node, last bool) error {
-		if last {
-			nd = tmp
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	w.Cwd = Node{Name: p, Parent: nd.Parent}
+func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) (err error) {
+	nd := w.lookup(p)
 	if diff := w.register(nd, isdir, c, e); diff != None {
 		if diff[0] == 0 {
 			err = w.os.Watch(p, diff[1])
@@ -290,15 +292,21 @@ func issubpath(path, sub string) bool {
 		path[len(sub)] == os.PathSeparator
 }
 
-func (w *WatchPointTree) begin(p string) (d map[string]interface{}, n int) {
-	if n := len(w.Cwd.Name); n != 0 {
-		if p == w.Cwd.Name {
-			return w.Cwd.Parent, n
-		}
-		if issubpath(p, w.Cwd.Name) {
-			return w.Cwd.Parent, n + 1
+func (w *WatchPointTree) cwd(p string, nds ...Node) (map[string]interface{}, int) {
+	for _, nd := range nds {
+		if n := len(nd.Name); n != 0 {
+			if p == nd.Name {
+				return nd.Parent, n
+			}
+			if issubpath(p, nd.Name) {
+				return nd.Parent, n + 1
+			}
 		}
 	}
+	return nil, 0
+}
+
+func (w *WatchPointTree) root(p string) (d map[string]interface{}, n int) {
 	vol := filepath.VolumeName(p)
 	n = len(vol)
 	if n == 0 {
@@ -312,60 +320,121 @@ func (w *WatchPointTree) begin(p string) (d map[string]interface{}, n int) {
 	return d, n
 }
 
+func mknode(nd Node, names []string) Node {
+	for i := range names {
+		// TODO(rjeczalik): node is a WatchPoint? (file)
+		child, ok := nd.Parent[nd.Name].(map[string]interface{})
+		if !ok {
+			child = make(map[string]interface{})
+			nd.Parent[nd.Name] = child
+		}
+		nd = Node{Name: names[i], Parent: child}
+	}
+	return nd
+}
+
+func mknodes(nd Node, names []string) []Node {
+	nodes := make([]Node, len(names)+1)
+	nodes[0] = nd
+	for i := range names {
+		// TODO(rjeczalik): node is a WatchPoint? (file)
+		child, ok := nd.Parent[nd.Name].(map[string]interface{})
+		if !ok {
+			child = make(map[string]interface{})
+			nd.Parent[nd.Name] = child
+		}
+		nd = Node{Name: names[i], Parent: child}
+		nodes[i+1] = nd
+	}
+	return nodes
+}
+
+func (w *WatchPointTree) begin(p string) (Node, []string) {
+	vol := filepath.VolumeName(p)
+	names := ([]string)(nil)
+	if p = p[len(vol)+1:]; p != "" {
+		names = strings.Split(p, sep)
+	}
+	root := w.Root
+	if vol != "" {
+		ok := false
+		if root, ok = w.Root[vol].(map[string]interface{}); !ok {
+			root = make(map[string]interface{})
+			w.Root[vol] = root
+		}
+	}
+	switch n := len(names); {
+	case n == 0 && vol != "":
+		return Node{Parent: root, Name: vol}, nil
+	case n == 0:
+		return Node{Parent: root, Name: sep}, nil
+	case n == 1:
+		return Node{Parent: root, Name: names[0]}, nil
+	default:
+		return Node{Parent: root, Name: names[0]}, names[1:]
+	}
+}
+
+// BFS TODO
+//
+// NOTE(rjeczalik): Used only for test/debugging purposes, should be move out
+// from here.
+func (w *WatchPointTree) BFS(fn func(interface{}) error) error {
+	// TODO(rjeczalik): get rid of VolumeName
+	dir := (map[string]interface{})(nil)
+	glob := []map[string]interface{}{w.Root}
+	for n := len(glob); n != 0; n = len(glob) {
+		dir, glob = glob[n-1], glob[:n-1]
+		for _, v := range dir {
+			if err := fn(v); err != nil {
+				return err
+			}
+			dir, ok := v.(map[string]interface{})
+			if ok {
+				glob = append(glob, dir)
+			}
+		}
+	}
+	return nil
+}
+
 // WalkNodeFunc TODO
-type WalkNodeFunc func(p string, nd Node, last bool) error
+type WalkNodeFunc func(nd Node, last bool) error
 
 // WalkNode TODO
 //
 // WalkNode expectes the `p` path to be clean.
 func (w *WatchPointTree) WalkNode(p string, fn WalkNodeFunc) (err error) {
-	parent, i := w.begin(p)
-	for j := 0; ; {
-		if j = strings.IndexRune(p[i:], os.PathSeparator); j == -1 {
-			break
-		}
-		nd := Node{Name: p[i : i+j], Parent: parent}
-		if err = fn(p[:i+j], nd, false); err != nil {
+	nodes := mknodes(w.begin(p))
+	n := len(nodes) - 1
+	for i := range nodes {
+		if err = fn(nodes[i], i == n); err != nil {
 			return
 		}
-		// TODO(rjeczalik): handle edge case where parent[nd.Name] is a file
-		cd, ok := parent[nd.Name].(map[string]interface{})
-		if !ok {
-			cd = make(map[string]interface{})
-			parent[nd.Name] = cd
-		}
-		i += j + 1
-		parent = cd
-	}
-	if i < len(p) {
-		err = fn(p, Node{Name: p[i:], Parent: parent}, true)
 	}
 	return
 }
 
-// WalkWatchPointFunc TODO
-type WalkWatchPointFunc func(p string, nd Node, wp WatchPoint, last bool) error
+func subindex(path, subpath string) int {
+	// TODO
+	return -1
+}
 
-func (w *WatchPointTree) WalkWatchPoint(p string, fn WalkWatchPointFunc) error {
-	return w.WalkNode(p, func(p string, nd Node, last bool) (err error) {
-		wp, ok := nd.Parent[""].(WatchPoint)
-		if ok {
-			if err = fn(p, nd, wp, false); err != nil {
-				return
+func (w *WatchPointTree) lookup(p string, paths ...Path) Node {
+	// TODO(rjeczalik): measure if using waypoints makes sense
+	if len(paths) != 0 {
+		PathSlice(paths).Sort()
+		for _, path := range paths {
+			if n := len(path.Name); n != 0 {
+				if p == path.Name {
+					return path.Node()
+				}
+				if i := subindex(p, path.Name); i != -1 {
+					return mknode(path.Node(), strings.Split(p[i:], sep))
+				}
 			}
+
 		}
-		if last {
-			ok = false
-			switch v := nd.Parent[nd.Name].(type) {
-			case map[string]interface{}:
-				wp, ok = v[""].(WatchPoint)
-			case WatchPoint:
-				wp, ok = v, true
-			}
-			if ok {
-				err = fn(p, nd, wp, true)
-			}
-		}
-		return
-	})
+	}
+	return mknode(w.begin(p))
 }
