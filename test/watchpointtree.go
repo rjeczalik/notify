@@ -162,6 +162,11 @@ func (p *p) ExpectPath(cases PathCase) {
 			continue
 		}
 		p.expectmark(path, dirs)
+		if err := p.w.WalkPath(path, mark(path)); err != nil {
+			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
+			continue
+		}
+		p.expectmark(path, dirs)
 	}
 	if err := p.expectnomark(); err != nil {
 		p.t.Error(err)

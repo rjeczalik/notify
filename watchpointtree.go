@@ -381,7 +381,7 @@ func (err PathError) Error() string {
 func (w *WatchPointTree) WalkPath(p string, fn WalkPathFunc) error {
 	it, dirs := w.begin(p)
 	n := len(dirs) - 1
-	if err := fn(it, n == 0); err != nil {
+	if err := fn(it, n == -1); err != nil {
 		return err
 	}
 	ok := false
