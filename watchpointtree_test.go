@@ -36,7 +36,7 @@ Test:
 		}
 		for _, nd := range cas.nd {
 			if j := nds.Search(nd); nds[j].Name != nd.Name {
-				t.Errorf("want nds[%d]=%v; got %v (i=%d)", j, nd, nds[j])
+				t.Errorf("want nds[%d]=%v; got %v (i=%d)", j, nd, nds[j], i)
 				continue Test
 			}
 		}
