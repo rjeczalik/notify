@@ -49,7 +49,7 @@ func mknode(nd Node, names []string) Node {
 		child, ok := nd.Value().(map[string]interface{})
 		if !ok {
 			child = make(map[string]interface{})
-			nd.Parent[nd.Name] = child
+			nd.Set(child)
 		}
 		nd = Node{Name: names[i], Parent: child}
 	}
@@ -64,7 +64,7 @@ func mknodes(nd Node, names []string) []Node {
 		child, ok := nd.Value().(map[string]interface{})
 		if !ok {
 			child = make(map[string]interface{})
-			nd.Parent[nd.Name] = child
+			nd.Set(child)
 		}
 		nd = Node{Name: names[i], Parent: child}
 		nodes[i+1] = nd
@@ -357,64 +357,67 @@ func (w *WatchPointTree) RecursiveRewatch(oldp, newp string, olde, newe Event) e
 	return w.os.RecursiveWatch(newp, newe)
 }
 
-func (w *WatchPointTree) begin(p string) (Node, []string) {
-	vol := filepath.VolumeName(p)
-	names := ([]string)(nil)
-	if p = p[len(vol)+1:]; p != "" {
+func (w *WatchPointTree) begin(p string) (nd Node, names []string) {
+	nd.Parent, nd.Name = w.Root, filepath.VolumeName(p)
+	if p = p[len(nd.Name)+1:]; p != "" {
 		names = strings.Split(p, sep)
 	}
-	root := w.Root
-	if vol != "" {
-		ok := false
-		if root, ok = w.Root[vol].(map[string]interface{}); !ok {
-			root = make(map[string]interface{})
-			w.Root[vol] = root
-		}
-	}
-	return Node{Parent: root, Name: vol}, names
-}
-
-// BFS TODO
-//
-// NOTE(rjeczalik): Used only for test/debugging purposes, should be move out
-// from here.
-func (w *WatchPointTree) BFS(fn func(interface{}) error) error {
-	// TODO(rjeczalik): get rid of VolumeName
-	dir := (map[string]interface{})(nil)
-	glob := []map[string]interface{}{w.Root}
-	for n := len(glob); n != 0; n = len(glob) {
-		dir, glob = glob[n-1], glob[:n-1]
-		for _, v := range dir {
-			if err := fn(v); err != nil {
-				return err
-			}
-			dir, ok := v.(map[string]interface{})
-			if ok {
-				glob = append(glob, dir)
-			}
-		}
-	}
-	return nil
+	return
 }
 
 // WalkPathFunc TODO
 type WalkPathFunc func(nd Node, isbase bool) error
 
-//
-func (w *WatchPointTree) MakePath(p string, fn WalkPathFunc) (err error) {
+// PathError TODO
+type PathError struct {
+	Name string
+}
+
+func (err PathError) Error() string {
+	return `notify: invalid path "` + err.Name + `"`
+}
+
+// WalkPath TODO
+func (w *WatchPointTree) WalkPath(p string, fn WalkPathFunc) error {
+	it, dirs := w.begin(p)
+	n := len(dirs) - 1
+	if err := fn(it, n == 0); err != nil {
+		return err
+	}
+	ok := false
+	for i := range dirs {
+		if it.Parent, ok = it.Value().(map[string]interface{}); !ok {
+			return &PathError{Name: p}
+		}
+		it.Name = dirs[i]
+		if err := fn(it, i == n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MakePath TODO
+func (w *WatchPointTree) MakePath(p string, fn WalkPathFunc) error {
 	nodes := mknodes(w.begin(p))
 	n := len(nodes) - 1
 	for i := range nodes {
-		if err = fn(nodes[i], i == n); err != nil {
-			return
+		if err := fn(nodes[i], i == n); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
+// WalkNodeFunc TODO
+type WalkNodeFunc func(nd Node, p string) error
+
 // MakeTree TODO
-func (w *WatchPointTree) MakeTree(p string, fn WalkPathFunc) error {
+func (w *WatchPointTree) MakeTree(p string, fn WalkNodeFunc) error {
 	base := Path{Name: p, Parent: mknode(w.begin(p)).Parent}
+	if err := fn(base.Node(), p); err != nil {
+		return err
+	}
 	glob, dir := []string{p}, ""
 	for n := len(glob); n != 0; n = len(glob) {
 		dir, glob = glob[n-1], glob[:n-1]
@@ -429,12 +432,35 @@ func (w *WatchPointTree) MakeTree(p string, fn WalkPathFunc) error {
 		}
 		for _, fi := range fis {
 			if fi.IsDir() {
-				p := p + sep + fi.Name()
-				glob = append(glob, p)
+				// TODO(rjeczalik): Fix memfs and get rid of filepath.Base.
+				path := dir + sep + filepath.Base(fi.Name())
+				glob = append(glob, path)
 				// TODO(rjeczalik): revert nodes on failure
-				if err := fn(mkpath(p, base), false); err != nil {
+				if err := fn(mkpath(path, base), path); err != nil {
 					return err
 				}
+			}
+		}
+	}
+	return nil
+}
+
+// BFS TODO
+//
+// NOTE(rjeczalik): Used only for test/debugging purposes, should be move out
+// from here.
+func (w *WatchPointTree) BFS(fn func(interface{}) error) error {
+	dir := (map[string]interface{})(nil)
+	glob := []map[string]interface{}{w.Root}
+	for n := len(glob); n != 0; n = len(glob) {
+		dir, glob = glob[n-1], glob[:n-1]
+		for _, v := range dir {
+			if err := fn(v); err != nil {
+				return err
+			}
+			dir, ok := v.(map[string]interface{})
+			if ok {
+				glob = append(glob, dir)
 			}
 		}
 	}

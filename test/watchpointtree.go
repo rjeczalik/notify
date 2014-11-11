@@ -1,8 +1,8 @@
 package test
 
 import (
+	"errors"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -27,6 +27,17 @@ func mark(s string) notify.WalkPathFunc {
 	}
 }
 
+func markandrec(s string, spy map[string]struct{}) notify.WalkNodeFunc {
+	return func(nd notify.Node, p string) error {
+		nd.Parent[""] = parent(s)
+		if _, ok := spy[p]; ok {
+			return errors.New("duplicate path: " + p)
+		}
+		spy[p] = struct{}{}
+		return nil
+	}
+}
+
 type p struct {
 	t *testing.T
 	w *notify.WatchPointTree
@@ -44,7 +55,9 @@ func (p *p) Close() error {
 	return p.w.Close()
 }
 
-func (p *p) expectmark(it map[string]interface{}, mark string, dirs []string) {
+func (p *p) expectmark(mark string, dirs []string) {
+	it := p.w.Root
+	// TODO(rjeczalik): Remove duplicated code.
 	v, ok := it[""]
 	if !ok {
 		p.t.Errorf("dir has no mark (mark=%q)", mark)
@@ -91,6 +104,33 @@ func (p *p) expectmark(it map[string]interface{}, mark string, dirs []string) {
 	}
 }
 
+func (p *p) expectmarkpaths(mark string, paths map[string]struct{}) {
+	bases := notify.NodeSet{}
+	for path := range paths {
+		err := p.w.WalkPath(path, func(nd notify.Node, isbase bool) error {
+			if isbase {
+				v, ok := nd.Parent[""].(parent)
+				if !ok {
+					return fmt.Errorf("dir has no mark (mark=%q, path=%q)",
+						mark, path)
+				}
+				if string(v) != mark {
+					return fmt.Errorf("want v=%v; got %v (mark=%q, path=%q)",
+						mark, v, mark, path)
+				}
+				bases.Add(nd)
+			}
+			return nil
+		})
+		if err != nil {
+			p.t.Error(err)
+		}
+	}
+	for _, nd := range bases {
+		delete(nd.Parent, "")
+	}
+}
+
 // Test for dangling marks - if a mark is present, WalkPoint went somewhere
 // it shouldn't.
 func (p *p) expectnomark() error {
@@ -104,30 +144,63 @@ func (p *p) expectnomark() error {
 	})
 }
 
-// ExpectWalk TODO
+// PathCase TODO
+type PathCase map[string][]string
+
+// ExpectPath TODO
 //
 // For each test-case we're traversing path specified by a testcase's key
 // over shared WatchPointTree and marking each directory using special empty
 // key. The mark is simply the traversed path name. Each mark can be either
 // of `parent` or `base` type. Only the base item in the path is marked with
 // a `base` mark.
-func (p *p) ExpectWalk(cases map[string][]string) {
+func (p *p) ExpectPath(cases PathCase) {
+	SlashCases(cases)
 	for path, dirs := range cases {
-		path = filepath.Clean(filepath.FromSlash(path))
 		if err := p.w.MakePath(path, mark(path)); err != nil {
 			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
 			continue
 		}
-		p.expectmark(p.w.Root, path, dirs)
+		p.expectmark(path, dirs)
 	}
 	if err := p.expectnomark(); err != nil {
 		p.t.Error(err)
 	}
 }
 
-// ExpectWalk TODO
-func ExpectWalk(t *testing.T, cases map[string][]string) {
+// TreeCase TODO
+type TreeCase map[string]map[string]struct{}
+
+// ExpectTree TODO
+func (p *p) ExpectTree(cases TreeCase) {
+	SlashCases(cases)
+	for path, dirs := range cases {
+		spy := make(map[string]struct{}, len(dirs))
+		if err := p.w.MakeTree(path, markandrec(path, spy)); err != nil {
+			p.t.Errorf("want err=nil; got %v (path=%q)", err, path)
+			continue
+		}
+		if !reflect.DeepEqual(spy, dirs) {
+			p.t.Errorf("want spy=%v; got %v (path=%q)", dirs, spy, path)
+			continue
+		}
+		p.expectmarkpaths(path, dirs)
+	}
+	if err := p.expectnomark(); err != nil {
+		p.t.Error(err)
+	}
+}
+
+// ExpectPath TODO
+func ExpectPath(t *testing.T, cases PathCase) {
 	p := P(t)
 	defer p.Close()
-	p.ExpectWalk(cases)
+	p.ExpectPath(cases)
+}
+
+// ExpectTree TODO
+func ExpectTree(t *testing.T, cases TreeCase) {
+	p := P(t)
+	defer p.Close()
+	p.ExpectTree(cases)
 }

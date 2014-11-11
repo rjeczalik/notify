@@ -128,5 +128,20 @@ func TestMakePath(t *testing.T) {
 		cases[`\\host\share\Windows\Temp`] = []string{"Windows", "Temp"}
 		cases[`\\tsoh\erahs\Users\rjeczalik`] = []string{"Users", "rjeczalik"}
 	}
-	test.ExpectWalk(t, cases)
+	test.ExpectPath(t, cases)
+}
+
+func TestMakeTree(t *testing.T) {
+	// TODO(rjeczalik): Add more test-cases.
+	cases := test.TreeCase{
+		"/github.com/rjeczalik/fs": {
+			"/github.com/rjeczalik/fs":            {},
+			"/github.com/rjeczalik/fs/cmd":        {},
+			"/github.com/rjeczalik/fs/cmd/gotree": {},
+			"/github.com/rjeczalik/fs/cmd/mktree": {},
+			"/github.com/rjeczalik/fs/fsutil":     {},
+			"/github.com/rjeczalik/fs/memfs":      {},
+		},
+	}
+	test.ExpectTree(t, cases)
 }
