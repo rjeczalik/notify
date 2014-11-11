@@ -62,7 +62,7 @@ func TestChanNodesMap(t *testing.T) {
 	ch := test.Chans(10)
 	cases := [...]struct {
 		ch  Chans
-		cpt ChanNodesMap
+		cnd ChanNodesMap
 	}{{
 		Chans{ch[0]},
 		ChanNodesMap{ch[0]: {{Name: "0"}}},
@@ -90,28 +90,21 @@ func TestChanNodesMap(t *testing.T) {
 		},
 	}}
 	for i, cas := range cases {
-		cpt := make(ChanNodesMap)
-		cas.ch.foreach(cpt.Add)
-		if !reflect.DeepEqual(cpt, cas.cpt) {
-			t.Errorf("want cpt=%v; got %v (i=%d)", cas.cpt, cpt, i)
+		cnd := make(ChanNodesMap)
+		cas.ch.foreach(cnd.Add)
+		if !reflect.DeepEqual(cnd, cas.cnd) {
+			t.Errorf("want cnd=%v; got %v (i=%d)", cas.cnd, cnd, i)
 			continue
 		}
-		cas.ch.foreach(cpt.Del)
-		if n := len(cpt); n != 0 {
-			t.Errorf("want len(cpt)=0; got %d (i=%d)", n, i)
+		cas.ch.foreach(cnd.Del)
+		if n := len(cnd); n != 0 {
+			t.Errorf("want len(cnd)=0; got %d (i=%d)", n, i)
 			continue
 		}
 	}
 }
 
-func TestPointSlice(t *testing.T) {
-	cases := [...]struct{}{}
-	for i, cas := range cases {
-		_, _ = i, cas // TODO
-	}
-}
-
-func TestWalkNode(t *testing.T) {
+func TestMakePath(t *testing.T) {
 	cases := map[string][]string{
 		"/tmp":                           {"tmp"},
 		"/home/rjeczalik":                {"home", "rjeczalik"},
@@ -136,32 +129,4 @@ func TestWalkNode(t *testing.T) {
 		cases[`\\tsoh\erahs\Users\rjeczalik`] = []string{"Users", "rjeczalik"}
 	}
 	test.ExpectWalk(t, cases)
-}
-
-func TestWalkNodeCwd(t *testing.T) {
-	cases := map[string]test.WalkCase{
-		"/home/rjeczalik/src/github.com": {"/home/rjeczalik", []string{"src", "github.com"}},
-		"/a/b/c/d/e/f/g/h/j/k":           {"/a/b/c/d/e/f", []string{"g", "h", "j", "k"}},
-		"/tmp/a/b/c/d":                   {"/tmp/a/b", []string{"c", "d"}},
-		"/tmp/a":                         {"/tmp", []string{"a"}},
-		"/":                              {"", []string{}},
-		"//":                             {"/", []string{}},
-		"":                               {},
-	}
-	// Don't use filepath.VolumeName and make the following regular test-cases?
-	if runtime.GOOS == "windows" {
-		cases[`C:`] = test.WalkCase{}
-		cases[`C:\`] = test.WalkCase{}
-		cases[`C\Windows\Temp`] = test.WalkCase{C: `C:\Windows`, W: []string{"Temp"}}
-		cases[`D:\Windows\Temp`] = test.WalkCase{C: `D:\Windows`, W: []string{"Temp"}}
-		cases[`E:\Windows\Temp\Local`] = test.WalkCase{C: `E:\Windows`, W: []string{"Temp", "Local"}}
-		cases[`\\host\share\Windows`] = test.WalkCase{C: `\\host\share`, W: []string{"Windows"}}
-		cases[`\\host\share\Windows\Temp`] = test.WalkCase{C: `\\host\share\Windows`, W: []string{"Temp"}}
-		cases[`\\host1\share\Windows\system32`] = test.WalkCase{C: `\\host1\share`, W: []string{"Windows", "system32"}}
-	}
-	test.ExpectWalkCwd(t, cases)
-}
-
-func TestWalkWatchPoint(t *testing.T) {
-	// ...
 }

@@ -22,21 +22,23 @@ func (nd Node) Value() interface{} {
 	if nd.Name != "" {
 		return nd.Parent[nd.Name]
 	}
-	// Special case for the root node.
-	return nd.Parent
+	return nd.Parent // Special case for the root node.
 }
 
 // Set TODO
 func (nd Node) Set(value interface{}) {
+	// NOTE(rjeczalik): debug check, remove in final version
 	if nd.Name == "" {
-		panic("notify: can't set root node")
+		panic("[DEBUG] notify: can't set root node")
 	}
 	nd.Parent[nd.Name] = value
 }
 
+// Del TODO
 func (nd Node) Del() {
+	// NOTE(rjeczalik): debug check, remove in final version
 	if nd.Name == "" {
-		panic("notify: can't delete root node")
+		panic("[DEBUG] notify: can't delete root node")
 	}
 	delete(nd.Parent, nd.Name)
 }
@@ -300,6 +302,8 @@ func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff
 				nd.Del()
 			}
 		}
+	default:
+		panic("[DEBUG] notify: invalid node type")
 	}
 	w.cnd.Del(c, nd)
 	return
@@ -307,6 +311,8 @@ func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff
 
 func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) (err error) {
 	nd := mknode(w.begin(p))
+	// TODO(rjeczalik): check if any of the parents are being watched recursively
+	// and the event set is sufficient.
 	if diff := w.register(nd, isdir, c, e); diff != None {
 		if diff[0] == 0 {
 			err = w.os.Watch(p, diff[1])
@@ -401,12 +407,10 @@ func (w *WatchPointTree) BFS(fn func(interface{}) error) error {
 }
 
 // WalkNodeFunc TODO
-type WalkNodeFunc func(nd Node, last bool) error
+type WalkNodeFunc func(nd Node, isbase bool) error
 
-// WalkNode TODO
 //
-// WalkNode expectes the `p` path to be clean.
-func (w *WatchPointTree) WalkNode(p string, fn WalkNodeFunc) (err error) {
+func (w *WatchPointTree) MakePath(p string, fn WalkNodeFunc) (err error) {
 	nodes := mknodes(w.begin(p))
 	n := len(nodes) - 1
 	for i := range nodes {
@@ -417,8 +421,8 @@ func (w *WatchPointTree) WalkNode(p string, fn WalkNodeFunc) (err error) {
 	return
 }
 
-// GlobNode TODO
-func (w *WatchPointTree) GlobNode(p string, fn WalkNodeFunc) error {
+// MakeTree TODO
+func (w *WatchPointTree) MakeTree(p string, fn WalkNodeFunc) error {
 	base := Path{Name: p, Parent: mknode(w.begin(p)).Parent}
 	glob, dir := []string{p}, ""
 	for n := len(glob); n != 0; n = len(glob) {
