@@ -371,14 +371,7 @@ func (w *WatchPointTree) begin(p string) (Node, []string) {
 			w.Root[vol] = root
 		}
 	}
-	switch len(names) {
-	case 0:
-		return Node{Parent: root, Name: vol}, nil
-	case 1:
-		return Node{Parent: root, Name: names[0]}, nil
-	default:
-		return Node{Parent: root, Name: names[0]}, names[1:]
-	}
+	return Node{Parent: root, Name: vol}, names
 }
 
 // BFS TODO
