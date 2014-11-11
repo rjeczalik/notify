@@ -136,6 +136,42 @@ func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	w.c = c
 }
 
+// decode creates a notify event from both non-raw filter and action which was
+// redurned from completion routine. Function may return Event(0) in case when
+// filter was replaced by a new value which does not contain fields that are
+// valid with passed action.
+func decode(filter, action uint32) Event {
+	switch action {
+	case syscall.FILE_ACTION_ADDED:
+		return addrm(filter, Create, FILE_ACTION_ADDED)
+	case syscall.FILE_ACTION_REMOVED:
+		return addrm(filter, Delete, FILE_ACTION_REMOVED)
+	case syscall.FILE_ACTION_MODIFIED:
+		return Write
+	case syscall.FILE_ACTION_RENAMED_OLD_NAME, syscall.FILE_ACTION_RENAMED_NEW_NAME:
+		return Move
+	}
+	panic("notify: cannot decode internal mask")
+}
+
+// addrm decides whether the Windows action or the system-independent event
+// should be returned. Since the grip`s filter may be atomically changed during
+// watcher lifetime, it is possible that neither Windows nor notify masks are
+// present in variable memory.
+func addrm(filter uint32, e, syse Event) Event {
+	switch {
+	case filter&uint32(FILE_NOTIFY_CHANGE_FILE_NAME|FILE_NOTIFY_CHANGE_DIR_NAME) != 0:
+		return syse
+	case filter&uint32(e) != 0:
+		return e
+	default:
+		return Event(0)
+	}
+}
+
+// TODO(pknap) : add system-dependent event decoder for FILE_ACTION_MODIFIED,
+// FILE_ACTION_RENAMED_OLD_NAME, and FILE_ACTION_RENAMED_NEW_NAME actions.
+
 // TODO(ppknap) : doc.
 type event struct {
 	pathw  []uint16
