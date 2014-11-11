@@ -12,24 +12,16 @@ import (
 type parent string
 type base string
 
-func mark(s string) notify.WalkNodeFunc {
+func mark(s string) notify.WalkPathFunc {
 	return func(nd notify.Node, isbase bool) (err error) {
-		if nd.Name != sep {
-			if isbase {
-				dir, ok := nd.Parent[nd.Name].(map[string]interface{})
-				if !ok {
-					dir = make(map[string]interface{})
-					nd.Parent[nd.Name] = dir
-				}
-				dir[""] = base(s)
+		nd.Parent[""] = parent(s)
+		if isbase {
+			dir, ok := nd.Value().(map[string]interface{})
+			if !ok {
+				dir = make(map[string]interface{})
+				nd.Set(dir)
 			}
-			nd.Parent[""] = parent(s)
-		} else {
-			if isbase {
-				nd.Parent[""] = base(s)
-			} else {
-				nd.Parent[""] = parent(s)
-			}
+			dir[""] = base(s)
 		}
 		return
 	}

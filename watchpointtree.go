@@ -371,12 +371,10 @@ func (w *WatchPointTree) begin(p string) (Node, []string) {
 			w.Root[vol] = root
 		}
 	}
-	switch n := len(names); {
-	case n == 0 && vol != "":
+	switch len(names) {
+	case 0:
 		return Node{Parent: root, Name: vol}, nil
-	case n == 0:
-		return Node{Parent: root, Name: sep}, nil
-	case n == 1:
+	case 1:
 		return Node{Parent: root, Name: names[0]}, nil
 	default:
 		return Node{Parent: root, Name: names[0]}, names[1:]
@@ -406,11 +404,11 @@ func (w *WatchPointTree) BFS(fn func(interface{}) error) error {
 	return nil
 }
 
-// WalkNodeFunc TODO
-type WalkNodeFunc func(nd Node, isbase bool) error
+// WalkPathFunc TODO
+type WalkPathFunc func(nd Node, isbase bool) error
 
 //
-func (w *WatchPointTree) MakePath(p string, fn WalkNodeFunc) (err error) {
+func (w *WatchPointTree) MakePath(p string, fn WalkPathFunc) (err error) {
 	nodes := mknodes(w.begin(p))
 	n := len(nodes) - 1
 	for i := range nodes {
@@ -422,7 +420,7 @@ func (w *WatchPointTree) MakePath(p string, fn WalkNodeFunc) (err error) {
 }
 
 // MakeTree TODO
-func (w *WatchPointTree) MakeTree(p string, fn WalkNodeFunc) error {
+func (w *WatchPointTree) MakeTree(p string, fn WalkPathFunc) error {
 	base := Path{Name: p, Parent: mknode(w.begin(p)).Parent}
 	glob, dir := []string{p}, ""
 	for n := len(glob); n != 0; n = len(glob) {
