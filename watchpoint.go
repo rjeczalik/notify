@@ -23,8 +23,8 @@ func (wp WatchPoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 	diff[1] = diff[0] | e
 	wp[nil] = diff[1]
 	// Strip diff from internal events.
-	diff[0] &= ^Recursive
-	diff[1] &= ^Recursive
+	diff[0] &^= Recursive
+	diff[1] &^= Recursive
 	if diff[0] == diff[1] {
 		return None
 	}
@@ -42,8 +42,8 @@ func (wp WatchPoint) Del(c chan<- EventInfo) (diff EventDiff) {
 	}
 	wp[nil] = diff[1]
 	// Strip diff from internal events.
-	diff[0] &= ^Recursive
-	diff[1] &= ^Recursive
+	diff[0] &^= Recursive
+	diff[1] &^= Recursive
 	if diff[0] == diff[1] {
 		return None
 	}
