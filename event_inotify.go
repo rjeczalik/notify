@@ -1,4 +1,5 @@
-// +build linux,!fsnotify
+// +build linux
+// +build !fsnotify
 
 package notify
 
