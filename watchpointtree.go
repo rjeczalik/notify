@@ -381,21 +381,62 @@ func (w *WatchpointTree) begin(p string) (nd Node, names []string) {
 }
 
 // WalkPath TODO
-func (w *WatchpointTree) WalkPath(p string, fn WalkPathFunc) error {
+func (w *WatchpointTree) WalkPath(p string, fn WalkPathFunc) (err error) {
 	it, dirs := w.begin(p)
-	n := len(dirs) - 1
-	if err := fn(it, n == -1); err != nil {
-		return err
-	}
 	ok := false
 	for i := range dirs {
+		if err = fn(it, false); err != nil {
+			return
+		}
 		if it.Parent, ok = it.Value().(map[string]interface{}); !ok {
 			return &PathError{Name: p}
 		}
 		it.Name = dirs[i]
-		if err := fn(it, i == n); err != nil {
-			return err
+	}
+	if err = fn(it, true); err != nil {
+		return
+	}
+	return
+}
+
+// WalkWatchpointFunc TODO
+type WalkWatchpointFunc func(wp Watchpoint, base bool) error
+
+// WalkWatchpoint TODO
+//
+// No, duplicated code here is ok.
+func (w *WatchpointTree) WalkWatchpoint(p string, fn WalkWatchpointFunc) (err error) {
+	it, dirs := w.begin(p)
+	ok := false
+	for i := range dirs {
+		if wp, ok := it.Parent[""].(Watchpoint); ok {
+			if err = fn(wp, false); err != nil {
+				return
+			}
 		}
+		if it.Parent, ok = it.Value().(map[string]interface{}); !ok {
+			return &PathError{Name: p}
+		}
+		it.Name = dirs[i]
+	}
+	if wp, ok := it.Parent[""].(Watchpoint); ok {
+		if err = fn(wp, true); err != nil {
+			return
+		}
+	}
+	switch v := it.Value().(type) {
+	case Watchpoint:
+		if err = fn(v, true); err != nil {
+			return
+		}
+	case map[string]interface{}:
+		if wp, ok := v[""].(Watchpoint); ok {
+			if err = fn(wp, true); err != nil {
+				return
+			}
+		}
+	default:
+		panic("[DEBUG] notify: invalid node type")
 	}
 	return nil
 }
