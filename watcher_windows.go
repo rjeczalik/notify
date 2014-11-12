@@ -108,6 +108,71 @@ func encode(filter uint32) uint32 {
 	return uint32(e &^ FILE_NOTIFY_CHANGE_DIR_NAME)
 }
 
+// watched is made in order to check whether an action comes from a directory or
+// file. This approach requires two file handlers per single monitored folder. The
+// second grip handles actions which include creating or deleting a directory. If
+// these processes are not monitored, only the first grip is created.
+type watched struct {
+	pathw  []uint16
+	digrip [2]*grip
+}
+
+// makeWatched creates a new watched instance. It splits a filter variable into
+// two parts. The first part is responsible for watching all events which can be
+// created for a file in watched directory structure and the second one watches
+// only directory Create/Delete actions. If all operations succeed, the Create
+// message is sent to I/O completion port queue for further processing.
+func makeWatched(cph syscall.Handle, path string, filter uint32) (wd watched, err error) {
+	if wd.pathw, err = syscall.UTF16FromString(path); err != nil {
+		return
+	}
+	var fdfilter uint32 = filter &^ uint32(FILE_NOTIFY_CHANGE_DIR_NAME)
+	if fdfilter != 0 {
+		if wd.digrip[0], err = newGrip(cph, wd.pathw, fdfilter); err != nil {
+			return
+		}
+	}
+	var dfilter uint32 = filter & uint32(FILE_NOTIFY_CHANGE_DIR_NAME|All)
+	if dfilter^uint32(All) != 0 {
+		if wd.digrip[1], err = newGrip(
+			cph, wd.pathw, dfilter|uint32(dirmarker)); err != nil {
+			wd.closeHandle()
+			return
+		}
+	}
+	return wd, wd.iocpMsg(cph, 1)
+}
+
+// iocpMsg posts an I/O completion packet to completion port pointed by 'cph'
+// handle. Message will be passed as completion key and shall not be considered
+// as a valid state until the `filter` member from grip variable is checked.
+func (wd *watched) iocpMsg(cph syscall.Handle, msg uint32) (err error) {
+	for _, g := range wd.digrip {
+		if g != nil {
+			overlapped := (*syscall.Overlapped)(unsafe.Pointer(g.ovlapped))
+			if e := syscall.PostQueuedCompletionStatus(
+				cph, 0, msg, overlapped); e != nil && err == nil {
+				err = e
+			}
+		}
+	}
+	return
+}
+
+// closeHandle closes handles that are stored in digrip array. Function always
+// tries to close all of the handlers before it exits, even when there are errors
+// returned from the operating system kernel.
+func (wd *watched) closeHandle() (err error) {
+	for _, g := range wd.digrip {
+		if g != nil {
+			if e := syscall.CloseHandle(g.handle); e != nil && err == nil {
+				err = e
+			}
+		}
+	}
+	return
+}
+
 type watcher struct {
 	sync.RWMutex
 	cph syscall.Handle
