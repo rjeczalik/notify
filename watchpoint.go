@@ -32,8 +32,11 @@ func (wp Watchpoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 }
 
 // Del TODO
-func (wp Watchpoint) Del(c chan<- EventInfo) (diff EventDiff) {
-	delete(wp, c)
+func (wp Watchpoint) Del(c chan<- EventInfo, e Event) (diff EventDiff) {
+	wp[c] &^= e
+	if wp[c] == 0 {
+		delete(wp, c)
+	}
 	diff[0] = wp[nil]
 	// Recalculate total event set.
 	delete(wp, nil)

@@ -12,8 +12,8 @@ import (
 type parent string
 type base string
 
-func mark(s string) notify.WalkPathFunc {
-	return func(nd notify.Node, isbase bool) (err error) {
+func mark(s string) notify.WalkPathNodeFunc {
+	return func(nd notify.WatchNode, isbase bool) (err error) {
 		nd.Parent[""] = parent(s)
 		if isbase {
 			dir, ok := nd.Value().(map[string]interface{})
@@ -27,8 +27,8 @@ func mark(s string) notify.WalkPathFunc {
 	}
 }
 
-func markandrec(s string, spy map[string]struct{}) notify.WalkNodeFunc {
-	return func(nd notify.Node, p string) error {
+func markandrec(s string, spy map[string]struct{}) notify.WalkWatchNodeFunc {
+	return func(nd notify.WatchNode, p string) error {
 		nd.Parent[""] = parent(s)
 		if _, ok := spy[p]; ok {
 			return errors.New("duplicate path: " + p)
@@ -105,9 +105,9 @@ func (p *p) expectmark(mark string, dirs []string) {
 }
 
 func (p *p) expectmarkpaths(mark string, paths map[string]struct{}) {
-	bases := notify.NodeSet{}
+	bases := notify.WatchNodeSet{}
 	for path := range paths {
-		err := p.w.WalkPath(path, func(nd notify.Node, isbase bool) error {
+		err := p.w.WalkPath(path, func(nd notify.WatchNode, isbase bool) error {
 			if isbase {
 				v, ok := nd.Parent[""].(parent)
 				if !ok {

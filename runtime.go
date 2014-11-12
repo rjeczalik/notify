@@ -132,7 +132,7 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 			case Watchpoint:
 				wp = v
 			}
-			if diff := wp.Del(c); diff != None {
+			if diff := wp.Del(c, All); diff != None {
 				if diff[1] == 0 {
 					if err := r.os.Unwatch(path); err != nil {
 						panic("notify: Unwatch failed with: " + err.Error())
