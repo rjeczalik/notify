@@ -144,6 +144,21 @@ func (m ChanNodesMap) Del(c chan<- EventInfo, nd Node) {
 	}
 }
 
+// WalkPathFunc TODO
+type WalkPathFunc func(nd Node, isbase bool) error
+
+// WalkNodeFunc TODO
+type WalkNodeFunc func(nd Node, p string) error
+
+// PathError TODO
+type PathError struct {
+	Name string
+}
+
+func (err PathError) Error() string {
+	return `notify: invalid path "` + err.Name + `"`
+}
+
 // WatchpointTree TODO
 type WatchpointTree struct {
 	FS   fs.Filesystem          // TODO
@@ -365,18 +380,6 @@ func (w *WatchpointTree) begin(p string) (nd Node, names []string) {
 	return
 }
 
-// WalkPathFunc TODO
-type WalkPathFunc func(nd Node, isbase bool) error
-
-// PathError TODO
-type PathError struct {
-	Name string
-}
-
-func (err PathError) Error() string {
-	return `notify: invalid path "` + err.Name + `"`
-}
-
 // WalkPath TODO
 func (w *WatchpointTree) WalkPath(p string, fn WalkPathFunc) error {
 	it, dirs := w.begin(p)
@@ -408,9 +411,6 @@ func (w *WatchpointTree) MakePath(p string, fn WalkPathFunc) error {
 	}
 	return nil
 }
-
-// WalkNodeFunc TODO
-type WalkNodeFunc func(nd Node, p string) error
 
 // MakeTree TODO
 func (w *WatchpointTree) MakeTree(p string, fn WalkNodeFunc) error {
