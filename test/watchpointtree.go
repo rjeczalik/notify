@@ -40,12 +40,12 @@ func markandrec(s string, spy map[string]struct{}) notify.WalkNodeFunc {
 
 type p struct {
 	t *testing.T
-	w *notify.WatchPointTree
+	w *notify.WatchpointTree
 }
 
 // P TODO
 func P(t *testing.T) *p {
-	w := notify.NewWatchPointTree(nil)
+	w := notify.NewWatchpointTree(nil)
 	w.FS = FS
 	return &p{t: t, w: w}
 }
@@ -150,7 +150,7 @@ type PathCase map[string][]string
 // ExpectPath TODO
 //
 // For each test-case we're traversing path specified by a testcase's key
-// over shared WatchPointTree and marking each directory using special empty
+// over shared WatchpointTree and marking each directory using special empty
 // key. The mark is simply the traversed path name. Each mark can be either
 // of `parent` or `base` type. Only the base item in the path is marked with
 // a `base` mark.

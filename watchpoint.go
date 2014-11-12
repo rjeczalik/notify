@@ -8,16 +8,16 @@ var None EventDiff
 // functions typically return None value.
 type EventDiff [2]Event
 
-// WatchPoint TODO
+// Watchpoint TODO
 //
 // The nil key holds total event set - logical sum for all registered events.
 // It speeds up computing EventDiff for Add method.
-type WatchPoint map[chan<- EventInfo]Event
+type Watchpoint map[chan<- EventInfo]Event
 
 // Add TODO
 //
 // Add assumes neither c nor e are nil or zero values.
-func (wp WatchPoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
+func (wp Watchpoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 	wp[c] |= e
 	diff[0] = wp[nil]
 	diff[1] = diff[0] | e
@@ -32,7 +32,7 @@ func (wp WatchPoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 }
 
 // Del TODO
-func (wp WatchPoint) Del(c chan<- EventInfo) (diff EventDiff) {
+func (wp Watchpoint) Del(c chan<- EventInfo) (diff EventDiff) {
 	delete(wp, c)
 	diff[0] = wp[nil]
 	// Recalculate total event set.
@@ -51,7 +51,7 @@ func (wp WatchPoint) Del(c chan<- EventInfo) (diff EventDiff) {
 }
 
 // Dispatch TODO
-func (wp WatchPoint) Dispatch(ei EventInfo, isrec bool) {
+func (wp Watchpoint) Dispatch(ei EventInfo, isrec bool) {
 	event := ei.Event()
 	if isrec {
 		event |= Recursive
@@ -71,6 +71,6 @@ func (wp WatchPoint) Dispatch(ei EventInfo, isrec bool) {
 }
 
 // Recursive TODO
-func (wp WatchPoint) Recursive() bool {
+func (wp Watchpoint) Recursive() bool {
 	return wp[nil]&Recursive == Recursive
 }

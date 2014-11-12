@@ -18,7 +18,7 @@ var estr = map[Event]string{
 	// user. Having Recursive event printable is helpful, e.g. for reading
 	// testing failure messages:
 	//
-	//    --- FAIL: TestWatchPoint (0.00 seconds)
+	//    --- FAIL: TestWatchpoint (0.00 seconds)
 	//    watchpoint_test.go:64: want diff=[notify.Delete notify.Create|notify.Delete];
 	//    got [notify.Delete notify.Delete|notify.Create] (i=1)
 	//

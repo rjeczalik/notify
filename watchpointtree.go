@@ -45,7 +45,7 @@ func (nd Node) Del() {
 
 func mknode(nd Node, names []string) Node {
 	for i := range names {
-		// TODO(rjeczalik): node is a WatchPoint? (file)
+		// TODO(rjeczalik): node is a Watchpoint? (file)
 		child, ok := nd.Value().(map[string]interface{})
 		if !ok {
 			child = make(map[string]interface{})
@@ -60,7 +60,7 @@ func mknodes(nd Node, names []string) []Node {
 	nodes := make([]Node, len(names)+1)
 	nodes[0] = nd
 	for i := range names {
-		// TODO(rjeczalik): node is a WatchPoint? (file)
+		// TODO(rjeczalik): node is a Watchpoint? (file)
 		child, ok := nd.Value().(map[string]interface{})
 		if !ok {
 			child = make(map[string]interface{})
@@ -144,8 +144,8 @@ func (m ChanNodesMap) Del(c chan<- EventInfo, nd Node) {
 	}
 }
 
-// WatchPointTree TODO
-type WatchPointTree struct {
+// WatchpointTree TODO
+type WatchpointTree struct {
 	FS   fs.Filesystem          // TODO
 	Cwd  Path                   // TODO
 	Root map[string]interface{} // TODO
@@ -155,14 +155,14 @@ type WatchPointTree struct {
 	os   Interface
 }
 
-func (w *WatchPointTree) fs() fs.Filesystem {
+func (w *WatchpointTree) fs() fs.Filesystem {
 	if w.FS != nil {
 		return w.FS
 	}
 	return fs.Default
 }
 
-func (w *WatchPointTree) setos(wat Watcher) {
+func (w *WatchpointTree) setos(wat Watcher) {
 	if os, ok := wat.(Interface); ok {
 		w.os = os
 		return
@@ -186,7 +186,7 @@ func (w *WatchPointTree) setos(wat Watcher) {
 
 }
 
-func (w *WatchPointTree) dispatch(c <-chan EventInfo) {
+func (w *WatchpointTree) dispatch(c <-chan EventInfo) {
 	for {
 		select {
 		case ei := <-c:
@@ -197,10 +197,10 @@ func (w *WatchPointTree) dispatch(c <-chan EventInfo) {
 	}
 }
 
-// NewWatchPointTree TODO
-func NewWatchPointTree(wat Watcher) *WatchPointTree {
+// NewWatchpointTree TODO
+func NewWatchpointTree(wat Watcher) *WatchpointTree {
 	c := make(chan EventInfo, 128)
-	w := &WatchPointTree{
+	w := &WatchpointTree{
 		Root: make(map[string]interface{}),
 		cnd:  make(ChanNodesMap),
 		stop: make(chan struct{}),
@@ -210,7 +210,7 @@ func NewWatchPointTree(wat Watcher) *WatchPointTree {
 	return w
 }
 
-func (w *WatchPointTree) isdir(p string) (bool, error) {
+func (w *WatchpointTree) isdir(p string) (bool, error) {
 	fi, err := w.fs().Stat(p)
 	if err != nil {
 		return false, err
@@ -222,7 +222,7 @@ func (w *WatchPointTree) isdir(p string) (bool, error) {
 //
 // Watch does not support symlinks as it does not care. If user cares, p should
 // be passed to os.Readlink first.
-func (w *WatchPointTree) Watch(p string, c chan<- EventInfo, e ...Event) error {
+func (w *WatchpointTree) Watch(p string, c chan<- EventInfo, e ...Event) error {
 	if c == nil {
 		panic("notify: Watch using nil channel")
 	}
@@ -255,32 +255,32 @@ func (w *WatchPointTree) Watch(p string, c chan<- EventInfo, e ...Event) error {
 }
 
 // Stop TODO
-func (w *WatchPointTree) Stop(c chan<- EventInfo) error {
+func (w *WatchpointTree) Stop(c chan<- EventInfo) error {
 	return errors.New("Stop not implemented")
 }
 
 // Close TODO
-func (w *WatchPointTree) Close() error {
+func (w *WatchpointTree) Close() error {
 	close(w.stop)
 	return nil
 }
 
-func (w *WatchPointTree) register(nd Node, isdir bool, c chan<- EventInfo, e Event) EventDiff {
-	var wp WatchPoint
+func (w *WatchpointTree) register(nd Node, isdir bool, c chan<- EventInfo, e Event) EventDiff {
+	var wp Watchpoint
 	if isdir {
 		dir, ok := nd.Value().(map[string]interface{})
 		if !ok {
-			wp = WatchPoint{}
+			wp = Watchpoint{}
 			dir = map[string]interface{}{"": wp}
 			nd.Set(dir)
-		} else if wp, ok = dir[""].(WatchPoint); !ok {
-			wp = WatchPoint{}
+		} else if wp, ok = dir[""].(Watchpoint); !ok {
+			wp = Watchpoint{}
 			dir[""] = wp
 		}
 	} else {
 		var ok bool
-		if wp, ok = nd.Value().(WatchPoint); !ok {
-			wp = WatchPoint{}
+		if wp, ok = nd.Value().(Watchpoint); !ok {
+			wp = Watchpoint{}
 			nd.Set(wp)
 		}
 	}
@@ -288,16 +288,16 @@ func (w *WatchPointTree) register(nd Node, isdir bool, c chan<- EventInfo, e Eve
 	return wp.Add(c, e)
 }
 
-func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff) {
+func (w *WatchpointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff) {
 	switch v := nd.Value().(type) {
-	case WatchPoint:
+	case Watchpoint:
 		if diff = v.Del(c); diff != None && diff[1] == 0 {
 			nd.Del()
 		}
 		// TODO(rjeczalik) if len(nd.Parent)==0 it should be removed from its parent
 		// so the GC can collect empty nodes.
 	case map[string]interface{}:
-		if diff = v[""].(WatchPoint).Del(c); diff != None && diff[1] == 0 {
+		if diff = v[""].(Watchpoint).Del(c); diff != None && diff[1] == 0 {
 			if delete(v, ""); len(v) == 0 {
 				nd.Del()
 			}
@@ -309,7 +309,7 @@ func (w *WatchPointTree) unregister(nd Node, c chan<- EventInfo) (diff EventDiff
 	return
 }
 
-func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) (err error) {
+func (w *WatchpointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event) (err error) {
 	nd := mknode(w.begin(p))
 	// TODO(rjeczalik): check if any of the parents are being watched recursively
 	// and the event set is sufficient.
@@ -327,22 +327,22 @@ func (w *WatchPointTree) watch(p string, isdir bool, c chan<- EventInfo, e Event
 	return nil
 }
 
-func (w *WatchPointTree) watchrec(p string, isdir bool, c chan<- EventInfo, e Event) error {
+func (w *WatchpointTree) watchrec(p string, isdir bool, c chan<- EventInfo, e Event) error {
 	return errors.New("watch TODO(rjeczalik)")
 }
 
 // RecursiveWatch implements notify.RecursiveWatcher interface.
-func (w *WatchPointTree) RecursiveWatch(p string, e Event) error {
+func (w *WatchpointTree) RecursiveWatch(p string, e Event) error {
 	return errors.New("RecurisveWatch TODO(rjeczalik)")
 }
 
 // RecursiveUnwatch implements notify.RecursiveWatcher interface.
-func (w *WatchPointTree) RecursiveUnwatch(p string) error {
+func (w *WatchpointTree) RecursiveUnwatch(p string) error {
 	return errors.New("RecurisveUnwatch TODO(rjeczalik)")
 }
 
 // Rewatch implements notify.Rewatcher interface.
-func (w *WatchPointTree) Rewatch(p string, olde, newe Event) error {
+func (w *WatchpointTree) Rewatch(p string, olde, newe Event) error {
 	if err := w.os.Unwatch(p); err != nil {
 		return err
 	}
@@ -350,14 +350,14 @@ func (w *WatchPointTree) Rewatch(p string, olde, newe Event) error {
 }
 
 // RecursiveRewatch implements notify.RecursiveRewatcher interface.
-func (w *WatchPointTree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
+func (w *WatchpointTree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 	if err := w.os.RecursiveUnwatch(oldp); err != nil {
 		return err
 	}
 	return w.os.RecursiveWatch(newp, newe)
 }
 
-func (w *WatchPointTree) begin(p string) (nd Node, names []string) {
+func (w *WatchpointTree) begin(p string) (nd Node, names []string) {
 	nd.Parent, nd.Name = w.Root, filepath.VolumeName(p)
 	if p = p[len(nd.Name)+1:]; p != "" {
 		names = strings.Split(p, sep)
@@ -378,7 +378,7 @@ func (err PathError) Error() string {
 }
 
 // WalkPath TODO
-func (w *WatchPointTree) WalkPath(p string, fn WalkPathFunc) error {
+func (w *WatchpointTree) WalkPath(p string, fn WalkPathFunc) error {
 	it, dirs := w.begin(p)
 	n := len(dirs) - 1
 	if err := fn(it, n == -1); err != nil {
@@ -398,7 +398,7 @@ func (w *WatchPointTree) WalkPath(p string, fn WalkPathFunc) error {
 }
 
 // MakePath TODO
-func (w *WatchPointTree) MakePath(p string, fn WalkPathFunc) error {
+func (w *WatchpointTree) MakePath(p string, fn WalkPathFunc) error {
 	nodes := mknodes(w.begin(p))
 	n := len(nodes) - 1
 	for i := range nodes {
@@ -413,7 +413,7 @@ func (w *WatchPointTree) MakePath(p string, fn WalkPathFunc) error {
 type WalkNodeFunc func(nd Node, p string) error
 
 // MakeTree TODO
-func (w *WatchPointTree) MakeTree(p string, fn WalkNodeFunc) error {
+func (w *WatchpointTree) MakeTree(p string, fn WalkNodeFunc) error {
 	base := Path{Name: p, Parent: mknode(w.begin(p)).Parent}
 	if err := fn(base.Node(), p); err != nil {
 		return err
@@ -449,7 +449,7 @@ func (w *WatchPointTree) MakeTree(p string, fn WalkNodeFunc) error {
 //
 // NOTE(rjeczalik): Used only for test/debugging purposes, should be move out
 // from here.
-func (w *WatchPointTree) BFS(fn func(interface{}) error) error {
+func (w *WatchpointTree) BFS(fn func(interface{}) error) error {
 	dir := (map[string]interface{})(nil)
 	glob := []map[string]interface{}{w.Root}
 	for n := len(glob); n != 0; n = len(glob) {

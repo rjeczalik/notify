@@ -9,7 +9,7 @@ import (
 	"github.com/rjeczalik/notify/test"
 )
 
-func call(wp WatchPoint, fn interface{}, args []interface{}) EventDiff {
+func call(wp Watchpoint, fn interface{}, args []interface{}) EventDiff {
 	vals := []reflect.Value{reflect.ValueOf(wp)}
 	for _, arg := range args {
 		vals = append(vals, reflect.ValueOf(arg))
@@ -25,7 +25,7 @@ func call(wp WatchPoint, fn interface{}, args []interface{}) EventDiff {
 	return diff
 }
 
-func TestWatchPoint(t *testing.T) {
+func TestWatchpoint(t *testing.T) {
 	ch := test.Chans(5)
 	cases := [...]struct {
 		fn    interface{}
@@ -33,57 +33,57 @@ func TestWatchPoint(t *testing.T) {
 		diff  EventDiff
 		total Event
 	}{{
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[0], Delete},
 		EventDiff{0, Delete},
 		Delete,
 	}, {
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[1], Create | Delete | Recursive},
 		EventDiff{Delete, Delete | Create},
 		Create | Delete | Recursive,
 	}, {
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[2], Create | Move},
 		EventDiff{Create | Delete, Create | Delete | Move},
 		Create | Delete | Move | Recursive,
 	}, {
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[0], Write | Recursive},
 		EventDiff{Create | Delete | Move, Create | Delete | Move | Write},
 		Create | Delete | Move | Write | Recursive,
 	}, {
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[2], Delete | Recursive},
 		None,
 		Create | Delete | Move | Write | Recursive,
 	}, {
-		WatchPoint.Del,
+		Watchpoint.Del,
 		[]interface{}{ch[0]},
 		EventDiff{Create | Delete | Move | Write, Create | Delete | Move},
 		Create | Delete | Move | Recursive,
 	}, {
-		WatchPoint.Del,
+		Watchpoint.Del,
 		[]interface{}{ch[2]},
 		EventDiff{Create | Delete | Move, Create | Delete},
 		Create | Delete | Recursive,
 	}, {
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[3], Create | Delete},
 		None,
 		Create | Delete | Recursive,
 	}, {
-		WatchPoint.Del,
+		Watchpoint.Del,
 		[]interface{}{ch[1]},
 		None,
 		Create | Delete,
 	}, {
-		WatchPoint.Add,
+		Watchpoint.Add,
 		[]interface{}{ch[3], Recursive | Write},
 		EventDiff{Create | Delete, Create | Delete | Write},
 		Create | Delete | Write | Recursive,
 	}}
-	wp := WatchPoint{}
+	wp := Watchpoint{}
 	for i, cas := range cases {
 		if diff := call(wp, cas.fn, cas.args); diff != cas.diff {
 			t.Errorf("want diff=%v; got %v (i=%d)", cas.diff, diff, i)

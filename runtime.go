@@ -124,12 +124,12 @@ func (r *Runtime) Stop(c chan<- EventInfo) {
 		// lookups for each is highly inefficient - it should be possible
 		// to remove more channel wpscription at one lookup.
 		for _, path := range paths {
-			var wp WatchPoint
+			var wp Watchpoint
 			parent, name, _ := r.buildpath(path) // TODO error?
 			switch v := parent[name].(type) {
 			case map[string]interface{}: // dir
-				wp = v[""].(WatchPoint)
-			case WatchPoint:
+				wp = v[""].(Watchpoint)
+			case Watchpoint:
 				wp = v
 			}
 			if diff := wp.Del(c); diff != None {
@@ -202,19 +202,19 @@ func (r *Runtime) dispatch(ei EventInfo) {
 		fmt.Println(err)
 		return
 	}
-	var wp WatchPoint
+	var wp Watchpoint
 	switch v := parent[name].(type) {
-	case WatchPoint:
+	case Watchpoint:
 		wp = v
 	case map[string]interface{}:
-		if v, ok := v[""].(WatchPoint); ok {
+		if v, ok := v[""].(Watchpoint); ok {
 			wp = v
 		}
 	}
 	if wp != nil {
 		wp.Dispatch(ei, false)
 	}
-	if wp, ok := parent[""].(WatchPoint); ok {
+	if wp, ok := parent[""].(Watchpoint); ok {
 		wp.Dispatch(ei, false)
 	}
 }
@@ -248,7 +248,7 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 		return errors.New("(*Runtime).Watch TODO(rjeczalik)")
 	case isdir:
 		var dir map[string]interface{}
-		var wp WatchPoint
+		var wp Watchpoint
 		var err error
 		// Get or create dir for the current watch-point.
 		if v, ok := parent[name].(map[string]interface{}); ok {
@@ -258,10 +258,10 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 			parent[name] = dir
 		}
 		// Get or create watchpoints map for the current watch-point
-		if v, ok := dir[""].(WatchPoint); ok {
+		if v, ok := dir[""].(Watchpoint); ok {
 			wp = v
 		} else {
-			wp = WatchPoint{}
+			wp = Watchpoint{}
 			dir[""] = wp
 		}
 		// Add channel to the current watch-point.
@@ -288,7 +288,7 @@ func (r *Runtime) watch(p string, e Event, c chan<- EventInfo, isdir, isrec bool
 	return nil
 }
 
-func (r *Runtime) walkwp(p string, fn func(string, wp WatchPoint) bool) bool {
+func (r *Runtime) walkwp(p string, fn func(string, wp Watchpoint) bool) bool {
 	return false
 }
 
