@@ -5,7 +5,6 @@ package notify
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,11 +12,7 @@ import (
 	"syscall"
 )
 
-// TODO: Close fd on exit -> verify if finalizer works.
-// TODO: Close kqueue fd on exit -> verify if finalizer works.
 // TODO: Take into account currently monitored files with those read from dir.
-// TODO: Write whole bunch of additional tests (which btw most likely won't
-//       pass by default...).
 
 // event is a struct storing reported event's data.
 type event struct {
@@ -52,7 +47,6 @@ func newWatcher() Watcher {
 		c:      make(chan EventInfo),
 	}
 	runtime.SetFinalizer(k, func(k *kqueue) {
-		fmt.Printf("finalizer works\n")
 		for i := range k.idLkp {
 			syscall.Close(k.idLkp[i].fd)
 		}

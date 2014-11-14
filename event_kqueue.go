@@ -20,7 +20,7 @@ const (
 	// NOTE_WRITE is an event reported when a write occurred on the file
 	// referenced by the descriptor.
 	NOTE_WRITE = Event(syscall.NOTE_WRITE)
-	// NOTE_EXTEND is an event reported when the he file referenced by the
+	// NOTE_EXTEND is an event reported when the file referenced by the
 	// descriptor was extended.
 	NOTE_EXTEND = Event(syscall.NOTE_EXTEND)
 	// NOTE_ATTRIB is an event reported when the file referenced
@@ -31,7 +31,7 @@ const (
 	// NOTE_RENAME is an event reported when the file referenced
 	// by the descriptor was renamed.
 	NOTE_RENAME = Event(syscall.NOTE_RENAME)
-	// NOTE_REVOKE is an event reported when ccess to the file was revoked via
+	// NOTE_REVOKE is an event reported when access to the file was revoked via
 	// revoke(2) or	the underlying file system was unmounted.
 	NOTE_REVOKE = Event(syscall.NOTE_REVOKE)
 )
