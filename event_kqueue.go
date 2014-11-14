@@ -5,13 +5,12 @@ package notify
 
 import "syscall"
 
-// TODO: sometimes something needs to be done with something...
 const (
-	Create    = Event(0x0100)
-	Delete    = NOTE_DELETE
-	Write     = NOTE_WRITE
-	Move      = NOTE_RENAME
-	Recursive = Event(0x0200) // An internal event, in final version won't be exported.
+	Create Event = 0x0100 << iota
+	Delete
+	Write
+	Move
+	Recursive // An internal event, in final version won't be exported.
 )
 
 const (
@@ -37,18 +36,16 @@ const (
 	NOTE_REVOKE = Event(syscall.NOTE_REVOKE)
 )
 
-// TODO: eh..
 var osestr = map[Event]string{
-	//	NOTE_DELETE: "notify.NOTE_DELETE",
-	//	NOTE_WRITE:  "notify.NOTE_WRITE",
+	NOTE_DELETE: "notify.NOTE_DELETE",
+	NOTE_WRITE:  "notify.NOTE_WRITE",
 	NOTE_EXTEND: "notify.NOTE_EXTEND",
 	NOTE_ATTRIB: "notify.NOTE_ATTRIB",
 	NOTE_LINK:   "notify.NOTE_LINK",
-	//	NOTE_RENAME: "notify.NOTE_RENAME",
+	NOTE_RENAME: "notify.NOTE_RENAME",
 	NOTE_REVOKE: "notify.NOTE_REVOKE",
 }
 
-// TODO: hm....
 var ekind = map[Event]Event{
 	syscall.NOTE_WRITE:  Write,
 	syscall.NOTE_RENAME: Move,
