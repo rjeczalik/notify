@@ -229,7 +229,8 @@ func (w *watcher) lazyinit() (err error) {
 		w.Lock()
 		if atomic.LoadUintptr((*uintptr)(&w.cph)) == invalid {
 			cph := syscall.InvalidHandle
-			if cph, err = syscall.CreateIoCompletionPort(cph, 0, 0, 0); err != nil {
+			if cph, err = syscall.CreateIoCompletionPort(
+				cph, 0, 0, 0); err != nil {
 				w.Unlock()
 				return
 			}
@@ -244,7 +245,60 @@ func (w *watcher) lazyinit() (err error) {
 	return
 }
 
-func (w *watcher) loop() {}
+// TODO(ppknap) : doc
+func (w *watcher) loop() {
+	var n, key uint32
+	var overlapped *syscall.Overlapped
+	for {
+		if err := syscall.GetQueuedCompletionStatus(
+			w.cph, &n, &key, &overlapped, syscall.INFINITE); err != nil {
+			// TODO(ppknap) : Error handling
+		}
+		var overEx = (*overlappedEx)(unsafe.Pointer(overlapped))
+		es := []*event{}
+		if n != 0 {
+			var currOffset uint32
+			for {
+				raw := (*syscall.FileNotifyInformation)(
+					unsafe.Pointer(&overEx.parent.buffer[currOffset]))
+				buf := (*[syscall.MAX_PATH]uint16)(unsafe.Pointer(&raw.FileName))
+				name := syscall.UTF16ToString(buf[:raw.FileNameLength/2])
+				es = append(es, &event{
+					pathw:  overEx.parent.pathw,
+					filter: overEx.parent.filter,
+					action: raw.Action,
+					name:   name,
+				})
+				if raw.NextEntryOffset == 0 {
+					break
+				}
+				if currOffset += raw.NextEntryOffset; currOffset >= n {
+					break
+				}
+			}
+		}
+		if err := overEx.parent.readDirChanges(); err != nil {
+			// TODO(ppknap) : Error handling
+		}
+		w.send(es)
+	}
+}
+
+// TODO(ppknap) : doc
+func (w *watcher) send(es []*event) {
+	for _, e := range es {
+		if e.e = decode(e.filter, e.action); e.e == 0 {
+			continue
+		}
+		switch Event(e.action) {
+		case FILE_ACTION_ADDED, FILE_ACTION_REMOVED:
+			e.isdir = e.filter&uint32(dirmarker) != 0
+		default:
+			// TODO(ppknap) : or not TODO?
+		}
+		w.c <- e
+	}
+}
 
 // Unwatch implements notify.Watcher interface.
 func (w *watcher) Unwatch(p string) error {
