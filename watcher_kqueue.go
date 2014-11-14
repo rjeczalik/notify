@@ -69,7 +69,7 @@ func mask(e Event) (o uint32) {
 	o = uint32(e &^ Create)
 	for k, n := range ekind {
 		if e&n != 0 {
-			o = (o ^ uint32(n)) | uint32(k)
+			o = (o &^ uint32(n)) | uint32(k)
 		}
 	}
 	return
