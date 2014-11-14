@@ -5,6 +5,7 @@ package notify
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,7 +123,7 @@ func (k *kqueue) monitor() {
 			k.Lock()
 			w := k.idLkp[int(kevn[0].Ident)]
 			if w == nil {
-				panic("kqueue: missing config for event")
+				panic(fmt.Sprintf("kqueue: missing config for event %v", kevn[0]))
 			}
 			o := unmask(kevn[0].Fflags, w.eDir|w.eNonDir)
 			if w.dir {
