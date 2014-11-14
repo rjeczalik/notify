@@ -78,17 +78,17 @@ func mask(e Event) (o uint32) {
 // unmask converts event received from `kqueue` to `notify.Event`
 // representation taking into account requested events (`w`).
 func unmask(o uint32, w Event) (e Event) {
-	e = Event(o)
 	for k, n := range ekind {
 		if o&uint32(k) != 0 {
-			if w&k == 0 {
-				e &^= k
+			if w&k != 0 {
+				e |= k
 			}
 			if w&n != 0 {
 				e |= n
 			}
 		}
 	}
+	e |= Event(o) & w
 	return
 }
 
