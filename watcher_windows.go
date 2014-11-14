@@ -5,7 +5,9 @@ package notify
 
 import (
 	"path/filepath"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -173,8 +175,12 @@ func (wd *watched) closeHandle() (err error) {
 	return
 }
 
+// watcher implements Watcher interface. It stores a set of watched directories.
+// All operations which remove watched objects from map `m` must be performed in
+// loop goroutine since these structures are used internally by operating system.
 type watcher struct {
 	sync.RWMutex
+	m   map[string]watched
 	cph syscall.Handle
 	c   chan<- EventInfo
 }
@@ -182,14 +188,63 @@ type watcher struct {
 // NewWatcher creates new non-recursive watcher backed by ReadDirectoryChangesW.
 func newWatcher() *watcher {
 	return &watcher{
+		m:   make(map[string]watched),
 		cph: syscall.InvalidHandle,
 	}
 }
 
-// Watch implements notify.Watcher interface.
+// Watch inserts a directory to the group of watched folders. If watched folder
+// already exists, function tries to rewatch it with new filters. Moreover,
+// Watch starts the main event loop goroutine when called for the first time.
 func (w *watcher) Watch(path string, e Event) (err error) {
+	w.RLock()
+	wd, ok := w.m[path]
+	w.RUnlock()
+	if !ok {
+		if err = w.lazyinit(); err != nil {
+			return
+		}
+		w.Lock()
+		if _, ok = w.m[path]; ok {
+			// TODO: Rewatch
+			w.Unlock()
+			return
+		}
+		if wd, err = makeWatched(w.cph, path, uint32(e)); err != nil {
+			w.Unlock()
+			return
+		}
+		w.m[path] = wd
+		w.Unlock()
+	}
 	return nil
 }
+
+// lazyinit creates IO completion port and sets the finalizer in order to close
+// the port's handler at the end of program execution. This method uses Double-
+// Checked Locking optimization.
+func (w *watcher) lazyinit() (err error) {
+	invalid := uintptr(syscall.InvalidHandle)
+	if atomic.LoadUintptr((*uintptr)(&w.cph)) == invalid {
+		w.Lock()
+		if atomic.LoadUintptr((*uintptr)(&w.cph)) == invalid {
+			cph := syscall.InvalidHandle
+			if cph, err = syscall.CreateIoCompletionPort(cph, 0, 0, 0); err != nil {
+				w.Unlock()
+				return
+			}
+			w.cph = cph
+			runtime.SetFinalizer(&w.cph, func(handle *syscall.Handle) {
+				syscall.CloseHandle(*handle)
+			})
+			go w.loop()
+		}
+		w.Unlock()
+	}
+	return
+}
+
+func (w *watcher) loop() {}
 
 // Unwatch implements notify.Watcher interface.
 func (w *watcher) Unwatch(p string) error {
