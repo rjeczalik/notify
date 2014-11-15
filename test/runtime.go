@@ -105,8 +105,9 @@ type Event struct {
 
 // Event implements notify.EventInfo interface.
 func (e Event) Event() notify.Event { return e.E }
-func (e Event) Name() string        { return e.P }
+func (e Event) FileName() string    { return e.P }
 func (e Event) IsDir() bool         { return isDir(e.P) }
+func (e Event) String() string      { return e.E.String() + " - " + e.P }
 func (e Event) Sys() interface{}    { return nil }
 
 // Record TODO
@@ -219,7 +220,7 @@ func str(ei notify.EventInfo) string {
 	if ei == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("{Name()=%q, Event()=%v, IsDir()=%v}", ei.Name(), ei.Event(),
+	return fmt.Sprintf("{Name()=%q, Event()=%v, IsDir()=%v}", ei.FileName(), ei.Event(),
 		ei.IsDir())
 }
 
@@ -227,7 +228,7 @@ func equal(want, got notify.EventInfo) error {
 	if (want == nil && got != nil) || (want != nil && got == nil) {
 		return fmt.Errorf("want EventInfo=%s; got %s", str(want), str(got))
 	}
-	if want.Name() != got.Name() || want.Event() != got.Event() || want.IsDir() != got.IsDir() {
+	if want.FileName() != got.FileName() || want.Event() != got.Event() || want.IsDir() != got.IsDir() {
 		return fmt.Errorf("want EventInfo=%s; got %s", str(want), str(got))
 	}
 	return nil

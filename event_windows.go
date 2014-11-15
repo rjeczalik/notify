@@ -52,3 +52,18 @@ var osestr = map[Event]string{
 }
 
 var ekind = map[Event]Event{}
+
+// TODO(ppknap) : doc.
+type event struct {
+	pathw  []uint16
+	name   string
+	isdir  bool
+	action uint32
+	filter uint32
+	e      Event
+}
+
+func (e *event) Event() Event     { return e.e }
+func (e *event) FileName() string { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
+func (e *event) IsDir() bool      { return e.isdir }
+func (e *event) Sys() interface{} { return nil }

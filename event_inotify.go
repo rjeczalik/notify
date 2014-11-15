@@ -65,3 +65,14 @@ var ekind = map[Event]Event{
 	syscall.IN_MOVED_TO:    Delete,
 	syscall.IN_DELETE_SELF: Delete,
 }
+
+// TODO(ppknap) : doc.
+type event struct {
+	sys  syscall.InotifyEvent
+	impl watched
+}
+
+func (e *event) Event() Event     { return decodemask(e.impl.mask, e.sys.Mask) }
+func (e *event) FileName() string { return e.impl.name }
+func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
+func (e *event) Sys() interface{} { return e.sys }

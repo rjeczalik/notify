@@ -203,17 +203,6 @@ func sendevent(ei EventInfo) {
 }
 
 // TODO(ppknap) : doc.
-type event struct {
-	sys  syscall.InotifyEvent
-	impl watched
-}
-
-func (e *event) Event() Event     { return decodemask(e.impl.mask, e.sys.Mask) }
-func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
-func (e *event) Name() string     { return e.impl.name }
-func (e *event) Sys() interface{} { return e.sys }
-
-// TODO(ppknap) : doc.
 func makemask(e Event) uint32 {
 	if e&Create != 0 {
 		e = (e ^ Create) | IN_CREATE | IN_MOVED_TO
