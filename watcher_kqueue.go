@@ -110,21 +110,31 @@ func (k *kqueue) del(w *watched) {
 // to lack of detection of all events.
 func (k *kqueue) monitor() {
 	var evn []event
+	// TODO: This is poor, and incorrect way to debug issue with events for
+	// not registered fds, but temporarily for now might do. To be dropped.
+	// TODO: Maybe len(kevn)>1 would help. What len in this case?
+	hist := make(map[int]struct{})
 	for {
 		k.sendEvents(evn)
 		evn = make([]event, 0)
 		var kevn [1]syscall.Kevent_t
 		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
-		// ignore failure to capture an event.
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "kqueue: failed to read events: %q\n", err)
 			continue
 		}
 		if n > 0 {
 			k.Lock()
 			w := k.idLkp[int(kevn[0].Ident)]
 			if w == nil {
-				panic(fmt.Sprintf("kqueue: missing config for event %v", kevn[0]))
+				if _, ok := hist[int(kevn[0].Ident)]; ok {
+					fmt.Fprintf(os.Stderr, "kqueue: %v was previously registered\n", kevn[0])
+				} else {
+					fmt.Fprintf(os.Stderr, "kqueue: %v kevent is not registerd\n", kevn[0])
+				}
+				continue
 			}
+			hist[int(kevn[0].Ident)] = struct{}{}
 			o := unmask(kevn[0].Fflags, w.eDir|w.eNonDir)
 			if w.dir {
 				// If it's dir and delete we have to send it and continue, because
