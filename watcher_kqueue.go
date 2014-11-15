@@ -5,6 +5,7 @@ package notify
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,11 +13,7 @@ import (
 	"syscall"
 )
 
-// TODO: Close fd on exit -> verify if finalizer works.
-// TODO: Close kqueue fd on exit -> verify if finalizer works.
 // TODO: Take into account currently monitored files with those read from dir.
-// TODO: Write whole bunch of additional tests (which btw most likely won't
-//       pass by default...).
 
 // event is a struct storing reported event's data.
 type event struct {
@@ -68,6 +65,34 @@ func (k *kqueue) sendEvents(evn []event) {
 	}
 }
 
+// mask converts requested events to `kqueue` representation.
+func mask(e Event) (o uint32) {
+	o = uint32(e &^ Create)
+	for k, n := range ekind {
+		if e&n != 0 {
+			o = (o &^ uint32(n)) | uint32(k)
+		}
+	}
+	return
+}
+
+// unmask converts event received from `kqueue` to `notify.Event`
+// representation taking into account requested events (`w`).
+func unmask(o uint32, w Event) (e Event) {
+	for k, n := range ekind {
+		if o&uint32(k) != 0 {
+			if w&k != 0 {
+				e |= k
+			}
+			if w&n != 0 {
+				e |= n
+			}
+		}
+	}
+	e |= Event(o) & w
+	return
+}
+
 // del closes fd for `watched` and removes it from internal cache of monitored
 // files/directories.
 func (k *kqueue) del(w *watched) {
@@ -98,8 +123,9 @@ func (k *kqueue) monitor() {
 			k.Lock()
 			w := k.idLkp[int(kevn[0].Ident)]
 			if w == nil {
-				panic("kqueue: missing config for event")
+				panic(fmt.Sprintf("kqueue: missing config for event %v", kevn[0]))
 			}
+			o := unmask(kevn[0].Fflags, w.eDir|w.eNonDir)
 			if w.dir {
 				// If it's dir and delete we have to send it and continue, because
 				// other processing relies on opening (in this case not existing) dir.
@@ -107,7 +133,7 @@ func (k *kqueue) monitor() {
 					// Write is reported also for Delete on directory. Because of that
 					// we have to filter it out explicitly.
 					evn = append(evn, event{w.dir, w.p,
-						Event(kevn[0].Fflags) & (w.eDir | w.eNonDir) & ^Write, &kevn[0]})
+						o & ^Write & ^NOTE_WRITE, &kevn[0]})
 					k.del(w)
 					k.Unlock()
 					continue
@@ -131,8 +157,7 @@ func (k *kqueue) monitor() {
 					}
 				}
 			} else {
-				evn = append(evn, event{w.dir, w.p,
-					Event(kevn[0].Fflags) & (w.eDir | w.eNonDir), &kevn[0]})
+				evn = append(evn, event{w.dir, w.p, o, &kevn[0]})
 			}
 			if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
 				k.del(w)
@@ -240,7 +265,7 @@ func (k *kqueue) watch(p string, e Event, direct, dir bool) error {
 	}
 	var kevn [1]syscall.Kevent_t
 	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_ADD|syscall.EV_CLEAR)
-	kevn[0].Fflags = uint32((w.eDir | w.eNonDir) &^ Create)
+	kevn[0].Fflags = mask(w.eDir | w.eNonDir)
 	if _, err := syscall.Kevent(*k.fd, kevn[:], nil, nil); err != nil {
 		return err
 	}
