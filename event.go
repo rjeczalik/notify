@@ -42,10 +42,14 @@ func (e Event) String() string {
 // EventInfo TODO
 type EventInfo interface {
 	Event() Event     // TODO
+	FileName() string // TODO
 	IsDir() bool      // TODO(rjeczalik): Move to WatchInfo?
-	Name() string     // TODO
+	String() string   // TODO
 	Sys() interface{} // TODO
 }
+
+// String implements EventInfo interface.
+func (e *event) String() string { return e.Event().String() + " - " + e.FileName() }
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to
 // hint the notify runtime whether the event created a file or directory or it

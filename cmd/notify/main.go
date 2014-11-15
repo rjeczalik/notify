@@ -45,6 +45,6 @@ func main() {
 		notify.Watch(os.Args[1], ch, notify.All)
 	}
 	for ei := range ch {
-		fmt.Printf("event: name=%s, type=%v\n", ei.Name(), ei.Event())
+		fmt.Printf("event: name=%s, type=%v\n", ei.FileName(), ei.Event())
 	}
 }
