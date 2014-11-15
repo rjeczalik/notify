@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rjeczalik/notify"
 )
 
 const usage = "usage: notify path [EVENT...]"
+
+const tformat = "2006-01-02 15:04:05.0000"
 
 var event = map[string]notify.Event{
 	"all":    notify.All,
@@ -19,6 +22,9 @@ var event = map[string]notify.Event{
 }
 
 func parse(s []string) (e []notify.Event) {
+	if len(s) == 0 {
+		return []notify.Event{notify.All}
+	}
 	for _, s := range s {
 		event, ok := event[strings.ToLower(s)]
 		if !ok {
@@ -38,13 +44,9 @@ func main() {
 	if len(os.Args) == 1 {
 		die(usage)
 	}
-	ch := make(chan notify.EventInfo)
-	if len(os.Args) > 1 {
-		notify.Watch(os.Args[1], ch, parse(os.Args[2:])...)
-	} else {
-		notify.Watch(os.Args[1], ch, notify.All)
-	}
+	ch := make(chan notify.EventInfo, 10)
+	notify.Watch(os.Args[1], ch, parse(os.Args[2:])...)
 	for ei := range ch {
-		fmt.Printf("event: name=%s, type=%v\n", ei.FileName(), ei.Event())
+		fmt.Printf("[%v] Event: %v\n", time.Now().Format(tformat), ei)
 	}
 }

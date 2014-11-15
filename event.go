@@ -49,7 +49,7 @@ type EventInfo interface {
 }
 
 // String implements EventInfo interface.
-func (e *event) String() string { return e.Event().String() + " - " + e.FileName() }
+func (e *event) String() string { return e.Event().String() + `, "` + e.FileName() + `"` }
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to
 // hint the notify runtime whether the event created a file or directory or it
