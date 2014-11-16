@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"syscall"
 )
@@ -20,17 +19,22 @@ func newWatcher() Watcher {
 	k := &kqueue{
 		idLkp:  make(map[int]*watched, 0),
 		pthLkp: make(map[string]*watched, 0),
-		c:      make(chan EventInfo),
 	}
-	runtime.SetFinalizer(k, func(k *kqueue) {
-		for i := range k.idLkp {
-			syscall.Close(k.idLkp[i].fd)
-		}
-		if k.fd != nil {
-			syscall.Close(*k.fd)
-		}
-	})
+	if err := k.init(); err != nil {
+		// TODO: Does it really has to be this way?
+		panic(err)
+	}
 	return k
+}
+
+// stop closes all still open file descriptors and kqueue.
+func (k *kqueue) stop() {
+	for i := range k.idLkp {
+		syscall.Close(k.idLkp[i].fd)
+	}
+	if k.fd != nil {
+		syscall.Close(*k.fd)
+	}
 }
 
 // sendEvents sends reported events one by one through chan.
@@ -93,6 +97,12 @@ func (k *kqueue) monitor() {
 		k.sendEvents(evn)
 		evn = make([]event, 0)
 		var kevn [1]syscall.Kevent_t
+		select {
+		case <-k.s:
+			k.stop()
+			return
+		default:
+		}
 		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "kqueue: failed to read events: %q\n", err)
@@ -164,7 +174,9 @@ type kqueue struct {
 	// represented by them files/directories.
 	pthLkp map[string]*watched
 	// c is a channel used to pass events further.
-	c chan EventInfo
+	c chan<- EventInfo
+	// s is a channel used to stop monitoring.
+	s <-chan struct{}
 }
 
 // watched is a data structure representing watched file/directory.
@@ -181,28 +193,20 @@ type watched struct {
 	eNonDir Event
 }
 
-// init initializes kqueue if not yet initialized.
-func (k *kqueue) init() (err error) {
-	if k.fd == nil {
-		var fd int
-		fd, err = syscall.Kqueue()
-		if err != nil {
-			return
-		}
-		k.fd = &fd
-		go k.monitor()
+// init initializes kqueue.
+func (k *kqueue) init() error {
+	fd, err := syscall.Kqueue()
+	if err != nil {
+		return err
 	}
-	return
+	k.fd = &fd
+	return nil
 }
 
 // Watch implements Watcher interface.
 func (k *kqueue) Watch(p string, e Event) error {
-	var err error
-	if err = k.init(); err != nil {
-		return err
-	}
-	var dir bool
-	if dir, err = isdir(p); err != nil {
+	dir, err := isdir(p)
+	if err != nil {
 		return err
 	}
 	k.Lock()
@@ -343,16 +347,6 @@ func isdir(p string) (bool, error) {
 
 // Dispatch implements `Watcher` interface.
 func (k *kqueue) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
-	go func() {
-		for {
-			select {
-			case ei := <-k.c:
-				c <- ei
-				// TODO: Stop monitoring after stop. Verify if closing `kqueue`
-				// file descriptors triggers stop of `Kevent` call.
-			case <-stop:
-				return
-			}
-		}
-	}()
+	k.c, k.s = c, stop
+	go k.monitor()
 }
