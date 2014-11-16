@@ -105,6 +105,36 @@ func TestWatchpoint(t *testing.T) {
 		[]interface{}{ch[2], Delete},
 		EventDiff{Delete | Move | Write, Move | Write},
 		Move | Write | Recursive,
+	}, { // i=15
+		Watchpoint.Del,
+		[]interface{}{ch[3], Move | Recursive},
+		EventDiff{Move | Write, Write},
+		Write,
+	}, { // i=16
+		Watchpoint.AddRecursive,
+		[]interface{}{Create | Delete},
+		EventDiff{Write, Create | Delete | Write},
+		Create | Delete | Write | Recursive,
+	}, { // i=17
+		Watchpoint.AddRecursive,
+		[]interface{}{Move},
+		EventDiff{Create | Delete | Write, Create | Delete | Move | Write},
+		Create | Delete | Move | Write | Recursive,
+	}, { // i=18
+		Watchpoint.DelRecursive,
+		[]interface{}{Create | Delete | Write},
+		EventDiff{Create | Delete | Move | Write, Move | Write},
+		Move | Write | Recursive,
+	}, { // i=19
+		Watchpoint.DelRecursive,
+		[]interface{}{Move},
+		EventDiff{Move | Write, Write},
+		Write,
+	}, { // i=20
+		Watchpoint.Del,
+		[]interface{}{ch[2], Write},
+		EventDiff{Write, 0},
+		0,
 	}}
 	wp := Watchpoint{}
 	for i, cas := range cases {
