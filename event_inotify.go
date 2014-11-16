@@ -73,6 +73,6 @@ type event struct {
 }
 
 func (e *event) Event() Event     { return decodemask(e.impl.mask, e.sys.Mask) }
-func (e *event) FileName() string { return e.impl.name }
+func (e *event) Path() string     { return e.impl.name }
 func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
 func (e *event) Sys() interface{} { return e.sys }

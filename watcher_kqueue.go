@@ -125,7 +125,7 @@ func (k *kqueue) monitor() {
 				}
 				if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
 					if err := k.walk(w.p, func(fi os.FileInfo) error {
-						p := filepath.Join(w.p, fi.FileName())
+						p := filepath.Join(w.p, fi.Name())
 						if err := k.watch(p, w.eDir, false, fi.IsDir()); err != nil {
 							if err != errNoNewWatch {
 								// TODO: pass error via chan because state of monitoring is
@@ -214,7 +214,7 @@ func (k *kqueue) Watch(p string, e Event) error {
 	}
 	if dir {
 		if err := k.walk(p, func(fi os.FileInfo) (err error) {
-			if err = k.watch(filepath.Join(p, fi.FileName()),
+			if err = k.watch(filepath.Join(p, fi.Name()),
 				e, false, fi.IsDir()); err != nil {
 				if err != errNoNewWatch {
 					return
@@ -318,7 +318,7 @@ func (k *kqueue) Unwatch(p string) error {
 	if dir {
 		if err = k.walk(p, func(fi os.FileInfo) error {
 			if !fi.IsDir() {
-				return k.unwatch(filepath.Join(p, fi.FileName()), false)
+				return k.unwatch(filepath.Join(p, fi.Name()), false)
 			}
 			return nil
 		}); err != nil {
