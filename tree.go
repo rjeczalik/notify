@@ -403,7 +403,7 @@ func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 		return err
 	}
 	if isrec {
-		return t.watchrec(p, c, joinevents(e))
+		return t.watchrec(p, c, joinevents(e)|Recursive)
 	}
 	return t.watch(p, c, joinevents(e))
 }

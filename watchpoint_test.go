@@ -1,12 +1,9 @@
-package notify_test
+package notify
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
-
-	. "github.com/rjeczalik/notify"
-	"github.com/rjeczalik/notify/test"
 )
 
 func call(wp Watchpoint, fn interface{}, args []interface{}) EventDiff {
@@ -26,7 +23,8 @@ func call(wp Watchpoint, fn interface{}, args []interface{}) EventDiff {
 }
 
 func TestWatchpoint(t *testing.T) {
-	ch := test.Chans(5)
+	ch := NewChans(5)
+	all := All | Recursive
 	cases := [...]struct {
 		fn    interface{}
 		args  []interface{}
@@ -59,12 +57,12 @@ func TestWatchpoint(t *testing.T) {
 		Create | Delete | Move | Write | Recursive,
 	}, {
 		Watchpoint.Del,
-		[]interface{}{ch[0]},
+		[]interface{}{ch[0], all},
 		EventDiff{Create | Delete | Move | Write, Create | Delete | Move},
 		Create | Delete | Move | Recursive,
 	}, {
 		Watchpoint.Del,
-		[]interface{}{ch[2]},
+		[]interface{}{ch[2], all},
 		EventDiff{Create | Delete | Move, Create | Delete},
 		Create | Delete | Recursive,
 	}, {
@@ -74,7 +72,7 @@ func TestWatchpoint(t *testing.T) {
 		Create | Delete | Recursive,
 	}, {
 		Watchpoint.Del,
-		[]interface{}{ch[1]},
+		[]interface{}{ch[1], all},
 		None,
 		Create | Delete,
 	}, {
