@@ -267,7 +267,7 @@ func (w *watcher) loop() {
 			for {
 				raw := (*syscall.FileNotifyInformation)(
 					unsafe.Pointer(&overEx.parent.buffer[currOffset]))
-				buf := (*[syscall.MAX_PATH]uint16)(unsafe.Pointer(&raw.Path))
+				buf := (*[syscall.MAX_PATH]uint16)(unsafe.Pointer(&raw.FileName))
 				name := syscall.UTF16ToString(buf[:raw.FileNameLength/2])
 				es = append(es, &event{
 					pathw:  overEx.parent.pathw,
