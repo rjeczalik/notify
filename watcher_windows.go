@@ -4,12 +4,18 @@
 package notify
 
 import (
-	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
+)
+
+// TODO: (ppknap) doc
+const (
+	onlyNotifyChanges uint32 = 0x00000FFF
+	onlyNGlobalEvents uint32 = 0x0FF00000
+	onlyMachineStates uint32 = 0xF0000000
 )
 
 // readBufferSize defines the size of an array in which read statuses are stored.
@@ -19,8 +25,8 @@ import (
 const readBufferSize = 4096
 
 // grip represents a single watched directory. It stores the data required by
-// ReadDirectoryChangesW function. Only the filter mamber value may by modified
-// by watcher implementation. Rest of the members have to remain constat since
+// ReadDirectoryChangesW function. Only the filter member value may by modified
+// by watcher implementation. Rest of the members have to remain constant since
 // they are used by Windows completion routine. This indicates that grip can be
 // removed only when all operations on the file handle are finished.
 type grip struct {
@@ -39,7 +45,7 @@ type overlappedEx struct {
 	parent *grip
 }
 
-// newGrip creates a new file hande that can be used in overlapped operations.
+// newGrip creates a new file handle that can be used in overlapped operations.
 // Then, the handle is associated with I/O completion port 'cph' and its value
 // is stored in newly created 'grip' object.
 func newGrip(cph syscall.Handle, pathw []uint16, filter uint32) (*grip, error) {
@@ -89,7 +95,7 @@ func (g *grip) readDirChanges() error {
 // implementation specific bit fields, to value that can be used as NotifyFilter
 // parameter in ReadDirectoryChangesW function.
 func encode(filter uint32) uint32 {
-	e := Event(filter)
+	e := Event(filter & (onlyNGlobalEvents | onlyNotifyChanges))
 	if e&dirmarker != 0 {
 		return uint32(FILE_NOTIFY_CHANGE_DIR_NAME)
 	}
@@ -107,7 +113,7 @@ func encode(filter uint32) uint32 {
 	if e&Move != 0 {
 		e = (e ^ Move) | FILE_NOTIFY_CHANGE_FILE_NAME
 	}
-	return uint32(e &^ FILE_NOTIFY_CHANGE_DIR_NAME)
+	return uint32(e)
 }
 
 // watched is made in order to check whether an action comes from a directory or
@@ -128,16 +134,16 @@ func makeWatched(cph syscall.Handle, path string, filter uint32) (wd watched, er
 	if wd.pathw, err = syscall.UTF16FromString(path); err != nil {
 		return
 	}
-	var fdfilter uint32 = filter &^ uint32(FILE_NOTIFY_CHANGE_DIR_NAME)
-	if fdfilter != 0 {
-		if wd.digrip[0], err = newGrip(cph, wd.pathw, fdfilter); err != nil {
+	var filef uint32 = filter &^ uint32(FILE_NOTIFY_CHANGE_DIR_NAME)
+	if filef != 0 {
+		if wd.digrip[0], err = newGrip(cph, wd.pathw, filef); err != nil {
 			return
 		}
 	}
-	var dfilter uint32 = filter & uint32(FILE_NOTIFY_CHANGE_DIR_NAME|All)
-	if dfilter^uint32(All) != 0 {
+	var dirf uint32 = filter & uint32(FILE_NOTIFY_CHANGE_DIR_NAME|Create|Delete)
+	if dirf != 0 {
 		if wd.digrip[1], err = newGrip(
-			cph, wd.pathw, dfilter|uint32(dirmarker)); err != nil {
+			cph, wd.pathw, filter|uint32(dirmarker)); err != nil {
 			wd.closeHandle()
 			return
 		}
@@ -291,7 +297,7 @@ func (w *watcher) send(es []*event) {
 			continue
 		}
 		switch Event(e.action) {
-		case FILE_ACTION_ADDED, FILE_ACTION_REMOVED:
+		case (FILE_ACTION_ADDED >> 12), (FILE_ACTION_REMOVED >> 12):
 			e.isdir = e.filter&uint32(dirmarker) != 0
 		default:
 			// TODO(ppknap) : or not TODO?
@@ -311,7 +317,7 @@ func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 }
 
 // decode creates a notify event from both non-raw filter and action which was
-// redurned from completion routine. Function may return Event(0) in case when
+// returned from completion routine. Function may return Event(0) in case when
 // filter was replaced by a new value which does not contain fields that are
 // valid with passed action.
 func decode(filter, action uint32) Event {
@@ -329,7 +335,7 @@ func decode(filter, action uint32) Event {
 }
 
 // addrm decides whether the Windows action or the system-independent event
-// should be returned. Since the grip`s filter may be atomically changed during
+// should be returned. Since the grip's filter may be atomically changed during
 // watcher lifetime, it is possible that neither Windows nor notify masks are
 // present in variable memory.
 func addrm(filter uint32, e, syse Event) Event {

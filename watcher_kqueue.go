@@ -167,21 +167,21 @@ type kqueue struct {
 	c chan EventInfo
 }
 
-// watched is a data structure representing wached file/directory.
+// watched is a data structure representing watched file/directory.
 type watched struct {
-	// p is a path to wached file/directory.
+	// p is a path to watched file/directory.
 	p string
 	// fd is a file descriptor for watched file/directory.
 	fd int
-	// dir is a boolean specifying if wached is directory.
+	// dir is a boolean specifying if watched is directory.
 	dir bool
 	// eDir represents events watched directly.
 	eDir Event
-	// eNonDir represents events wached indirectly.
+	// eNonDir represents events watched indirectly.
 	eNonDir Event
 }
 
-// init initializes kqueu if not yet initialized.
+// init initializes kqueue if not yet initialized.
 func (k *kqueue) init() (err error) {
 	if k.fd == nil {
 		var fd int

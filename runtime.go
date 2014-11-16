@@ -17,7 +17,7 @@ type Interface interface {
 	// for each supported platform.
 	Watcher
 
-	// Rewatcher provides an interface for modyfing existing watch-points, like
+	// Rewatcher provides an interface for modifying existing watch-points, like
 	// expanding its event set.
 	//
 	// If the native Watcher does not implement it, it is emulated by the notify

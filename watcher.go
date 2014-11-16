@@ -16,7 +16,7 @@ func NewWatcher() Watcher {
 // The watcher implementation is expected to do its own mapping between paths and
 // create watchers if underlying event notification does not support it. For
 // the ease of implementation it is guaranteed that paths provided via Watch and
-// Unwatch methods are absolure and clean.
+// Unwatch methods are absolute and clean.
 //
 // It's used for development purposes, the finished packaged will switch between
 // those using build tags.
@@ -47,7 +47,7 @@ type Watcher interface {
 	Dispatch(c chan<- EventInfo, stop <-chan struct{})
 }
 
-// Rewatcher provides an interface for modyfing existing watch-points, like
+// Rewatcher provides an interface for modifying existing watch-points, like
 // expanding its event set.
 //
 // It is guaranteed that Runtime will not pass to Rewatch:
@@ -55,14 +55,14 @@ type Watcher interface {
 //   - a zero value for any of its arguments
 //   - old and new Events which are equal (which means nop)
 //
-// Rewatch modifies exisiting watch-point under for the given path. It passes
+// Rewatch modifies existing watch-point under for the given path. It passes
 // the existing event set currently registered for the given path, and the
 // new, requested event set.
 type Rewatcher interface {
 	Rewatch(path string, old, new Event) error
 }
 
-// RecursiveRewatcher provides an interface for modyfing and/or relocating
+// RecursiveRewatcher provides an interface for modifying and/or relocating
 // existing recursive watch-points.
 //
 // To relocate a watch-point means to unwatch oldpath and set a watch-point on
@@ -87,7 +87,7 @@ type Rewatcher interface {
 // It is guaranteed that Runtime will not pass to RecurisveRewatch:
 //
 //   - a zero value for any of its arguments
-//   - arguments which are simultanously equal: oldpath == newpath and
+//   - arguments which are simultaneously equal: oldpath == newpath and
 //     oldevent == newevent (which basically means a nop)
 type RecursiveRewatcher interface {
 	RecursiveRewatch(oldpath, newpath string, oldevent, newevent Event) error
