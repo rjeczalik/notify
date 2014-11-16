@@ -267,8 +267,8 @@ func (w *w) ExpectGroupEvents(wr notify.Watcher, ei [][]notify.EventInfo) {
 				got = append(got, <-c)
 			}
 			if len(got) != len(ei[i]) {
-				done <- fmt.Errorf("want len(got)=len(ei[i]); got %d!=%d (id:%d)",
-					len(got), len(ei[i]), i)
+				done <- fmt.Errorf("want len(got)=len(ei[%d]); got %d!=%d (id=%d)",
+					i, len(got), len(ei[i]), i)
 				return
 			}
 		loop:
@@ -278,7 +278,7 @@ func (w *w) ExpectGroupEvents(wr notify.Watcher, ei [][]notify.EventInfo) {
 						continue loop
 					}
 				}
-				done <- fmt.Errorf("%v not present in %v (id:%d)", got[j], ei[i], i)
+				done <- fmt.Errorf("%v not present in %v (id=%d)", got[j], ei[i], i)
 				return
 			}
 		}
@@ -286,8 +286,8 @@ func (w *w) ExpectGroupEvents(wr notify.Watcher, ei [][]notify.EventInfo) {
 	}()
 	select {
 	case <-time.After(Timeout):
-		w.t.Fatalf("ExpecGrouptEvents test has timed out after %v for %v (id:%d)",
-			Timeout, ei[i], i)
+		w.t.Fatalf("ExpecGrouptEvents test has timed out after %v (i=%d)",
+			Timeout, i)
 	case err := <-done:
 		if err != nil {
 			w.t.Error(err)
