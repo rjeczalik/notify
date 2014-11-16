@@ -77,7 +77,7 @@ func (wp Watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
 			select {
 			case ch <- ei:
 			default:
-				// Drop event is receiver is too slow.
+				// Drop event if receiver is too slow.
 			}
 		}
 	}
