@@ -110,7 +110,7 @@ func EI(args ...interface{}) notify.EventInfo {
 		case string:
 			e.p = filepath.FromSlash(v)
 		case notify.EventInfo:
-			e.p, e.e, e.b = v.FileName(), v.Event(), v.IsDir()
+			e.p, e.e, e.b = v.Path(), v.Event(), v.IsDir()
 			if i, ok := v.(Indexer); ok {
 				e.i = i.Index()
 			}
@@ -136,7 +136,7 @@ func EI(args ...interface{}) notify.EventInfo {
 
 // Implements notify.EventInfo interface.
 func (e ei) Event() notify.Event { return e.e }
-func (e ei) FileName() string    { return e.p }
+func (e ei) Path() string        { return e.p }
 func (e ei) IsDir() bool         { return e.b }
 func (e ei) String() string      { return e.e.String() + " - " + e.p }
 func (e ei) Sys() interface{}    { return e.f }

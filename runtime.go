@@ -197,7 +197,7 @@ func (r *Runtime) loop() {
 }
 
 func (r *Runtime) dispatch(ei EventInfo) {
-	parent, name, err := r.buildpath(ei.FileName())
+	parent, name, err := r.buildpath(ei.Path())
 	if err != nil {
 		fmt.Println(err)
 		return

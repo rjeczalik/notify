@@ -67,8 +67,8 @@ type event struct {
 // Event returns type of a reported event.
 func (e *event) Event() Event { return e.e }
 
-// FileName returns path to file/directory for which event is reported.
-func (e *event) FileName() string { return e.p }
+// Path returns path to file/directory for which event is reported.
+func (e *event) Path() string { return e.p }
 
 // IsDir returns a boolean indicating if event is reported for a directory.
 func (e *event) IsDir() bool { return e.dir }

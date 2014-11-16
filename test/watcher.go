@@ -88,8 +88,8 @@ func W(t *testing.T, actions Actions) *w {
 }
 
 func (w w) equal(want, got notify.EventInfo) error {
-	wante, wantp, wantb := want.Event(), want.FileName(), want.IsDir()
-	gote, gotp, gotb := got.Event(), got.FileName(), got.IsDir()
+	wante, wantp, wantb := want.Event(), want.Path(), want.IsDir()
+	gote, gotp, gotb := got.Event(), got.Path(), got.IsDir()
 	if !strings.HasPrefix(gotp, w.path) {
 		return fmt.Errorf("want EventInfo.FileName()=%q to be rooted at %q", gotp,
 			w.path)
@@ -115,7 +115,7 @@ func (w w) exec(ei notify.EventInfo) error {
 	if !ok {
 		return fmt.Errorf("unexpected fixture failure: invalid Event=%v", ei.Event())
 	}
-	if err := fn(filepath.Join(w.path, filepath.FromSlash(ei.FileName()))); err != nil {
+	if err := fn(filepath.Join(w.path, filepath.FromSlash(ei.Path()))); err != nil {
 		return fmt.Errorf("want err=nil; got %v (ei=%+v)", err, ei)
 	}
 	return nil

@@ -37,7 +37,7 @@ type event struct {
 }
 
 func (e event) Event() Event     { return e.ev }
-func (e event) FileName() string { return e.name }
+func (e event) Path() string     { return e.name }
 func (e event) IsDir() bool      { return e.isdir }
 func (e event) Sys() interface{} { return nil } // no-one cares about fsnotify.Event
 
