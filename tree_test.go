@@ -14,26 +14,27 @@ func (nd Node) Path(s ...string) Node {
 }
 
 func TestTreeLookPath(t *testing.T) {
-
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeLook(t *testing.T) {
-
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeDel(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeWalkPath(t *testing.T) {
-
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeWalkDir(t *testing.T) {
-
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeWalk(t *testing.T) {
-
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeDir(t *testing.T) {
@@ -132,8 +133,7 @@ func TestTreeDir(t *testing.T) {
 		Receiver: Chans{ch[1], ch[2]},
 	}}
 	fixture := NewTreeFixture()
-	// TODO(rjeczalik): Test 6th case after Stop gets implemented
-	fixture.TestCalls(t, calls[:5])
+	fixture.TestCalls(t, calls[:])
 	// fixture.TestEvents(t, events[:])
 	_ = events // TODO(rjeczalik)
 }

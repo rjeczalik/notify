@@ -404,8 +404,24 @@ func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 }
 
 // Stop TODO
-func (t *Tree) Stop(c chan<- EventInfo) error {
-	return errors.New("Stop not implemented")
+func (t *Tree) Stop(c chan<- EventInfo) {
+	if nds, ok := t.cnd[c]; ok {
+		var err error
+		for _, nd := range *nds {
+			switch diff := t.unregister(nd, c, ^Event(0)); {
+			case diff == None:
+			case diff[1] == 0:
+				err = t.os.Unwatch(nd.Name)
+			default:
+				err = t.os.Rewatch(nd.Name, diff[0], diff[1])
+			}
+			if err != nil {
+				panic(err)
+			}
+		}
+		delete(t.cnd, c)
+	}
+
 }
 
 // Close TODO
