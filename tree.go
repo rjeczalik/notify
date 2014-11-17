@@ -61,13 +61,14 @@ func (nd Node) child(name string) Node {
 	if name == "" {
 		return nd
 	}
-	if nd.Child == nil {
-		nd.Child = make(map[string]Node)
-	}
 	if child, ok := nd.Child[name]; ok {
 		return child
 	}
-	child := Node{Name: nd.Name + sep + name}
+	child := Node{
+		Name:  nd.Name + sep + name,
+		Watch: make(Watchpoint),
+		Child: make(map[string]Node),
+	}
 	nd.Child[name] = child
 	return child
 
@@ -187,6 +188,7 @@ func (t *Tree) dispatch(c <-chan EventInfo) {
 func NewTree(wat Watcher) *Tree {
 	c := make(chan EventInfo, 128)
 	t := &Tree{
+		Root: Node{Child: make(map[string]Node), Watch: make(Watchpoint)},
 		cnd:  make(ChanNodesMap),
 		stop: make(chan struct{}),
 	}
@@ -339,19 +341,12 @@ func (t *Tree) Walk(nd Node, fn WalkFunc) error {
 
 // TODO(rjeczalik): Rename.
 func (t *Tree) register(nd Node, c chan<- EventInfo, e Event) EventDiff {
-	if nd.Watch == nil {
-		nd.Watch = make(Watchpoint)
-	}
 	t.cnd.Add(c, nd)
 	return nd.Watch.Add(c, e)
 }
 
 // TODO(rjeczalik): Rename.
 func (t *Tree) unregister(nd Node, c chan<- EventInfo, e Event) EventDiff {
-	if nd.Watch == nil {
-		// return None
-		panic("[DEBUG] unregister on nil Watchpoint")
-	}
 	diff := nd.Watch.Del(c, e)
 	if diff != None && diff[1] == 0 {
 		// TODO(rjeczalik): Use Node for lookup?

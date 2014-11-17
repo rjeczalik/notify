@@ -6,60 +6,91 @@ import (
 	"testing"
 )
 
+func (nd Node) Path(s ...string) Node {
+	for _, s := range s {
+		nd = nd.Child[s]
+	}
+	return nd
+}
+
+func TestTreeLookPath(t *testing.T) {
+
+}
+
+func TestTreeLook(t *testing.T) {
+
+}
+
+func TestTreeDel(t *testing.T) {
+}
+
+func TestTreeWalkPath(t *testing.T) {
+
+}
+
+func TestTreeWalkDir(t *testing.T) {
+
+}
+
+func TestTreeWalk(t *testing.T) {
+
+}
+
 func TestTreeDir(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	//t.Skip("TODO(rjeczalik)")
 	ch := NewChans(3)
 	calls := [...]CallCase{{
+		// i=0
 		Call: Call{
 			F: FuncWatch,
 			C: ch[0],
-			P: "/github.com/rjeczalik/fakerpc/",
+			P: "/github.com/rjeczalik/fakerpc",
 			E: Create | Delete | Move,
 		},
 		Record: Record{
 			TreeAll: {{
 				F: FuncWatch,
-				P: "/github.com/rjeczalik/fakerpc/",
+				P: "/github.com/rjeczalik/fakerpc",
 				E: Delete | Create | Move,
 			}}},
-	}, {
+	}, { // i=1
 		Call: Call{
 			F: FuncWatch,
 			C: ch[1],
-			P: "/github.com/rjeczalik/fakerpc/",
+			P: "/github.com/rjeczalik/fakerpc",
 			E: Delete | Move,
 		},
 		Record: nil,
-	}, {
+	}, { // i=2
 		Call: Call{
 			F: FuncWatch,
 			C: ch[2],
-			P: "/github.com/rjeczalik/fakerpc/",
+			P: "/github.com/rjeczalik/fakerpc",
 			E: Move,
 		},
 		Record: nil,
-	}, {
+	}, { // i=3
 		Call: Call{
 			F: FuncWatch,
 			C: ch[0],
-			P: "/github.com/rjeczalik/fs/",
+			P: "/github.com/rjeczalik/fs",
 			E: Create | Delete,
 		},
 		Record: Record{
 			TreeAll: {{
 				F: FuncWatch,
-				P: "/github.com/rjeczalik/fs/",
+				P: "/github.com/rjeczalik/fs",
 				E: Create | Delete,
 			}}},
-	}, {
+	}, { // i=4
 		Call: Call{
 			F: FuncWatch,
 			C: ch[0],
-			P: "/github.com/rjeczalik/fs/",
+			P: "/github.com/rjeczalik/fs",
 			E: Create,
 		},
 		Record: nil,
-	}, {
+	}, { // i=5
 		Call: Call{
 			F: FuncStop,
 			C: ch[0],
@@ -67,23 +98,23 @@ func TestTreeDir(t *testing.T) {
 		Record: Record{
 			TreeWatcher: {{
 				F: FuncUnwatch,
-				P: "/github.com/rjeczalik/fakerpc/",
+				P: "/github.com/rjeczalik/fakerpc",
 			}, {
 				F: FuncWatch,
-				P: "/github.com/rjeczalik/fakerpc/",
+				P: "/github.com/rjeczalik/fakerpc",
 				E: Delete | Move,
 			}, {
 				F: FuncUnwatch,
-				P: "/github.com/rjeczalik/fs/",
+				P: "/github.com/rjeczalik/fs",
 			}},
 			TreeRewatcher | TreeRecursive: {{
 				F:  FuncRewatch,
-				P:  "/github.com/rjeczalik/fakerpc/",
+				P:  "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete | Move,
 				NE: Delete | Move,
 			}, {
 				F: FuncUnwatch,
-				P: "/github.com/rjeczalik/fs/",
+				P: "/github.com/rjeczalik/fs",
 			}},
 		},
 	}}
@@ -101,7 +132,8 @@ func TestTreeDir(t *testing.T) {
 		Receiver: Chans{ch[1], ch[2]},
 	}}
 	fixture := NewTreeFixture()
-	fixture.TestCalls(t, calls[:])
+	// TODO(rjeczalik): Test 6th case after Stop gets implemented
+	fixture.TestCalls(t, calls[:5])
 	// fixture.TestEvents(t, events[:])
 	_ = events // TODO(rjeczalik)
 }

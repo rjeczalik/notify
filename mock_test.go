@@ -158,3 +158,110 @@ var MFS = NewFS(memfs.Must(memfs.UnmarshalTab([]byte(".\n\tgithub.com\n\t\trj" +
 	"\t\techo.exe\n\t\t\t\t\twindows_amd64\n\t\t\t\t\t\techo.exe\n\t\t\t\twhi" +
 	"ch.go\n\t\t\t\twhich_elf.go\n\t\t\t\twhich_macho.go\n\t\t\t\twhich_pe.go" +
 	"\n\t\t\t\twhich_test.go\n"))))
+
+var MT = Node{
+	Name: "",
+	Child: map[string]Node{
+		"github.com": {
+			Name: "/github.com",
+			Child: map[string]Node{
+				"rjeczalik": {
+					Name: "/github.com/rjeczalik",
+					Child: map[string]Node{
+						"fakerpc": {
+							Name: "/github.com/rjeczalik/fakerpc",
+							Child: map[string]Node{
+								"cmd": {
+									Name: "/github.com/rjeczalik/fakerpc/cmd",
+									Child: map[string]Node{
+										"fakerpc": {
+											Name: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+										},
+									},
+								},
+								"cli": {
+									Name: "/github.com/rjeczalik/fakerpc/cli",
+								},
+							},
+						},
+						"fs": {
+							Name: "/github.com/rjeczalik/fs",
+							Child: map[string]Node{
+								"memfs": {
+									Name: "/github.com/rjeczalik/fs/memfs",
+								},
+								"cmd": {
+									Name: "/github.com/rjeczalik/fs/cmd",
+									Child: map[string]Node{
+										"gotree": {
+											Name: "/github.com/rjeczalik/fs/cmd/gotree",
+										},
+										"mktree": {
+											Name: "/github.com/rjeczalik/fs/cmd/mktree",
+										},
+									},
+								},
+								"fsutil": {
+									Name: "/github.com/rjeczalik/fs/fsutil",
+								},
+							},
+						},
+						"which": {
+							Name: "/github.com/rjeczalik/which",
+							Child: map[string]Node{
+								"cmd": {
+									Name: "/github.com/rjeczalik/which/cmd",
+									Child: map[string]Node{
+										"gowhich": {
+											Name: "/github.com/rjeczalik/which/cmd/gowhich",
+										},
+										"gofile": {
+											Name: "/github.com/rjeczalik/which/cmd/gofile",
+										},
+									},
+								},
+								"testdata": {
+									Name: "/github.com/rjeczalik/which/testdata",
+									Child: map[string]Node{
+										"cmd": {
+											Name: "/github.com/rjeczalik/which/testdata/cmd",
+											Child: map[string]Node{
+												"echo": {
+													Name: "/github.com/rjeczalik/which/testdata/cmd/echo",
+												},
+											},
+										},
+										"darwin_amd64": {
+											Name: "/github.com/rjeczalik/which/testdata/darwin_amd64",
+										},
+										"freebsd_386": {
+											Name: "/github.com/rjeczalik/which/testdata/freebsd_386",
+										},
+										"windows_386": {
+											Name: "/github.com/rjeczalik/which/testdata/windows_386",
+										},
+										"darwin_386": {
+											Name: "/github.com/rjeczalik/which/testdata/darwin_386",
+										},
+										"freebsd_amd64": {
+											Name: "/github.com/rjeczalik/which/testdata/freebsd_amd64",
+										},
+										"linux_386": {
+											Name: "/github.com/rjeczalik/which/testdata/linux_386",
+										},
+										"linux_amd64": {
+											Name: "/github.com/rjeczalik/which/testdata/linux_amd64",
+										},
+										"windows_amd64": {
+											Name: "/github.com/rjeczalik/which/testdata/windows_amd64",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
