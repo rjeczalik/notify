@@ -5,6 +5,11 @@ package notify
 // functions typically return the None value.
 type EventDiff [2]Event
 
+// Event TODO
+func (diff EventDiff) Event() Event {
+	return diff[1] &^ diff[0]
+}
+
 // Watchpoint TODO
 //
 // The nil key holds total event set - logical sum for all registered events.
@@ -27,6 +32,12 @@ var rec = func() (ch chan<- EventInfo) {
 // Add TODO
 //
 // Add assumes neither c nor e are nil or zero values.
+//
+// TODO(rjeczalik): The computed diff should take into account situation, when
+// registered channel is recursive, but real watchpoint covering it was set
+// elsewhere. In this case diff should be None. Not sure it is possible to
+// achieve using existing data (wp[rec]&e==e) or another internal event is
+// needed. To be researched.
 func (wp Watchpoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 	wp[c] |= e
 	diff[0] = wp[nil]
@@ -42,6 +53,12 @@ func (wp Watchpoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 }
 
 // Del TODO
+//
+// TODO(rjeczalik): The computed diff should take into account situation, when
+// registered channel is recursive, but real watchpoint covering it was set
+// elsewhere. In this case diff should be None. Not sure it is possible to
+// achieve using existing data (wp[rec]&e==e) or another internal event is
+// needed. To be researched.
 func (wp Watchpoint) Del(c chan<- EventInfo, e Event) (diff EventDiff) {
 	wp[c] &^= e
 	if wp[c] == 0 {

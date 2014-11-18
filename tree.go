@@ -295,7 +295,7 @@ func (t *Tree) Del(p string) {
 	it.Child = nil
 	it.Watch = nil
 	name := Base(it.Name)
-	for i = len(stack); i > 0; i = i - 1 {
+	for i = len(stack); i > 0; i-- {
 		it = stack[i-1]
 		// TODO(rjeczalik): Watch[nil] != 0
 		// NOTE(rjeczalik): Event empty watchpoints can hold special nil key.
@@ -422,6 +422,8 @@ func (t *Tree) Walk(nd Node, fn WalkFunc) error {
 // TODO(rjeczalik): Rename.
 func (t *Tree) register(nd Node, c chan<- EventInfo, e Event) EventDiff {
 	t.cnd.Add(c, nd)
+	// TODO(rjeczalik): check if any of the parents are being watched recursively
+	// and the event set is sufficient.
 	return nd.Watch.Add(c, e)
 }
 
@@ -436,26 +438,90 @@ func (t *Tree) unregister(nd Node, c chan<- EventInfo, e Event) EventDiff {
 	return diff
 }
 
+// TODO(rjeczalik): Transfer file watchpoint to its directory one?
+//
+// TODO(rjeczalik): check if any of the parents are being watched recursively
+// and the event set is sufficient.
 func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 	nd := t.LookPath(p)
-	// TODO(rjeczalik): check if any of the parents are being watched recursively
-	// and the event set is sufficient.
-	diff := t.register(nd, c, e)
-	if diff != None {
-		if diff[0] == 0 {
-			err = t.os.Watch(p, diff[1])
-		} else {
-			err = t.os.Rewatch(p, diff[0], diff[1])
-		}
+	diff := t.register(nd, c, e) // TODO(rjeczalik): inline t.register here?
+	switch {
+	case diff == None:
+	case diff[0] == 0:
+		err = t.os.Watch(p, diff[1])
+	default:
+		err = t.os.Rewatch(p, diff[0], diff[1])
 	}
 	if err != nil {
-		t.unregister(nd, c, diff[1]&^diff[0]) // TODO(rjeczalik): test fine-grained revert
+		t.unregister(nd, c, diff.Event()) // TODO(rjeczalik): test fine-grained revert
 	}
 	return
 }
 
 func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
-	return errors.New("watch TODO(rjeczalik)")
+	nd := (*Node)(nil)
+	// Look up existing, recursive watchpoint already covering the given p.
+	err := t.TryWalkPath(p, func(it Node, isbase bool) error {
+		if it.Watch.IsRecursive() {
+			nd = &it
+			return Skip
+		}
+		return nil
+	})
+	if nd != nil {
+		// Luckily we have already a recursive watchpoint, now we check whether
+		// requested event fits in it and rewatch if not.
+		switch diff := nd.Watch.AddRecursive(e); {
+		case diff == None:
+		case diff[0] == 0:
+			panic("[DEBUG] Dangling watchpoint: " + nd.Name)
+		default:
+			if err := t.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1]); err != nil {
+				nd.Watch.DelRecursive(diff.Event())
+				return err
+			}
+		}
+		// TODO(rjeczalik): The diff must be `None`, see comment in watchpoint.go file.
+		_ = t.register(t.Look(*nd, p), c, e) // TODO(rjeczalik): inline t.register here?
+		return nil
+	}
+	// If previous lookup did not fail (*os.PathError - no such path in the tree),
+	// there is a chance there exist one or more recursive watchpoints in the
+	// subtree starting at p - we would need to rewatch those.
+	nds := []Node(nil)
+	if err == nil {
+		_ = nds
+	}
+	switch {
+	case len(nds) == 1:
+		// There exists only one recursive, child watchpoint - it's enough to just
+		// rewatch it.
+		_ = t.RecursiveRewatch // TODO
+		return errors.New("TODO(rjeczalik)")
+	case len(nds) != 0:
+		// There exist multiple recursive, child watchpoints - we need to unwatch
+		// all but one, and the last rewatch to new location.
+		_ = t.RecursiveUnwatch // TODO
+		_ = t.RecursiveRewatch // TODO
+		return errors.New("TODO(rjeczalik)")
+	default:
+		// Make new watchpoint.
+		nd := t.LookPath(p)
+		diff := t.register(nd, c, e)
+		switch {
+		case diff == None:
+		case diff[0] == 0:
+			err = t.os.RecursiveWatch(p, diff[1])
+		default:
+			err = t.os.RecursiveRewatch(p, p, diff[0], diff[1])
+		}
+		if err != nil {
+			t.unregister(nd, c, e)
+			return err
+		}
+		nd.Watch.AddRecursive(e)
+		return nil
+	}
 }
 
 // Watch TODO
@@ -488,6 +554,7 @@ func (t *Tree) Stop(c chan<- EventInfo) {
 	if nds, ok := t.cnd[c]; ok {
 		var err error
 		for _, nd := range *nds {
+			// TODO(rjeczalik): Handle recursive watchpoints.
 			switch diff := t.unregister(nd, c, ^Event(0)); {
 			case diff == None:
 			case diff[1] == 0:
@@ -514,7 +581,24 @@ func (t *Tree) Close() error {
 
 // RecursiveWatch implements notify.RecursiveWatcher interface.
 func (t *Tree) RecursiveWatch(p string, e Event) error {
-	return errors.New("RecurisveWatch TODO(rjeczalik)")
+	// Before we're able to decide whether we should watch or rewatch p,
+	// an watchpoint must be registered for the path.
+	// That's why till this point we already have a watchpoint, so we just watch
+	// the p.
+	if err := t.os.Watch(p, e); err != nil {
+		return err
+	}
+	fn := func(nd Node) error {
+		switch diff := nd.Watch.AddRecursive(e); {
+		case diff == None:
+			return nil
+		case diff[0] == 0:
+			return t.os.Watch(nd.Name, diff[1])
+		default:
+			return t.os.Rewatch(nd.Name, diff[0], diff[1])
+		}
+	}
+	return t.WalkDir(t.LookPath(p), fn)
 }
 
 // RecursiveUnwatch implements notify.RecursiveWatcher interface.

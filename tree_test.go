@@ -204,7 +204,6 @@ func TestTreeDir(t *testing.T) {
 }
 
 func TestTreeRecursiveDir(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
 	ch := NewChans(5)
 	calls := [...]CallCase{{
 		Call: Call{
@@ -214,13 +213,13 @@ func TestTreeRecursiveDir(t *testing.T) {
 			E: Create | Delete,
 		},
 		Record: Record{
-			TreeWatcher: {{
+			TreeWatcher | TreeRewatcher: {{
 				F: FuncWatch,
-				P: "/github.com/rjeczalik/fakerpc/",
+				P: "/github.com/rjeczalik/fakerpc",
 				E: Create | Delete,
 			}, {
 				F: FuncWatch,
-				P: "/github.com/rjeczalik/fakerpc/cli/",
+				P: "/github.com/rjeczalik/fakerpc/cli",
 				E: Create | Delete,
 			}, {
 				F: FuncWatch,
@@ -231,9 +230,15 @@ func TestTreeRecursiveDir(t *testing.T) {
 				P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
 				E: Create | Delete,
 			}},
+			TreeRecursive: {{
+				F: FuncRecursiveWatch,
+				P: "/github.com/rjeczalik/fakerpc",
+				E: Create | Delete,
+			}},
 		},
 	}}
-	NewTreeFixture().TestCalls(t, calls[:])
+	fixture := NewTreeFixture()
+	fixture.TestCalls(t, calls[:])
 }
 
 func TestTreeSplit(t *testing.T) {
