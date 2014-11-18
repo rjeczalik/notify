@@ -170,6 +170,30 @@ func TestTreeRecursiveDir(t *testing.T) {
 	NewTreeFixture().TestCalls(t, calls[:])
 }
 
+func TestTreeSplit(t *testing.T) {
+	cases := [...]struct {
+		path string
+		dir  string
+		base string
+	}{
+		{"/github.com/rjeczalik/fakerpc", "/github.com/rjeczalik", "fakerpc"},
+		{"/home/rjeczalik/src", "/home/rjeczalik", "src"},
+		{"/Users/pknap/porn/gopher.avi", "/Users/pknap/porn", "gopher.avi"},
+		{"C:/Documents and Users", "C:", "Documents and Users"},
+		{"C:/Documents and Users/pblaszczyk/wiertarka.exe", "C:/Documents and Users/pblaszczyk", "wiertarka.exe"},
+		{"/home/(╯°□°）╯︵ ┻━┻", "/home", "(╯°□°）╯︵ ┻━┻"},
+	}
+	for i, cas := range cases {
+		dir, base := Split(filepath.FromSlash(cas.path))
+		if dir != cas.dir {
+			t.Errorf("want dir=%s; got %s (i=%d)", cas.dir, dir, i)
+		}
+		if base != cas.base {
+			t.Errorf("want base=%s; got %s (i=%d)", cas.base, base, i)
+		}
+	}
+}
+
 func TestTreeBase(t *testing.T) {
 	cases := [...]struct {
 		path string
