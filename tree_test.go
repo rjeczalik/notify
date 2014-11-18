@@ -134,8 +134,7 @@ func TestTreeDir(t *testing.T) {
 	}}
 	fixture := NewTreeFixture()
 	fixture.TestCalls(t, calls[:])
-	// fixture.TestEvents(t, events[:])
-	_ = events // TODO(rjeczalik)
+	fixture.TestEvents(t, events[:])
 }
 
 func TestTreeRecursiveDir(t *testing.T) {

@@ -2,7 +2,6 @@ package notify
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +11,13 @@ import (
 )
 
 // TODO(rjeczalik): Move to util.go?
+
+func Split(s string) (string, string) {
+	if i := LastIndexSep(s); i != -1 {
+		return s[:i], s[i+1:]
+	}
+	return "", s
+}
 
 func Base(s string) string {
 	if i := LastIndexSep(s); i != -1 {
@@ -173,11 +179,32 @@ func (t *Tree) setos(wat Watcher) {
 
 }
 
-func (t *Tree) dispatch(c <-chan EventInfo) {
+func (t *Tree) loopdispatch(c <-chan EventInfo) {
+	nd, ok := Node{}, false
 	for {
 		select {
 		case ei := <-c:
-			fmt.Println(ei)
+			parent, name := Split(ei.Path())
+			fn := func(it Node, isbase bool) (_ error) {
+				// TODO(rjeczalik): rm bool
+				if isbase {
+					nd = it
+				} else {
+					it.Watch.Dispatch(ei, true)
+				}
+				return
+			}
+			// Send to recursive watchpoints.
+			if err := t.TryWalkPath(parent, fn); err != nil {
+				// TODO(rjeczalik): Remove after native recursives got implemented.
+				panic("[DEBUG] unexpected processing error: " + err.Error())
+			}
+			// Send to parent watchpoint.
+			nd.Watch.Dispatch(ei, false)
+			// Try send to self watchpoint.
+			if nd, ok = nd.Child[name]; ok {
+				nd.Watch.Dispatch(ei, false)
+			}
 		case <-t.stop:
 			return
 		}
@@ -193,13 +220,32 @@ func NewTree(wat Watcher) *Tree {
 		stop: make(chan struct{}),
 	}
 	t.setos(wat)
-	go t.dispatch(c)
+	t.os.Dispatch(c, t.stop)
+	go t.loopdispatch(c)
 	return t
 }
 
 func (t *Tree) root(p string) (Node, int) {
 	vol := filepath.VolumeName(p)
 	return t.Root.child(vol), len(vol) + 1
+}
+
+// TryLookPath TODO
+func (t *Tree) TryLookPath(p string) (it Node, ok bool) {
+	// TODO(rjeczalik): os.PathSeparator or enforce callers to not pass separator?
+	if p == "" || p == "/" {
+		return t.Root, true
+	}
+	i := 0
+	it, i = t.root(p)
+	for j := IndexSep(p[i:]); j != -1; j = IndexSep(p[i:]) {
+		if it, ok = it.Child[p[i:i+j]]; !ok {
+			return
+		}
+		i += j + 1
+	}
+	it, ok = it.Child[p[i:]]
+	return
 }
 
 // LookPath TODO
@@ -262,6 +308,40 @@ func (t *Tree) Del(p string) {
 		delete(it.Child, name)
 		name = Base(it.Name)
 	}
+}
+
+// TryWalkPath TODO
+func (t *Tree) TryWalkPath(p string, fn WalkPathFunc) error {
+	ok := false
+	it, i := t.root(p)
+	for j := IndexSep(p[i:]); j != -1; j = IndexSep(p[i:]) {
+		if it, ok = it.Child[p[i:i+j]]; !ok {
+			return &os.PathError{
+				Op:   "TryWalkPath",
+				Path: p[:i+j],
+				Err:  os.ErrNotExist,
+			}
+		}
+		switch err := fn(it, false); err {
+		case nil:
+		case Skip:
+			return nil
+		default:
+			return err
+		}
+		i += j + 1
+	}
+	if it, ok = it.Child[p[i:]]; !ok {
+		return &os.PathError{
+			Op:   "TryWalkPath",
+			Path: p,
+			Err:  os.ErrNotExist,
+		}
+	}
+	if err := fn(it, true); err != nil && err != Skip {
+		return err
+	}
+	return nil
 }
 
 // WalkPath TODO

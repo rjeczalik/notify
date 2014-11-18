@@ -247,8 +247,8 @@ func equal(want, got EventInfo) error {
 	return nil
 }
 
-// ExpectEvents TODO
-func (tf TreeFixture) ExpectEvents(t *testing.T, cases []EventCase) {
+// TestEvents TODO
+func (tf TreeFixture) TestEvents(t *testing.T, cases []EventCase) {
 	for i, cas := range NativeEventCases(cases) {
 		for typ, tree := range tf {
 			n := len(cas.Receiver)
