@@ -65,6 +65,24 @@ func TestTreeDel(t *testing.T) {
 				},
 			},
 		}},
+	}, {
+		Node{Child: map[string]Node{
+			"a": {
+				Name: p("/a"),
+				Child: map[string]Node{
+					"b": {
+						Name: p("/a/b"),
+						Child: map[string]Node{
+							"c": {
+								Name: p("/a/b/c"),
+							},
+						},
+					},
+				},
+			},
+		}},
+		"/a/b/c",
+		Node{Child: map[string]Node{}},
 	}}
 	for i, cas := range cases {
 		if (&Tree{Root: cas.before}).Del(cas.p); !reflect.DeepEqual(cas.before, cas.after) {

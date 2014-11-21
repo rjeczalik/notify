@@ -295,7 +295,7 @@ func (t *Tree) Del(p string) {
 	it.Child = nil
 	it.Watch = nil
 	name := Base(it.Name)
-	for i = len(stack); i >= 0; i = i - 1 {
+	for i = len(stack); i > 0; i = i - 1 {
 		it = stack[i-1]
 		// TODO(rjeczalik): Watch[nil] != 0
 		// NOTE(rjeczalik): Event empty watchpoints can hold special nil key.
