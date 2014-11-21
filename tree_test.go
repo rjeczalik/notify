@@ -21,8 +21,56 @@ func TestTreeLook(t *testing.T) {
 	t.Skip("TODO(rjeczalik)")
 }
 
+func p(p string) string {
+	return filepath.FromSlash(p)
+}
+
 func TestTreeDel(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	cases := [...]struct {
+		before Node
+		p      string
+		after  Node
+	}{{
+		Node{Child: map[string]Node{
+			"a": {
+				Name: p("/a"),
+				Child: map[string]Node{
+					"b": {
+						Name: p("/a/b"),
+						Child: map[string]Node{
+							"c": {
+								Name: p("/a/b/c"),
+								Child: map[string]Node{
+									"d": {
+										Name: p("/a/b/c/d"),
+									},
+								},
+							},
+						},
+					},
+					"x": {
+						Name: p("/a/x"),
+					},
+				},
+			},
+		}},
+		"/a/b/c/d",
+		Node{Child: map[string]Node{
+			"a": {
+				Name: p("/a"),
+				Child: map[string]Node{
+					"x": {
+						Name: p("/a/x"),
+					},
+				},
+			},
+		}},
+	}}
+	for i, cas := range cases {
+		if (&Tree{Root: cas.before}).Del(cas.p); !reflect.DeepEqual(cas.before, cas.after) {
+			t.Errorf("want tree=%v; got %v (i=%d)", cas.after, cas.before, i)
+		}
+	}
 }
 
 func TestTreeWalkPath(t *testing.T) {
