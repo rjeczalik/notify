@@ -204,8 +204,8 @@ func TestTreeDir(t *testing.T) {
 }
 
 func TestTreeRecursiveDir(t *testing.T) {
-	ch := NewChans(5)
-	calls := [...]CallCase{{
+	ch := NewChans(6)
+	calls := [...]CallCase{{ // i=0 create new watchpoint
 		Call: Call{
 			F: FuncWatch,
 			C: ch[0],
@@ -213,7 +213,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			E: Create | Delete,
 		},
 		Record: Record{
-			TreeWatcher | TreeRewatcher: {{
+			TreeRewatcher: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc",
 				E: Create | Delete,
@@ -236,8 +236,149 @@ func TestTreeRecursiveDir(t *testing.T) {
 				E: Create | Delete,
 			}},
 		},
+	}, { // i=1 create new watchpoint
+		Call: Call{
+			F: FuncWatch,
+			C: ch[1],
+			P: "/github.com/rjeczalik/fs/...",
+			E: Create | Write,
+		},
+		Record: Record{
+			TreeRewatcher: {{
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs",
+				E: Create | Write,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs/cmd",
+				E: Create | Write,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs/fsutil",
+				E: Create | Write,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs/memfs",
+				E: Create | Write,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs/cmd/gotree",
+				E: Create | Write,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs/cmd/mktree",
+				E: Create | Write,
+			}},
+			TreeRecursive: {{
+				F: FuncRecursiveWatch,
+				P: "/github.com/rjeczalik/fs",
+				E: Create | Write,
+			}},
+		},
+	}, { // i=2 use existing watchpoint (from i=1)
+		Call: Call{
+			F: FuncWatch,
+			C: ch[2],
+			P: "/github.com/rjeczalik/fs/cmd/...",
+			E: Create | Write,
+		},
+		Record: nil,
+	}, { // i=3 rewatch oldp==newp subtree
+		Call: Call{
+			F: FuncWatch,
+			C: ch[3],
+			P: "/github.com/rjeczalik/fakerpc/...",
+			E: Create | Write,
+		},
+		Record: Record{
+			TreeRewatcher: {{
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete,
+				NE: Create | Delete | Write,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cli",
+				E:  Create | Delete,
+				NE: Create | Delete | Write,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cmd",
+				E:  Create | Delete,
+				NE: Create | Delete | Write,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+				E:  Create | Delete,
+				NE: Create | Delete | Write,
+			}},
+			TreeRecursive: {{
+				F:  FuncRecursiveRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete,
+				NE: Create | Delete | Write,
+			}},
+		},
+	}, { // i=4 rewatch oldp!=newp subtree (optimization: rewatch newp only?)
+		Call: Call{
+			F: FuncWatch,
+			C: ch[4],
+			P: "/github.com/rjeczalik/fakerpc/cmd/...",
+			E: Delete | Move,
+		},
+		Record: Record{
+			TreeRewatcher: {{
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete | Write,
+				NE: Create | Write | Move | Delete,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cli",
+				E:  Create | Delete | Write,
+				NE: Create | Write | Move | Delete,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cmd",
+				E:  Create | Delete | Write,
+				NE: Create | Write | Move | Delete,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+				E:  Create | Delete | Write,
+				NE: Create | Write | Move | Delete,
+			}},
+			TreeRecursive: {{
+				F:  FuncRecursiveRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete | Write,
+				NE: Create | Write | Move | Delete,
+			}},
+		},
+		// }, { // i=4
+		// TODO(rjeczalik): merge watchpoints
+		// Call: Call{
+		//	F: FuncWatch,
+		//	C: ch[4],
+		//	P: "/github.com/rjeczalik/...",
+		//	E: Create,
+		// },
+		// Record: Record{
+		// // TODO
+		// },
+		// }, { // i=5
+		// TODO(rjeczalik): rewatch subtree
+		// Call: Call{
+		// 	F: FuncWatch,
+		//	C: ch[5],
+		//	P: "/github.com/rjeczalik/...",
+		//	E: Move,
+		// },
+		// Record: Record{
+		// // TODO
+		// },
 	}}
-	fixture := NewTreeFixture()
+	fixture := NewTreeFixture(TreeRewatcher) //, TreeRecursive)
 	fixture.TestCalls(t, calls[:])
 }
 

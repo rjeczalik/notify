@@ -2,6 +2,7 @@ package notify
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -231,20 +232,31 @@ func (t *Tree) root(p string) (Node, int) {
 }
 
 // TryLookPath TODO
-func (t *Tree) TryLookPath(p string) (it Node, ok bool) {
+func (t *Tree) TryLookPath(p string) (it Node, err error) {
 	// TODO(rjeczalik): os.PathSeparator or enforce callers to not pass separator?
 	if p == "" || p == "/" {
-		return t.Root, true
+		return t.Root, nil
 	}
-	i := 0
+	i, ok := 0, false
 	it, i = t.root(p)
 	for j := IndexSep(p[i:]); j != -1; j = IndexSep(p[i:]) {
 		if it, ok = it.Child[p[i:i+j]]; !ok {
+			err = &os.PathError{
+				Op:   "TryWalkPath",
+				Path: p[:i+j],
+				Err:  os.ErrNotExist,
+			}
 			return
 		}
 		i += j + 1
 	}
-	it, ok = it.Child[p[i:]]
+	if it, ok = it.Child[p[i:]]; !ok {
+		err = &os.PathError{
+			Op:   "TryWalkPath",
+			Path: p,
+			Err:  os.ErrNotExist,
+		}
+	}
 	return
 }
 
@@ -370,6 +382,13 @@ func (t *Tree) WalkPath(p string, fn WalkPathFunc) error {
 //
 // Uses BFS.
 func (t *Tree) WalkDir(nd Node, fn WalkFunc) error {
+	switch err := fn(nd); err {
+	case nil:
+	case Skip:
+		return nil
+	default:
+		return err
+	}
 	stack := []Node{nd}
 	for n := len(stack); n != 0; n = len(stack) {
 		nd, stack = stack[n-1], stack[:n-1]
@@ -403,13 +422,31 @@ func (t *Tree) WalkDir(nd Node, fn WalkFunc) error {
 //
 // Uses BFS.
 func (t *Tree) Walk(nd Node, fn WalkFunc) error {
+	switch err := fn(nd); err {
+	case nil:
+	case Skip:
+		return nil
+	default:
+		return err
+	}
 	stack := []Node{nd}
 	for n := len(stack); n != 0; n = len(stack) {
 		nd, stack = stack[n-1], stack[:n-1]
-		for _, child := range nd.Child {
+		// TODO(rjeczalik): The sorting is temporary workaround required by
+		// unittests. Remove it after they're dropped and replaced with
+		// functional ones.
+		names := make([]string, 0, len(nd.Child))
+		for name := range nd.Child {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			child := nd.Child[name] // TODO
 			switch err := fn(child); err {
 			case nil:
-				stack = append(stack, child)
+				if len(child.Child) != 0 {
+					stack = append(stack, child)
+				}
 			case Skip:
 			default:
 				return err
@@ -615,7 +652,72 @@ func (t *Tree) Rewatch(p string, olde, newe Event) error {
 }
 
 // RecursiveRewatch implements notify.RecursiveRewatcher interface.
+//
+// NOTE(rjeczalik): RecursiveRewatch assumes t.os implments Rewatch natively.
+// If not, naiveRecursiveRewatch is enough.
 func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
+	if oldp != newp {
+		switch {
+		case strings.HasPrefix(newp, oldp):
+			// newp is deeper in the tree than oldp, all watchpoints above newp
+			// must be deleted.
+			fn := func(nd Node) (err error) {
+				fmt.Println(1, newp, oldp, nd.Name)
+				if nd.Name == newp {
+					return Skip
+				}
+				switch diff := nd.Watch.DelRecursive(olde); {
+				case diff == None:
+				case diff[1] == 0:
+					err = t.os.Unwatch(nd.Name)
+				default:
+					err = t.os.Rewatch(nd.Name, diff[0], diff[1])
+				}
+				// TODO(rjeczalik): don't stop if single watch call fails
+				return
+			}
+			nd, err := t.TryLookPath(oldp)
+			if err != nil {
+				// BUG(rjeczalik): Relocation requested for a path, which does
+				// not exist.
+				panic(err) // DEBUG
+			}
+			err = t.Walk(nd, fn)
+		case strings.HasPrefix(oldp, newp):
+			// This watchpoint relocation is handled below.
+		default:
+			// May happen, e.g. if oldp="C:\Windows" and newp="D:\Temp", which
+			// is a bug.
+			panic(oldp + " and " + newp + " do not have common root")
+		}
+	}
+	if olde != newe {
+		// Watchpoint for newp was already registered prior to executing this
+		// method. Here's the deferred Rewatch:
+		if err := t.os.Rewatch(newp, olde, newe); err != nil {
+			return err
+		}
+	}
+	fn := func(nd Node) (err error) {
+		if olde == newe && nd.Name == oldp {
+			// Relocation that does not need to rewatch the old subtree.
+			return Skip
+		}
+		diff := nd.Watch.AddRecursive(newe)
+		switch {
+		case diff == None:
+		case diff[0] == 0:
+			err = t.os.Watch(nd.Name, diff[1])
+		default:
+			err = t.os.Rewatch(nd.Name, diff[0], diff[1])
+		}
+		return
+	}
+	return t.Walk(t.LookPath(newp), fn)
+}
+
+// naiveRecursiveRewatch TODO
+func (t *Tree) naiveRecursiveRewatch(oldp, newp string, olde, newe Event) error {
 	if err := t.os.RecursiveUnwatch(oldp); err != nil {
 		return err
 	}
