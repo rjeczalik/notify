@@ -307,6 +307,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete,
 				NE: Create | Delete | Write,
 			}},
@@ -343,6 +344,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete | Write,
 				NE: Create | Write | Move | Delete,
 			}},

@@ -162,15 +162,15 @@ func (t *Tree) fs() fs.Filesystem {
 	return fs.Default
 }
 
-func (t *Tree) setos(wat Watcher) {
-	if os, ok := wat.(Impl); ok {
+func (t *Tree) setimpl(w Watcher) {
+	if os, ok := w.(Impl); ok {
 		t.impl = os
 		return
 	}
 	t.impl = struct {
 		Watcher
 		RecursiveWatcher
-	}{wat, t}
+	}{w, t}
 }
 
 func (t *Tree) loopdispatch(c <-chan EventInfo) {
@@ -190,8 +190,7 @@ func (t *Tree) loopdispatch(c <-chan EventInfo) {
 			}
 			// Send to recursive watchpoints.
 			if err := t.TryWalkPath(parent, fn); err != nil {
-				// TODO(rjeczalik): Remove after native recursives got implemented.
-				panic("[DEBUG] unexpected processing error: " + err.Error())
+				fmt.Fprintln(os.Stderr, "[DEBUG] unexpected event ", err)
 			}
 			// Send to parent watchpoint.
 			nd.Watch.Dispatch(ei, false)
@@ -206,14 +205,14 @@ func (t *Tree) loopdispatch(c <-chan EventInfo) {
 }
 
 // NewTree TODO
-func NewTree(wat Watcher) *Tree {
+func NewTree(w Watcher) *Tree {
 	c := make(chan EventInfo, 128)
 	t := &Tree{
 		Root: Node{Child: make(map[string]Node), Watch: make(Watchpoint)},
 		cnd:  make(ChanNodesMap),
 		stop: make(chan struct{}),
 	}
-	t.setos(wat)
+	t.setimpl(w)
 	t.impl.Dispatch(c, t.stop)
 	go t.loopdispatch(c)
 	return t
@@ -506,7 +505,7 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 		case diff[0] == 0:
 			panic("[DEBUG] Dangling watchpoint: " + nd.Name)
 		default:
-			if err := t.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1]); err != nil {
+			if err := t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1]); err != nil {
 				nd.Watch.DelRecursive(diff.Event())
 				return err
 			}
@@ -537,8 +536,7 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 	default:
 		// Make new watchpoint.
 		nd := t.LookPath(p)
-		diff := t.register(nd, c, e)
-		switch {
+		switch diff := t.register(nd, c, e); {
 		case diff == None:
 		case diff[0] == 0:
 			err = t.impl.RecursiveWatch(p, diff[1])
@@ -655,7 +653,6 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 			// newp is deeper in the tree than oldp, all watchpoints above newp
 			// must be deleted.
 			fn := func(nd Node) (err error) {
-				fmt.Println(1, newp, oldp, nd.Name)
 				if nd.Name == newp {
 					return Skip
 				}
