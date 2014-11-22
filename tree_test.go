@@ -1,9 +1,12 @@
+// +build !windows
+
 package notify
+
+// TODO(rjeczalik): Tree is currently broken under Windows
 
 import (
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
@@ -27,9 +30,6 @@ func p(p string) string {
 }
 
 func TestTreeDel(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("TODO(rjeczalik) (*Tree).Del is broken under Windows")
-	}
 	cases := [...]struct {
 		before Node
 		p      string
@@ -108,10 +108,6 @@ func TestTreeWalk(t *testing.T) {
 }
 
 func TestTreeDir(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("TODO(rjeczalik) TryWalkPath is broken under Windows")
-	}
-	//t.Skip("TODO(rjeczalik)")
 	ch := NewChans(3)
 	calls := [...]CallCase{{
 		// i=0
@@ -170,18 +166,7 @@ func TestTreeDir(t *testing.T) {
 			C: ch[0],
 		},
 		Record: Record{
-			TreeWatcher: {{
-				F: FuncUnwatch,
-				P: "/github.com/rjeczalik/fakerpc",
-			}, {
-				F: FuncWatch,
-				P: "/github.com/rjeczalik/fakerpc",
-				E: Delete | Move,
-			}, {
-				F: FuncUnwatch,
-				P: "/github.com/rjeczalik/fs",
-			}},
-			TreeRewatcher | TreeRecursive: {{
+			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete | Move,
@@ -220,7 +205,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			E: Create | Delete,
 		},
 		Record: Record{
-			TreeRewatcher: {{
+			TreeFakeRecursive: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc",
 				E: Create | Delete,
@@ -237,7 +222,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 				P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
 				E: Create | Delete,
 			}},
-			TreeRecursive: {{
+			TreeNativeRecursive: {{
 				F: FuncRecursiveWatch,
 				P: "/github.com/rjeczalik/fakerpc",
 				E: Create | Delete,
@@ -251,7 +236,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			E: Create | Write,
 		},
 		Record: Record{
-			TreeRewatcher: {{
+			TreeFakeRecursive: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fs",
 				E: Create | Write,
@@ -276,7 +261,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 				P: "/github.com/rjeczalik/fs/cmd/mktree",
 				E: Create | Write,
 			}},
-			TreeRecursive: {{
+			TreeNativeRecursive: {{
 				F: FuncRecursiveWatch,
 				P: "/github.com/rjeczalik/fs",
 				E: Create | Write,
@@ -298,7 +283,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			E: Create | Write,
 		},
 		Record: Record{
-			TreeRewatcher: {{
+			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete,
@@ -319,7 +304,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 				E:  Create | Delete,
 				NE: Create | Delete | Write,
 			}},
-			TreeRecursive: {{
+			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete,
@@ -334,7 +319,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 			E: Delete | Move,
 		},
 		Record: Record{
-			TreeRewatcher: {{
+			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete | Write,
@@ -355,7 +340,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 				E:  Create | Delete | Write,
 				NE: Create | Write | Move | Delete,
 			}},
-			TreeRecursive: {{
+			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				E:  Create | Delete | Write,
@@ -385,7 +370,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 		// // TODO
 		// },
 	}}
-	fixture := NewTreeFixture(TreeRewatcher) //, TreeRecursive)
+	fixture := NewTreeFixture()
 	fixture.TestCalls(t, calls[:])
 }
 

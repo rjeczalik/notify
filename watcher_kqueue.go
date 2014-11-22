@@ -136,7 +136,7 @@ func (k *kqueue) monitor() {
 				if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
 					if err := k.walk(w.p, func(fi os.FileInfo) error {
 						p := filepath.Join(w.p, fi.Name())
-						if err := k.watch(p, w.eDir, false, fi.IsDir()); err != nil {
+						if err := k.singlewatch(p, w.eDir, false, fi.IsDir()); err != nil {
 							if err != errNoNewWatch {
 								// TODO: pass error via chan because state of monitoring is
 								// invalid.
@@ -203,34 +203,26 @@ func (k *kqueue) init() error {
 	return nil
 }
 
-// Watch implements Watcher interface.
-func (k *kqueue) Watch(p string, e Event) error {
-	dir, err := isdir(p)
-	if err != nil {
-		return err
-	}
-	k.Lock()
-	if err = k.watch(p, e, true, dir); err != nil {
+func (k *kqueue) watch(p string, e Event, isdir bool) error {
+	if err := k.singlewatch(p, e, true, isdir); err != nil {
 		if err != errNoNewWatch {
-			k.Unlock()
 			return nil
 		}
 	}
-	if dir {
-		if err := k.walk(p, func(fi os.FileInfo) (err error) {
-			if err = k.watch(filepath.Join(p, fi.Name()),
+	if isdir {
+		err := k.walk(p, func(fi os.FileInfo) (err error) {
+			if err = k.singlewatch(filepath.Join(p, fi.Name()),
 				e, false, fi.IsDir()); err != nil {
 				if err != errNoNewWatch {
 					return
 				}
 			}
 			return nil
-		}); err != nil {
-			k.Unlock()
+		})
+		if err != nil {
 			return err
 		}
 	}
-	k.Unlock()
 	return nil
 }
 
@@ -238,7 +230,7 @@ var errNoNewWatch = errors.New("kqueue: file already watched")
 var errNotWatched = errors.New("kqueue: cannot unwatch not watched file")
 
 // watch starts to watch given `p` file/directory.
-func (k *kqueue) watch(p string, e Event, direct, dir bool) error {
+func (k *kqueue) singlewatch(p string, e Event, direct, dir bool) error {
 	w, ok := k.pthLkp[p]
 	if !ok {
 		fd, err := syscall.Open(p, syscall.O_NONBLOCK|syscall.O_RDONLY, 0)
@@ -266,7 +258,7 @@ func (k *kqueue) watch(p string, e Event, direct, dir bool) error {
 }
 
 // unwatch stops watching `p` file/directory.
-func (k *kqueue) unwatch(p string, direct bool) (err error) {
+func (k *kqueue) singleunwatch(p string, direct bool) (err error) {
 	w := k.pthLkp[p]
 	if w == nil {
 		return errNotWatched
@@ -282,7 +274,7 @@ func (k *kqueue) unwatch(p string, direct bool) (err error) {
 		return
 	}
 	if w.eNonDir&w.eDir != 0 {
-		if err = k.watch(p, w.eNonDir|w.eDir, w.eNonDir == 0, w.dir); err != nil {
+		if err = k.singlewatch(p, w.eNonDir|w.eDir, w.eNonDir == 0, w.dir); err != nil {
 			return
 		}
 	} else {
@@ -311,28 +303,61 @@ func (k *kqueue) walk(p string, f func(os.FileInfo) error) (err error) {
 	return
 }
 
-// Unwatch implements `Watcher` interface.
-func (k *kqueue) Unwatch(p string) error {
-	k.Lock()
-	dir, err := isdir(p)
-	if err != nil {
-		k.Unlock()
-		return err
-	}
-	if dir {
-		if err = k.walk(p, func(fi os.FileInfo) error {
+func (k *kqueue) unwatch(p string, isdir bool) error {
+	if isdir {
+		err := k.walk(p, func(fi os.FileInfo) error {
 			if !fi.IsDir() {
-				return k.unwatch(filepath.Join(p, fi.Name()), false)
+				return k.singleunwatch(filepath.Join(p, fi.Name()), false)
 			}
 			return nil
-		}); err != nil {
-			k.Unlock()
+		})
+		if err != nil {
 			return err
 		}
 	}
-	err = k.unwatch(p, true)
+	return k.singleunwatch(p, true)
+}
+
+// Watch implements Watcher interface.
+func (k *kqueue) Watch(p string, e Event) (err error) {
+	b, err := isdir(p)
+	if err != nil {
+		return
+	}
+	k.Lock()
+	err = k.watch(p, e, b)
 	k.Unlock()
-	return err
+	return
+}
+
+// Unwatch implements Watcher interface.
+func (k *kqueue) Unwatch(p string) (err error) {
+	b, err := isdir(p)
+	if err != nil {
+		return
+	}
+	k.Lock()
+	err = k.unwatch(p, b)
+	k.Unlock()
+	return
+}
+
+// Rewatch implements Watcher interface.
+//
+// TODO(rjeczalik): This is a naive hack. Rewrite might help.
+func (k *kqueue) Rewatch(p string, _, e Event) (err error) {
+	b, err := isdir(p)
+	if err != nil {
+		return
+	}
+	k.Lock()
+	if err = k.unwatch(p, b); err == nil {
+		// TODO(rjeczalik): If watch fails then we leave kqueue in inconsistent
+		// state. Handle? Panic? Native version of rewatch?
+		err = k.watch(p, e, b)
+	}
+	k.Unlock()
+	return
 }
 
 // isdir returns a boolean indicating if `p` string represents

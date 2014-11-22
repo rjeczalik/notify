@@ -30,6 +30,20 @@ func nonil(err ...error) error {
 	return nil
 }
 
+// FuncType represents enums for notify.Watcher interface.
+type FuncType string
+
+const (
+	Watch            = FuncType("Watch")
+	Unwatch          = FuncType("Unwatch")
+	Dispatch         = FuncType("Dispatch")
+	Rewatch          = FuncType("Rewatch")
+	RecursiveWatch   = FuncType("RecursiveWatch")
+	RecursiveUnwatch = FuncType("RecursiveUnwatch")
+	RecursiveRewatch = FuncType("RecursiveRewatch")
+	Stop             = FuncType("Stop")
+)
+
 // Watch TODO
 func watch(w notify.Watcher, e notify.Event) filepath.WalkFunc {
 	return walkfn(w, func(w notify.Watcher, p string) error { return w.Watch(p, e) })

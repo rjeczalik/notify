@@ -139,6 +139,12 @@ func (err PathError) Error() string {
 	return `notify: invalid path "` + err.Name + `"`
 }
 
+// Impl TODO
+type Impl interface {
+	Watcher
+	RecursiveWatcher
+}
+
 // Tree TODO
 type Tree struct {
 	FS   fs.Filesystem
@@ -146,7 +152,7 @@ type Tree struct {
 
 	cnd  ChanNodesMap
 	stop chan struct{}
-	os   Interface
+	impl Impl
 }
 
 func (t *Tree) fs() fs.Filesystem {
@@ -157,27 +163,14 @@ func (t *Tree) fs() fs.Filesystem {
 }
 
 func (t *Tree) setos(wat Watcher) {
-	if os, ok := wat.(Interface); ok {
-		t.os = os
+	if os, ok := wat.(Impl); ok {
+		t.impl = os
 		return
 	}
-	os := struct {
+	t.impl = struct {
 		Watcher
-		Rewatcher
 		RecursiveWatcher
-		RecursiveRewatcher
-	}{wat, t, t, t}
-	if rew, ok := wat.(Rewatcher); ok {
-		os.Rewatcher = rew
-	}
-	if rec, ok := wat.(RecursiveWatcher); ok {
-		os.RecursiveWatcher = rec
-	}
-	if recrew, ok := wat.(RecursiveRewatcher); ok {
-		os.RecursiveRewatcher = recrew
-	}
-	t.os = os
-
+	}{wat, t}
 }
 
 func (t *Tree) loopdispatch(c <-chan EventInfo) {
@@ -221,7 +214,7 @@ func NewTree(wat Watcher) *Tree {
 		stop: make(chan struct{}),
 	}
 	t.setos(wat)
-	t.os.Dispatch(c, t.stop)
+	t.impl.Dispatch(c, t.stop)
 	go t.loopdispatch(c)
 	return t
 }
@@ -485,9 +478,9 @@ func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 	switch {
 	case diff == None:
 	case diff[0] == 0:
-		err = t.os.Watch(p, diff[1])
+		err = t.impl.Watch(p, diff[1])
 	default:
-		err = t.os.Rewatch(p, diff[0], diff[1])
+		err = t.impl.Rewatch(p, diff[0], diff[1])
 	}
 	if err != nil {
 		t.unregister(nd, c, diff.Event()) // TODO(rjeczalik): test fine-grained revert
@@ -548,9 +541,9 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 		switch {
 		case diff == None:
 		case diff[0] == 0:
-			err = t.os.RecursiveWatch(p, diff[1])
+			err = t.impl.RecursiveWatch(p, diff[1])
 		default:
-			err = t.os.RecursiveRewatch(p, p, diff[0], diff[1])
+			err = t.impl.RecursiveRewatch(p, p, diff[0], diff[1])
 		}
 		if err != nil {
 			t.unregister(nd, c, e)
@@ -595,9 +588,9 @@ func (t *Tree) Stop(c chan<- EventInfo) {
 			switch diff := t.unregister(nd, c, ^Event(0)); {
 			case diff == None:
 			case diff[1] == 0:
-				err = t.os.Unwatch(nd.Name)
+				err = t.impl.Unwatch(nd.Name)
 			default:
-				err = t.os.Rewatch(nd.Name, diff[0], diff[1])
+				err = t.impl.Rewatch(nd.Name, diff[0], diff[1])
 			}
 			if err != nil {
 				panic(err)
@@ -622,7 +615,7 @@ func (t *Tree) RecursiveWatch(p string, e Event) error {
 	// an watchpoint must be registered for the path.
 	// That's why till this point we already have a watchpoint, so we just watch
 	// the p.
-	if err := t.os.Watch(p, e); err != nil {
+	if err := t.impl.Watch(p, e); err != nil {
 		return err
 	}
 	fn := func(nd Node) error {
@@ -630,9 +623,9 @@ func (t *Tree) RecursiveWatch(p string, e Event) error {
 		case diff == None:
 			return nil
 		case diff[0] == 0:
-			return t.os.Watch(nd.Name, diff[1])
+			return t.impl.Watch(nd.Name, diff[1])
 		default:
-			return t.os.Rewatch(nd.Name, diff[0], diff[1])
+			return t.impl.Rewatch(nd.Name, diff[0], diff[1])
 		}
 	}
 	return t.WalkDir(t.LookPath(p), fn)
@@ -645,15 +638,15 @@ func (t *Tree) RecursiveUnwatch(p string) error {
 
 // Rewatch implements notify.Rewatcher interface.
 func (t *Tree) Rewatch(p string, olde, newe Event) error {
-	if err := t.os.Unwatch(p); err != nil {
+	if err := t.impl.Unwatch(p); err != nil {
 		return err
 	}
-	return t.os.Watch(p, newe)
+	return t.impl.Watch(p, newe)
 }
 
 // RecursiveRewatch implements notify.RecursiveRewatcher interface.
 //
-// NOTE(rjeczalik): RecursiveRewatch assumes t.os implments Rewatch natively.
+// NOTE(rjeczalik): RecursiveRewatch assumes t.impl implments Rewatch natively.
 // If not, naiveRecursiveRewatch is enough.
 func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 	if oldp != newp {
@@ -669,9 +662,9 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 				switch diff := nd.Watch.DelRecursive(olde); {
 				case diff == None:
 				case diff[1] == 0:
-					err = t.os.Unwatch(nd.Name)
+					err = t.impl.Unwatch(nd.Name)
 				default:
-					err = t.os.Rewatch(nd.Name, diff[0], diff[1])
+					err = t.impl.Rewatch(nd.Name, diff[0], diff[1])
 				}
 				// TODO(rjeczalik): don't stop if single watch call fails
 				return
@@ -694,7 +687,7 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 	if olde != newe {
 		// Watchpoint for newp was already registered prior to executing this
 		// method. Here's the deferred Rewatch:
-		if err := t.os.Rewatch(newp, olde, newe); err != nil {
+		if err := t.impl.Rewatch(newp, olde, newe); err != nil {
 			return err
 		}
 	}
@@ -707,9 +700,9 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 		switch {
 		case diff == None:
 		case diff[0] == 0:
-			err = t.os.Watch(nd.Name, diff[1])
+			err = t.impl.Watch(nd.Name, diff[1])
 		default:
-			err = t.os.Rewatch(nd.Name, diff[0], diff[1])
+			err = t.impl.Rewatch(nd.Name, diff[0], diff[1])
 		}
 		return
 	}
@@ -718,8 +711,8 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 
 // naiveRecursiveRewatch TODO
 func (t *Tree) naiveRecursiveRewatch(oldp, newp string, olde, newe Event) error {
-	if err := t.os.RecursiveUnwatch(oldp); err != nil {
+	if err := t.impl.RecursiveUnwatch(oldp); err != nil {
 		return err
 	}
-	return t.os.RecursiveWatch(newp, newe)
+	return t.impl.RecursiveWatch(newp, newe)
 }

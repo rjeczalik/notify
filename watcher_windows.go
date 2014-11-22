@@ -311,6 +311,11 @@ func (w *watcher) Unwatch(p string) error {
 	return nil
 }
 
+// Rewatch implements notify.Watcher interface.
+func (w *watcher) Rewatch(p string, olde, newe Event) error {
+	return nil
+}
+
 // Dispatch implements notify.Watcher interface.
 func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	w.c = c

@@ -3,24 +3,30 @@ package notify
 import "sync"
 
 var once sync.Once
-var glob *Runtime
+var m sync.Mutex
+var g *Tree
 
-// TODO(rjeczalik): Move to compile-time? Lock?
-func r() *Runtime {
+func tree() *Tree {
 	once.Do(func() {
-		if glob == nil {
-			glob = NewRuntime()
+		if g == nil {
+			g = NewTree(NewWatcher())
 		}
 	})
-	return glob
+	return g
 }
 
 // Watch TODO
-func Watch(name string, c chan<- EventInfo, events ...Event) {
-	r().Watch(name, c, events...)
+func Watch(name string, c chan<- EventInfo, events ...Event) (err error) {
+	m.Lock()
+	err = tree().Watch(name, c, events...)
+	m.Unlock()
+	return
 }
 
 // Stop TODO
 func Stop(c chan<- EventInfo) {
-	r().Stop(c)
+	m.Lock()
+	tree().Stop(c)
+	m.Unlock()
+	return
 }

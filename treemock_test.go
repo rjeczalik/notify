@@ -48,25 +48,24 @@ const (
 type TreeType uint8
 
 const (
-	TreeWatcher   TreeType = 1 << iota // implements Watcher only
-	TreeRewatcher                      // implements Watcher + Rewatcher
-	TreeRecursive                      // implements Watcher + Rewatcher + Recursive
+	TreeFakeRecursive TreeType = 1 << iota // fakes RecursiveWatcher
+	TreeNativeRecursive
 )
 
 // TreeAll TODO
 //
 // NOTE(rjeczalik): For use only as a key of Record.
-const TreeAll TreeType = TreeWatcher | TreeRewatcher | TreeRecursive
+const TreeAll TreeType = TreeFakeRecursive | TreeNativeRecursive
+
+var TreeTypes = [...]TreeType{TreeFakeRecursive, TreeNativeRecursive}
 
 // Strings implements fmt.Stringer interface.
 func (typ TreeType) String() string {
 	switch typ {
-	case TreeWatcher:
-		return "TreeWatcher"
-	case TreeRewatcher:
-		return "TreeRewatcher"
-	case TreeRecursive:
-		return "TreeRecursive"
+	case TreeFakeRecursive:
+		return "TreeFakeRecursive"
+	case TreeNativeRecursive:
+		return "TreeNativeRecursive"
 	}
 	return "<unknown tree type>"
 }
@@ -174,12 +173,9 @@ type TreeFixture map[TreeType]*MockedTree
 // TreeFixture gives new fixture for Tree testing. It initializes a new Tree
 // with a spy Watcher mock, which is used for retrospecting calls to it the Tree
 // makes.
-func NewTreeFixture(types ...TreeType) TreeFixture {
-	if len(types) == 0 {
-		types = []TreeType{TreeWatcher, TreeRewatcher, TreeRecursive}
-	}
-	tf := make(map[TreeType]*MockedTree, len(types))
-	for _, typ := range types {
+func NewTreeFixture() (tf TreeFixture) {
+	tf = make(map[TreeType]*MockedTree)
+	for _, typ := range TreeTypes {
 		// TODO(rjeczalik): Copy FS to allow for modying tree via Create and
 		// Delete events.
 		mt := &MockedTree{}
@@ -187,7 +183,7 @@ func NewTreeFixture(types ...TreeType) TreeFixture {
 		mt.Tree = NewTree(SpyWatcher(typ, mt))
 		mt.Tree.FS = MFS
 	}
-	return tf
+	return
 }
 
 // ExpectCalls translates values specified by the cases' keys into Watch calls
@@ -294,58 +290,51 @@ type Spy []Call
 // SpyWatcher TODO
 func SpyWatcher(typ TreeType, tree *MockedTree) Watcher {
 	switch typ {
-	case TreeWatcher:
+	case TreeFakeRecursive:
 		return struct {
 			Watcher
 		}{tree}
-	case TreeRewatcher:
+	case TreeNativeRecursive:
 		return struct {
 			Watcher
-			Rewatcher
-		}{tree, tree}
-	case TreeRecursive:
-		return struct {
-			Watcher
-			Rewatcher
 			RecursiveWatcher
-			RecursiveRewatcher
-		}{tree, tree, tree, tree}
+		}{tree, tree}
 	}
 	panic(fmt.Sprintf("notify/test: unsupported runtime type: %d (%s)", typ, typ))
 }
 
 // Watch implements Watcher interface.
-func (s *Spy) Watch(p string, e Event) (err error) {
+func (s *Spy) Watch(p string, e Event) (_ error) {
 	*s = append(*s, Call{F: FuncWatch, P: p, E: e})
 	return
 }
 
 // Unwatch implements Watcher interface.
-func (s *Spy) Unwatch(p string) (err error) {
+func (s *Spy) Unwatch(p string) (_ error) {
 	*s = append(*s, Call{F: FuncUnwatch, P: p})
 	return
 }
 
 // Rewatch implements Rewatcher interface.
-func (s *Spy) Rewatch(p string, olde, newe Event) (err error) {
+func (s *Spy) Rewatch(p string, olde, newe Event) (_ error) {
 	*s = append(*s, Call{F: FuncRewatch, P: p, E: olde, NE: newe})
 	return
 }
 
 // RecursiveWatch implements RecursiveWatcher interface.
-func (s *Spy) RecursiveWatch(p string, e Event) (err error) {
+func (s *Spy) RecursiveWatch(p string, e Event) (_ error) {
 	*s = append(*s, Call{F: FuncRecursiveWatch, P: p, E: e})
 	return
 }
 
 // RecursiveUnwatch implements RecursiveWatcher interface.
-func (s *Spy) RecursiveUnwatch(p string) (err error) {
+func (s *Spy) RecursiveUnwatch(p string) (_ error) {
 	*s = append(*s, Call{F: FuncRecursiveUnwatch, P: p})
 	return
 }
 
 // RecursiveRewatch implements RecursiveRewatcher interface.
-func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe Event) (err error) {
+func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe Event) (_ error) {
 	*s = append(*s, Call{F: FuncRecursiveRewatch, P: oldp, NP: newp, E: olde, NE: newe})
 	return
 }
