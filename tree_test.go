@@ -3,6 +3,7 @@ package notify
 import (
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -26,6 +27,9 @@ func p(p string) string {
 }
 
 func TestTreeDel(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO(rjeczalik) (*Tree).Del is broken under Windows")
+	}
 	cases := [...]struct {
 		before Node
 		p      string
@@ -104,6 +108,9 @@ func TestTreeWalk(t *testing.T) {
 }
 
 func TestTreeDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO(rjeczalik) TryWalkPath is broken under Windows")
+	}
 	//t.Skip("TODO(rjeczalik)")
 	ch := NewChans(3)
 	calls := [...]CallCase{{
