@@ -176,6 +176,35 @@ func TestTreeDir(t *testing.T) {
 				P: "/github.com/rjeczalik/fs",
 			}},
 		},
+	}, { // i=6
+		Call: Call{
+			F: FuncWatch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/which",
+			E: Create,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which",
+				E: Create,
+			}},
+		},
+	}, { // i=7
+		Call: Call{
+			F: FuncWatch,
+			C: ch[1],
+			P: "/github.com/rjeczalik/which",
+			E: Delete,
+		},
+		Record: Record{
+			TreeAll: {{
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which",
+				E:  Create,
+				NE: Create | Delete,
+			}},
+		},
 	}}
 	events := [...]EventCase{{
 		Event: TreeEvent{
@@ -189,6 +218,12 @@ func TestTreeDir(t *testing.T) {
 			E: Move,
 		},
 		Receiver: Chans{ch[1], ch[2]},
+	}, {
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/which",
+			E: Delete,
+		},
+		Receiver: Chans{ch[1]},
 	}}
 	fixture := NewTreeFixture()
 	fixture.TestCalls(t, calls[:])
