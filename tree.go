@@ -407,7 +407,6 @@ func (t *Tree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
 
 // NOTE(rjeczalik): strategy for native recursive watcher
 func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
-	d := Debug(p == "/github.com/rjeczalik")
 	nd := (*Node)(nil)
 	// Look up existing, recursive watchpoint already covering the given p.
 	err := t.TryWalkPath(p, func(it Node, isbase bool) error {
@@ -417,7 +416,6 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 		}
 		return nil
 	})
-	d.Print(nd)
 	if nd != nil {
 		// Luckily we have already a recursive watchpoint, now we check whether
 		// requested event fits in it and rewatch if not.
@@ -462,11 +460,8 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	// TODO(rjeczalik): rm duplication case 1 + default
 	switch nd := t.LookPath(p); len(nds) {
 	case 0:
-		d.Print("n == 0")
-		// Make new watchpoint.
-		return t.watchrec(nd, c, e)
+		return t.watchrec(nd, c, e) // register regular watchpoint
 	case 1:
-		d.Print("n == 1")
 		// There exists only one recursive, child watchpoint - it's enough to just
 		// rewatch it.
 		diff := t.register(nd, c, e)
@@ -483,7 +478,6 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 		nd.Watch.AddRecursive(e)
 		return nil
 	default: // TODO ensure RecursiveUnwatch and Stop supports splitting watchpoints
-		d.Print("n > 1")
 		// There exist multiple recursive, child watchpoints - we need to unwatch
 		// all but one, and the last rewatch to new location.
 		n := 0
