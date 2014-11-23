@@ -2,58 +2,8 @@ package notify
 
 import (
 	"path/filepath"
-	"reflect"
 	"testing"
 )
-
-func TestAppendset(t *testing.T) {
-	cases := [...]struct {
-		start []string
-		vals  map[string]struct{}
-		end   []string
-	}{
-		0: {
-			[]string{"a", "e", "x"},
-			map[string]struct{}{"A": {}, "E": {}, "x": {}},
-			[]string{"A", "E", "a", "e", "x"},
-		},
-		1: {
-			[]string{},
-			map[string]struct{}{"/a/b/c/d": {}, "/b/c/d": {}, "/c/d": {}, "/d": {}},
-			[]string{"/a/b/c/d", "/b/c/d", "/c/d", "/d"},
-		},
-		2: {
-			[]string{"a", "b", "c"},
-			map[string]struct{}{"d": {}, "e": {}, "f": {}},
-			[]string{"a", "b", "c", "d", "e", "f"},
-		},
-	}
-	for i := range cases {
-		s := cases[i].start
-		for v := range cases[i].vals {
-			s = appendset(s, v)
-		}
-		if !reflect.DeepEqual(s, cases[i].end) {
-			t.Errorf("want s=%v; got %v (i=%d)", cases[i].end, s, i)
-		}
-	}
-}
-
-func TestSplitpath(t *testing.T) {
-	cases := map[string][]string{
-		"C:/a/b/c/d.txt": {"a", "b", "c", "d.txt"},
-		"/a/b/c/d.txt":   {"a", "b", "c", "d.txt"},
-		"":               nil,
-		".":              nil,
-		"C:":             nil,
-	}
-	for path, names := range cases {
-		path = filepath.FromSlash(path)
-		if s := splitpath(path); !reflect.DeepEqual(s, names) {
-			t.Errorf("want s=%v; got %v (path=%s)", names, s, path)
-		}
-	}
-}
 
 func TestJoinevents(t *testing.T) {
 	cases := [...]struct {
@@ -73,38 +23,83 @@ func TestJoinevents(t *testing.T) {
 	}
 }
 
-func TestWalkpath(t *testing.T) {
-	cases := map[string]struct {
-		p  []string
-		ok bool
+func TestTreeSplit(t *testing.T) {
+	cases := [...]struct {
+		path string
+		dir  string
+		base string
 	}{
-		"C:/a/b/c/d.txt":       {[]string{"a", "b", "c", "d.txt"}, true},
-		"/a/b/c/d.txt":         {[]string{"a", "b", "c", "d.txt"}, true},
-		"C:/a/b/c/break":       {[]string{"a", "b", "c", "break"}, true},
-		"/a/b/c/break/":        {[]string{"a", "b", "c", "break"}, true},
-		"C:/a/b/c/break/d.txt": {[]string{"a", "b", "c", "break"}, false},
-		"/a/b/c/break/d.txt":   {[]string{"a", "b", "c", "break"}, false},
-		"":                     {nil, false},
-		".":                    {nil, false},
-		"C:":                   {nil, false},
+		{"/github.com/rjeczalik/fakerpc", "/github.com/rjeczalik", "fakerpc"},
+		{"/home/rjeczalik/src", "/home/rjeczalik", "src"},
+		{"/Users/pknap/porn/gopher.avi", "/Users/pknap/porn", "gopher.avi"},
+		{"C:/Documents and Users", "C:", "Documents and Users"},
+		{"C:/Documents and Users/pblaszczyk/wiertarka.exe", "C:/Documents and Users/pblaszczyk", "wiertarka.exe"},
+		{"/home/(╯°□°）╯︵ ┻━┻", "/home", "(╯°□°）╯︵ ┻━┻"},
 	}
-	var p []string
-	fn := func(s string) bool {
-		p = append(p, s)
-		return s != "break"
+	for i, cas := range cases {
+		dir, base := Split(filepath.FromSlash(cas.path))
+		if dir != cas.dir {
+			t.Errorf("want dir=%s; got %s (i=%d)", cas.dir, dir, i)
+		}
+		if base != cas.base {
+			t.Errorf("want base=%s; got %s (i=%d)", cas.base, base, i)
+		}
 	}
-	for path, cas := range cases {
-		p, path = p[:0], filepath.FromSlash(path)
-		if ok := walkpath(path, fn); ok != cas.ok {
-			t.Errorf("want ok=%v; got %v (path=%s)", cas.ok, ok, path)
-			continue
+}
+
+func TestTreeBase(t *testing.T) {
+	cases := [...]struct {
+		path string
+		base string
+	}{
+		{"/github.com/rjeczalik/fakerpc", "fakerpc"},
+		{"/home/rjeczalik/src", "src"},
+		{"/Users/pknap/porn/gopher.avi", "gopher.avi"},
+		{"C:/Documents and Users", "Documents and Users"},
+		{"C:/Documents and Users/pblaszczyk/wiertarka.exe", "wiertarka.exe"},
+		{"/home/(╯°□°）╯︵ ┻━┻", "(╯°□°）╯︵ ┻━┻"},
+	}
+	for i, cas := range cases {
+		if base := Base(filepath.FromSlash(cas.path)); base != cas.base {
+			t.Errorf("want base=%s; got %s (i=%d)", cas.base, base, i)
 		}
-		// Because reflect.DeepEqual([]string(nil), []string{}) gives false.
-		if len(cas.p) == 0 && len(p) == 0 {
-			continue
+	}
+}
+
+func TestTreeIndexSep(t *testing.T) {
+	cases := [...]struct {
+		path string
+		n    int
+	}{
+		{"github.com/rjeczalik/fakerpc", 10},
+		{"home/rjeczalik/src", 4},
+		{"Users/pknap/porn/gopher.avi", 5},
+		{"C:/Documents and Users", 2},
+		{"Documents and Users/pblaszczyk/wiertarka.exe", 19},
+		{"(╯°□°）╯︵ ┻━┻/Downloads", 30},
+	}
+	for i, cas := range cases {
+		if n := IndexSep(filepath.FromSlash(cas.path)); n != cas.n {
+			t.Errorf("want n=%d; got %d (i=%d)", cas.n, n, i)
 		}
-		if !reflect.DeepEqual(p, cas.p) {
-			t.Errorf("want p=%v; got %v (path=%s)", cas.p, p, path)
+	}
+}
+
+func TestTreeLastIndexSep(t *testing.T) {
+	cases := [...]struct {
+		path string
+		n    int
+	}{
+		{"github.com/rjeczalik/fakerpc", 20},
+		{"home/rjeczalik/src", 14},
+		{"Users/pknap/porn/gopher.avi", 16},
+		{"C:/Documents and Users", 2},
+		{"Documents and Users/pblaszczyk/wiertarka.exe", 30},
+		{"/home/(╯°□°）╯︵ ┻━┻", 5},
+	}
+	for i, cas := range cases {
+		if n := LastIndexSep(filepath.FromSlash(cas.path)); n != cas.n {
+			t.Errorf("want n=%d; got %d (i=%d)", cas.n, n, i)
 		}
 	}
 }
