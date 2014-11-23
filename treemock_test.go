@@ -190,9 +190,9 @@ func NewTreeFixture() (tf TreeFixture) {
 // executed on the fixture's Tree. A spy Watcher mock records calls to it
 // and compares with the expected ones for each key in the list.
 func (tf TreeFixture) TestCalls(t *testing.T, cases []CallCase) {
-	var record []Call
 	for i, cas := range NativeCallCases(cases) {
 		for typ, tree := range tf {
+			var record []Call
 			// Invoke call and record underlying calls.
 			if err := tree.Invoke(cas.Call); err != nil {
 				t.Fatalf("want Tree.%s(...)=nil; got %v (i=%d, typ=%v)",

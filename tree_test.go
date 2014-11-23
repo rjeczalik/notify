@@ -349,17 +349,89 @@ func TestTreeRecursiveDir(t *testing.T) {
 				NE: Create | Write | Move | Delete,
 			}},
 		},
-		// }, { // i=4
-		// TODO(rjeczalik): merge watchpoints
-		// Call: Call{
-		//	F: FuncWatch,
-		//	C: ch[4],
-		//	P: "/github.com/rjeczalik/...",
-		//	E: Create,
-		// },
-		// Record: Record{
-		// // TODO
-		// },
+	}, { // i=5 merge two subtree watchpoints into one subtree watchpoint
+		Call: Call{
+			F: FuncWatch,
+			C: ch[4],
+			P: "/github.com/rjeczalik/...",
+			E: Create,
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F: FuncWatch,
+				P: "/github.com/rjeczalik",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/cmd",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/cmd",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/darwin_386",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/darwin_amd64",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/freebsd_386",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/freebsd_amd64",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/linux_386",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/linux_amd64",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/windows_386",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/windows_amd64",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/testdata/cmd/echo",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/cmd/gofile",
+				E: Create,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which/cmd/gowhich",
+				E: Create,
+			}},
+			TreeNativeRecursive: {{
+				F: FuncRecursiveUnwatch,
+				P: "/github.com/rjeczalik/fs",
+			}, {
+				F:  FuncRecursiveRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik",
+				NE: Create | Delete | Move | Write,
+			}},
+		},
 		// }, { // i=5
 		// TODO(rjeczalik): rewatch subtree
 		// Call: Call{

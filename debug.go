@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -21,4 +22,22 @@ func stacktrace(max int) []string {
 		}
 	}
 	return stack
+}
+
+type Debug bool
+
+func (d Debug) Print(v ...interface{}) {
+	if d {
+		fmt.Printf("[D] ")
+		fmt.Print(v...)
+		fmt.Printf(" (callstack=%v)\n", stacktrace(3))
+	}
+}
+
+func (d Debug) Printf(format string, v ...interface{}) {
+	if d {
+		fmt.Printf("[D] ")
+		fmt.Printf(format, v...)
+		fmt.Printf(" (callstack=%v)\n", stacktrace(3))
+	}
 }

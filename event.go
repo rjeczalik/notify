@@ -22,7 +22,7 @@ var estr = map[Event]string{
 	//    watchpoint_test.go:64: want diff=[notify.Delete notify.Create|notify.Delete];
 	//    got [notify.Delete notify.Delete|notify.Create] (i=1)
 	//
-	// Yup, here the got diff have Recursive event inside. Go figure.
+	// Yup, here the diff have Recursive event inside. Go figure.
 	Recursive: "internal.Recursive",
 }
 

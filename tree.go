@@ -40,9 +40,10 @@ type Tree struct {
 	FS   fs.Filesystem
 	Root Node
 
-	cnd  ChanNodesMap
-	stop chan struct{}
-	impl Impl
+	cnd   ChanNodesMap
+	stop  chan struct{}
+	impl  Impl
+	isrec bool
 }
 
 func (t *Tree) fs() fs.Filesystem {
@@ -55,6 +56,7 @@ func (t *Tree) fs() fs.Filesystem {
 func (t *Tree) setimpl(w Watcher) {
 	if os, ok := w.(Impl); ok {
 		t.impl = os
+		t.isrec = true
 		return
 	}
 	t.impl = struct {
@@ -378,6 +380,7 @@ func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 }
 
 func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
+	d := Debug(p == "/github.com/rjeczalik")
 	nd := (*Node)(nil)
 	// Look up existing, recursive watchpoint already covering the given p.
 	err := t.TryWalkPath(p, func(it Node, isbase bool) error {
@@ -387,13 +390,14 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 		}
 		return nil
 	})
+	d.Print(nd)
 	if nd != nil {
 		// Luckily we have already a recursive watchpoint, now we check whether
 		// requested event fits in it and rewatch if not.
 		switch diff := nd.Watch.AddRecursive(e); {
 		case diff == None:
 		case diff[0] == 0:
-			panic("[DEBUG] Dangling watchpoint: " + nd.Name)
+			panic("[DEBUG] dangling watchpoint: " + nd.Name) // TODO
 		default:
 			if err := t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1]); err != nil {
 				nd.Watch.DelRecursive(diff.Event())
@@ -406,26 +410,36 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 	}
 	// If previous lookup did not fail (*os.PathError - no such path in the tree),
 	// there is a chance there exist one or more recursive watchpoints in the
-	// subtree starting at p - we would need to rewatch those.
-	nds := []Node(nil)
-	if err == nil {
-		_ = nds
-	}
+	// subtree starting at p - we would need to rewatch those as one watch can
+	// compensate for several smaller ones.
+	var nds NodeSet
 	switch {
-	case len(nds) == 1:
-		// There exists only one recursive, child watchpoint - it's enough to just
-		// rewatch it.
-		_ = t.RecursiveRewatch // TODO
-		return errors.New("TODO(rjeczalik)")
-	case len(nds) != 0:
-		// There exist multiple recursive, child watchpoints - we need to unwatch
-		// all but one, and the last rewatch to new location.
-		_ = t.RecursiveUnwatch // TODO
-		_ = t.RecursiveRewatch // TODO
-		return errors.New("TODO(rjeczalik)")
-	default:
+	// It makes no sense for non-recursive watcher to relocate child-recursive
+	// watchpoints, as it would not minimize number of watches - faked recursive
+	// implementation has always one watch per watchpoint.
+	case t.isrec && err == nil:
+		// TODO(rjeczalik): Use previous nd for Look root?
+		nd, err := t.TryLookPath(p)
+		if err != nil {
+			break
+		}
+		err = t.Walk(nd, func(it Node) error {
+			if it.Watch.IsRecursive() {
+				nds.Add(it) // node with shortest path is preferred for RecursiveRewatch
+				e |= it.Watch.Recursive()
+				return Skip
+			}
+			return nil
+		})
+		if err != nil {
+			panic("[DEBUG] unexpected error: " + err.Error()) // TODO
+		}
+	}
+	// TODO(rjeczalik): rm duplication case 1 + default
+	switch nd := t.LookPath(p); len(nds) {
+	case 0:
+		d.Print("n == 0")
 		// Make new watchpoint.
-		nd := t.LookPath(p)
 		switch diff := t.register(nd, c, e); {
 		case diff == None:
 		case diff[0] == 0:
@@ -434,6 +448,58 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 			err = t.impl.RecursiveRewatch(p, p, diff[0], diff[1])
 		}
 		if err != nil {
+			t.unregister(nd, c, e)
+			return err
+		}
+		nd.Watch.AddRecursive(e)
+		return nil
+	case 1:
+		d.Print("n == 1")
+		// There exists only one recursive, child watchpoint - it's enough to just
+		// rewatch it.
+		diff := t.register(nd, c, e)
+		// If the event set does not need to be expanded, we still need to relocate
+		// the watchpoint.
+		if diff == None {
+			diff[0], diff[1] = e, e
+		}
+		if err = t.impl.RecursiveRewatch(nds[0].Name, p, diff[0], diff[1]); err != nil {
+			t.unregister(nd, c, e)
+			return err
+		}
+		nd.Watch.AddRecursive(e)
+		return nil
+	default: // TODO ensure RecursiveUnwatch and Stop supports splitting watchpoints
+		d.Print("n > 1")
+		// There exist multiple recursive, child watchpoints - we need to unwatch
+		// all but one, and the last rewatch to new location.
+		n := 0
+		for i := range nds {
+			// TODO(rjeczalik): add (Watchpoint).Total() Event
+			if nds[i].Watch[nil]&e == e {
+				n = i
+				break
+			}
+		}
+		for i := range nds {
+			if i == n {
+				continue
+			}
+			// NOTE(rjeczalik): DelRecursive is intentionally not issued to allow
+			// for later recursive watchpoint splitting in case of RecrusiveUnwatch
+			// or Stop.
+			if err = t.impl.RecursiveUnwatch(nds[i].Name); err != nil {
+				// TODO(rjeczalik): consistency?
+				panic("[DEBUG] unexpected error: " + err.Error())
+			}
+		}
+		diff := t.register(nd, c, e)
+		// If the event set does not need to be expanded, we still need to relocate
+		// the watchpoint.
+		if diff == None {
+			diff[0], diff[1] = e, e
+		}
+		if err = t.impl.RecursiveRewatch(nds[n].Name, p, diff[0], diff[1]); err != nil {
 			t.unregister(nd, c, e)
 			return err
 		}
