@@ -238,13 +238,18 @@ func decodemask(mask, syse uint32) Event {
 }
 
 // Watch implements notify.Watcher interface.
-func (i *inotify) Watch(p string, e Event) error {
-	return inotifywatch(p, e)
+func (i *inotify) Watch(path string, e Event) error {
+	return inotifywatch(path, e)
 }
 
 // Unwatch implements notify.Watcher interface.
-func (i *inotify) Unwatch(p string) error {
-	return inotifyunwatch(p)
+func (i *inotify) Unwatch(path string) error {
+	return inotifyunwatch(path)
+}
+
+// Rewatch implements notify.Watcher interface.
+func (i *inotify) Rewatch(path string, _, newevent Event) error {
+	return inotifywatch(path, newevent)
 }
 
 // Dispatch implements notify.Watcher interface.
