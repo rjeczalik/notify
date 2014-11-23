@@ -312,7 +312,7 @@ func TestTreeRecursiveDir(t *testing.T) {
 				NE: Create | Delete | Write,
 			}},
 		},
-	}, { // i=4 rewatch oldp!=newp subtree (optimization: rewatch newp only?)
+	}, { // i=4 rewatch oldp!=newp subtree
 		Call: Call{
 			F: FuncWatch,
 			C: ch[4],
@@ -321,16 +321,6 @@ func TestTreeRecursiveDir(t *testing.T) {
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
-				F:  FuncRewatch,
-				P:  "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Write,
-				NE: Create | Write | Move | Delete,
-			}, {
-				F:  FuncRewatch,
-				P:  "/github.com/rjeczalik/fakerpc/cli",
-				E:  Create | Delete | Write,
-				NE: Create | Write | Move | Delete,
-			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cmd",
 				E:  Create | Delete | Write,
@@ -432,17 +422,32 @@ func TestTreeRecursiveDir(t *testing.T) {
 				NE: Create | Delete | Move | Write,
 			}},
 		},
-		// }, { // i=5
-		// TODO(rjeczalik): rewatch subtree
-		// Call: Call{
-		// 	F: FuncWatch,
-		//	C: ch[5],
-		//	P: "/github.com/rjeczalik/...",
-		//	E: Move,
-		// },
-		// Record: Record{
-		// // TODO
-		// },
+	}, { // i=6 plant new recursive watchpoint in already watched subtree
+		Call: Call{
+			F: FuncWatch,
+			C: ch[5],
+			P: "/github.com/rjeczalik/which/cmd/...",
+			E: Delete | Write,
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which/cmd",
+				E:  Create,
+				NE: Create | Delete | Write,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which/cmd/gofile",
+				E:  Create,
+				NE: Create | Delete | Write,
+			}, {
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which/cmd/gowhich",
+				E:  Create,
+				NE: Create | Delete | Write,
+			}},
+			TreeNativeRecursive: nil,
+		},
 	}}
 	fixture := NewTreeFixture()
 	fixture.TestCalls(t, calls[:])

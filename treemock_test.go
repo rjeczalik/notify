@@ -214,11 +214,14 @@ func (tf TreeFixture) TestCalls(t *testing.T, cases []CallCase) {
 					}
 				}
 			}
+			tree.N = len(tree.Spy)
+			if len(got) == 0 && len(record) == 0 {
+				continue
+			}
 			if !reflect.DeepEqual(got, Spy(record)) {
 				t.Errorf("want recorded=%+v; got %+v (i=%d, typ=%v)",
 					record, got, i, typ)
 			}
-			tree.N = len(tree.Spy)
 		}
 	}
 }

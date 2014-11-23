@@ -11,6 +11,13 @@ import (
 	"github.com/rjeczalik/fs"
 )
 
+// TODO(rjeczalik): Pair every LookPath (the one building paths in a Tree) with
+// a TryDel on failures to not have dangling paths?
+// TODO(rjeczalik): Refactor all Try*/Look*/Walk* methods.
+// TODO(rjeczalik): Create two Tree implementations, one for native recursive
+// watchers and second for fake ones.
+// TODO(rjeczalik): Move to separate package notify/tree.
+
 // Skip TODO
 var Skip = errors.New("skip")
 
@@ -375,11 +382,31 @@ func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 	}
 	if err != nil {
 		t.unregister(nd, c, diff.Event()) // TODO(rjeczalik): test fine-grained revert
+		// TODO(rjeczalik): TryDel?
 	}
 	return
 }
 
-func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
+// NOTE(rjeczalik): strategy for fake recursive watcher
+func (t *Tree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
+	switch diff := t.register(nd, c, e); {
+	case diff == None:
+	case diff[0] == 0:
+		err = t.impl.RecursiveWatch(nd.Name, diff[1])
+	default:
+		err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
+	}
+	if err != nil {
+		t.unregister(nd, c, e)
+		// TODO(rjeczalik): TryDel?
+		return
+	}
+	nd.Watch.AddRecursive(e)
+	return
+}
+
+// NOTE(rjeczalik): strategy for native recursive watcher
+func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	d := Debug(p == "/github.com/rjeczalik")
 	nd := (*Node)(nil)
 	// Look up existing, recursive watchpoint already covering the given p.
@@ -413,11 +440,8 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 	// subtree starting at p - we would need to rewatch those as one watch can
 	// compensate for several smaller ones.
 	var nds NodeSet
-	switch {
-	// It makes no sense for non-recursive watcher to relocate child-recursive
-	// watchpoints, as it would not minimize number of watches - faked recursive
-	// implementation has always one watch per watchpoint.
-	case t.isrec && err == nil:
+	switch err {
+	case nil:
 		// TODO(rjeczalik): Use previous nd for Look root?
 		nd, err := t.TryLookPath(p)
 		if err != nil {
@@ -440,19 +464,7 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 	case 0:
 		d.Print("n == 0")
 		// Make new watchpoint.
-		switch diff := t.register(nd, c, e); {
-		case diff == None:
-		case diff[0] == 0:
-			err = t.impl.RecursiveWatch(p, diff[1])
-		default:
-			err = t.impl.RecursiveRewatch(p, p, diff[0], diff[1])
-		}
-		if err != nil {
-			t.unregister(nd, c, e)
-			return err
-		}
-		nd.Watch.AddRecursive(e)
-		return nil
+		return t.watchrec(nd, c, e)
 	case 1:
 		d.Print("n == 1")
 		// There exists only one recursive, child watchpoint - it's enough to just
@@ -465,6 +477,7 @@ func (t *Tree) watchrec(p string, c chan<- EventInfo, e Event) error {
 		}
 		if err = t.impl.RecursiveRewatch(nds[0].Name, p, diff[0], diff[1]); err != nil {
 			t.unregister(nd, c, e)
+			// TODO(rjeczalik): TryDel?
 			return err
 		}
 		nd.Watch.AddRecursive(e)
@@ -527,10 +540,14 @@ func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 	if p, err = filepath.Abs(p); err != nil {
 		return err
 	}
-	if isrec {
-		return t.watchrec(p, c, joinevents(e)|Recursive)
+	switch e := joinevents(e); {
+	case isrec && t.isrec:
+		return t.mergewatchrec(p, c, e|Recursive)
+	case isrec:
+		return t.watchrec(t.LookPath(p), c, e|Recursive)
+	default:
+		return t.watch(p, c, e)
 	}
-	return t.watch(p, c, joinevents(e))
 }
 
 // Stop TODO
