@@ -389,7 +389,8 @@ func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 
 // NOTE(rjeczalik): strategy for fake recursive watcher
 func (t *Tree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
-	switch diff := t.register(nd, c, e); {
+	diff := nd.Watch.AddRecursive(e)
+	switch {
 	case diff == None:
 	case diff[0] == 0:
 		err = t.impl.RecursiveWatch(nd.Name, diff[1])
@@ -397,11 +398,13 @@ func (t *Tree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
 		err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
 	}
 	if err != nil {
-		t.unregister(nd, c, e)
+		nd.Watch.DelRecursive(diff.Event())
 		// TODO(rjeczalik): TryDel?
 		return
 	}
-	nd.Watch.AddRecursive(e)
+	if diff = t.register(nd, c, e); diff != None {
+		panic(fmt.Sprintf("[DEBUG] unexpected non-empty diff: %v", diff))
+	}
 	return
 }
 
@@ -419,7 +422,8 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	if nd != nil {
 		// Luckily we have already a recursive watchpoint, now we check whether
 		// requested event fits in it and rewatch if not.
-		switch diff := nd.Watch.AddRecursive(e); {
+		diff := nd.Watch.AddRecursive(e)
+		switch {
 		case diff == None:
 		case diff[0] == 0:
 			panic("[DEBUG] dangling watchpoint: " + nd.Name) // TODO
@@ -429,8 +433,9 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 				return err
 			}
 		}
-		// TODO(rjeczalik): The diff must be `None`, see comment in watchpoint.go file.
-		_ = t.register(t.Look(*nd, p), c, e) // TODO(rjeczalik): inline t.register here?
+		// TODO(rjeczalik): introduce external watch? watchpoint has e event-set
+		// but has no underlying watch, since it's external.
+		_ = t.register(t.Look(*nd, p), c, e)
 		return nil
 	}
 	// If previous lookup did not fail (*os.PathError - no such path in the tree),
@@ -438,6 +443,7 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	// subtree starting at p - we would need to rewatch those as one watch can
 	// compensate for several smaller ones.
 	var nds NodeSet
+	var erec = e
 	switch err {
 	case nil:
 		// TODO(rjeczalik): Use previous nd for Look root?
@@ -448,7 +454,7 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 		err = t.Walk(nd, func(it Node) error {
 			if it.Watch.IsRecursive() {
 				nds.Add(it) // node with shortest path is preferred for RecursiveRewatch
-				e |= it.Watch.Recursive()
+				erec |= it.Watch.Recursive()
 				return Skip
 			}
 			return nil
@@ -464,18 +470,20 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	case 1:
 		// There exists only one recursive, child watchpoint - it's enough to just
 		// rewatch it.
-		diff := t.register(nd, c, e)
+		diff := nd.Watch.AddRecursive(erec)
 		// If the event set does not need to be expanded, we still need to relocate
 		// the watchpoint.
 		if diff == None {
-			diff[0], diff[1] = e, e
+			diff[0], diff[1] = erec, erec
 		}
-		if err = t.impl.RecursiveRewatch(nds[0].Name, p, diff[0], diff[1]); err != nil {
-			t.unregister(nd, c, e)
+		if err = t.impl.RecursiveRewatch(nds[0].Name, nd.Name, diff[0], diff[1]); err != nil {
+			nd.Watch.DelRecursive(diff.Event())
 			// TODO(rjeczalik): TryDel?
 			return err
 		}
-		nd.Watch.AddRecursive(e)
+		if diff = t.register(nd, c, e); diff != None {
+			panic(fmt.Sprintf("[DEBUG] unexpected non-empty diff: %v", diff))
+		}
 		return nil
 	default: // TODO ensure RecursiveUnwatch and Stop supports splitting watchpoints
 		// There exist multiple recursive, child watchpoints - we need to unwatch
@@ -483,7 +491,7 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 		n := 0
 		for i := range nds {
 			// TODO(rjeczalik): add (Watchpoint).Total() Event
-			if nds[i].Watch[nil]&e == e {
+			if nds[i].Watch[nil]&erec == erec {
 				n = i
 				break
 			}
@@ -500,17 +508,19 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 				panic("[DEBUG] unexpected error: " + err.Error())
 			}
 		}
-		diff := t.register(nd, c, e)
+		diff := nd.Watch.AddRecursive(erec)
 		// If the event set does not need to be expanded, we still need to relocate
 		// the watchpoint.
 		if diff == None {
-			diff[0], diff[1] = e, e
+			diff[0], diff[1] = erec, erec
 		}
-		if err = t.impl.RecursiveRewatch(nds[n].Name, p, diff[0], diff[1]); err != nil {
-			t.unregister(nd, c, e)
+		if err = t.impl.RecursiveRewatch(nds[n].Name, nd.Name, diff[0], diff[1]); err != nil {
+			nd.Watch.DelRecursive(diff.Event())
 			return err
 		}
-		nd.Watch.AddRecursive(e)
+		if diff = t.register(nd, c, e); diff != None {
+			panic(fmt.Sprintf("[DEBUG] unexpected non-empty diff: %v", diff))
+		}
 		return nil
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const buffer = 16
+
 // Chans TODO
 type Chans []chan EventInfo
 
@@ -21,11 +23,44 @@ func (c Chans) Foreach(fn func(chan<- EventInfo, Node)) {
 	}
 }
 
+// Drain TODO
+func (c Chans) Drain() (ei []EventInfo) {
+	n := len(c)
+	stop := make(chan struct{})
+	eich := make(chan EventInfo, n*buffer)
+	go func() {
+		defer close(eich)
+		cases := make([]reflect.SelectCase, n+1)
+		for i := range c {
+			cases[i].Chan = reflect.ValueOf(c[i])
+			cases[i].Dir = reflect.SelectRecv
+		}
+		cases[n].Chan = reflect.ValueOf(stop)
+		cases[n].Dir = reflect.SelectRecv
+		for {
+			i, v, ok := reflect.Select(cases)
+			if i == n {
+				return
+			}
+			if !ok {
+				panic("(Chans).Drain(): unexpected chan close")
+			}
+			eich <- v.Interface().(EventInfo)
+		}
+	}()
+	<-time.After(timeout * time.Duration(n))
+	close(stop)
+	for e := range eich {
+		ei = append(ei, e)
+	}
+	return
+}
+
 // NewChans TODO
 func NewChans(n int) Chans {
 	ch := make([]chan EventInfo, n)
 	for i := range ch {
-		ch[i] = make(chan EventInfo, 16)
+		ch[i] = make(chan EventInfo, buffer)
 	}
 	return ch
 }

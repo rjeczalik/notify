@@ -228,11 +228,16 @@ func TestTreeDir(t *testing.T) {
 	fixture := NewTreeFixture()
 	fixture.TestCalls(t, calls[:])
 	fixture.TestEvents(t, events[:])
+	// Ensure no extra events were dispatched.
+	if ei := ch.Drain(); len(ei) != 0 {
+		t.Errorf("want ei=nil; got %v", ei)
+	}
 }
 
 func TestTreeRecursiveDir(t *testing.T) {
 	ch := NewChans(6)
-	calls := [...]CallCase{{ // i=0 create new watchpoint
+	calls := [...]CallCase{{
+		// i=0 create new watchpoint
 		Call: Call{
 			F: FuncWatch,
 			C: ch[0],
@@ -484,6 +489,37 @@ func TestTreeRecursiveDir(t *testing.T) {
 			TreeNativeRecursive: nil,
 		},
 	}}
+	events := [...]EventCase{{
+		// i=0
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
+			E: Create,
+		},
+		Receiver: Chans{ch[0], ch[3], ch[4]},
+	}, { // i=1
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
+			E: Delete,
+		},
+		Receiver: Chans{ch[0], ch[4]},
+	}, { // i=2
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/which/cmd/gowhich/.main.go.swp",
+			E: Create,
+		},
+		Receiver: Chans{ch[4]},
+	}, { // i=3
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fs/cmd/gofs",
+			E: Create,
+		},
+		Receiver: Chans{ch[1], ch[2], ch[4]},
+	}}
 	fixture := NewTreeFixture()
 	fixture.TestCalls(t, calls[:])
+	fixture.TestEvents(t, events[:])
+	// Ensure no extra events were dispatched.
+	if ei := ch.Drain(); len(ei) != 0 {
+		t.Errorf("want ei=nil; got %v", ei)
+	}
 }
