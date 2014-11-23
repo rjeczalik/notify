@@ -21,9 +21,13 @@ func (nd Node) child(name string) Node {
 		return child
 	}
 	child := Node{
-		Name:  filepath.Join(nd.Name, name),
+		Name:  nd.Name + sep + name,
 		Watch: make(Watchpoint),
 		Child: make(map[string]Node),
+	}
+	// TODO(rjeczalik): Fix it better.
+	if name == filepath.VolumeName(name) {
+		child.Name = name
 	}
 	nd.Child[name] = child
 	return child
