@@ -1,6 +1,9 @@
 package notify
 
-import "sort"
+import (
+	"path/filepath"
+	"sort"
+)
 
 // Node TODO
 type Node struct {
@@ -18,7 +21,7 @@ func (nd Node) child(name string) Node {
 		return child
 	}
 	child := Node{
-		Name:  nd.Name + sep + name,
+		Name:  filepath.Join(nd.Name, name),
 		Watch: make(Watchpoint),
 		Child: make(map[string]Node),
 	}
