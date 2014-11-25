@@ -16,6 +16,8 @@ import (
 // TODO(rjeczalik): Refactor all Try*/Look*/Walk* methods.
 // TODO(rjeczalik): Create two Tree implementations, one for native recursive
 // watchers and second for fake ones.
+// TODO(rjeczalik): Locking.
+// TODO(rjeczalik): Concurrent tree-dispatch.
 // TODO(rjeczalik): Move to separate package notify/tree.
 
 // Skip TODO
@@ -89,7 +91,7 @@ func (t *Tree) loopdispatch(c <-chan EventInfo) {
 			}
 			// Send to recursive watchpoints.
 			if err := t.TryWalkPath(parent, fn); err != nil {
-				fmt.Fprintln(os.Stderr, "[DEBUG] unexpected event ", err)
+				dbg.Printf("unexpected event: ei=%v, err=%v", ei, err)
 			}
 			// Send to parent watchpoint.
 			nd.Watch.Dispatch(ei, false)
@@ -620,9 +622,6 @@ func (t *Tree) Rewatch(p string, olde, newe Event) error {
 }
 
 // RecursiveRewatch implements notify.RecursiveRewatcher interface.
-//
-// NOTE(rjeczalik): RecursiveRewatch assumes t.impl implments Rewatch natively.
-// If not, naiveRecursiveRewatch is enough.
 func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 	if oldp != newp {
 		switch {
@@ -655,7 +654,7 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 		default:
 			// May happen, e.g. if oldp="C:\Windows" and newp="D:\Temp", which
 			// is a bug.
-			panic(oldp + " and " + newp + " do not have common root")
+			panic("[DEBUG] " + oldp + " and " + newp + " do not have common root")
 		}
 	}
 	if olde != newe {
@@ -681,12 +680,4 @@ func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 		return
 	}
 	return t.Walk(t.LookPath(newp), fn)
-}
-
-// naiveRecursiveRewatch TODO
-func (t *Tree) naiveRecursiveRewatch(oldp, newp string, olde, newe Event) error {
-	if err := t.impl.RecursiveUnwatch(oldp); err != nil {
-		return err
-	}
-	return t.impl.RecursiveWatch(newp, newe)
 }

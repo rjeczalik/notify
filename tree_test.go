@@ -107,7 +107,7 @@ func TestTreeWalk(t *testing.T) {
 	t.Skip("TODO(rjeczalik)")
 }
 
-func TestTreeDir(t *testing.T) {
+func TestTreeWatch(t *testing.T) {
 	ch := NewChans(3)
 	calls := [...]CallCase{{
 		// i=0
@@ -234,7 +234,156 @@ func TestTreeDir(t *testing.T) {
 	}
 }
 
-func TestTreeRecursiveDir(t *testing.T) {
+func TestTreeStop(t *testing.T) {
+	ch := NewChans(3)
+	// Watchpoints:
+	//
+	//   ch[0] -> {"/github.com/rjeczalik",         Create|Delete}
+	//   ch[1] -> {"/github.com/rjeczalik",         Create|Delete|Move}
+	//   ch[2] -> {"/github.com/rjeczalik",         Move|Write}
+	//   ch[0] -> {"/github.com/rjeczalik/which",   Write|Move}
+	//   ch[1] -> {"/github.com/rjeczalik/which",   Create|Delete}
+	//   ch[2] -> {"/github.com/rjeczalik/which",   Delete|Move}
+	//   ch[0] -> {"/github.com/rjeczalik/fs/fs.go, Write}
+	//   ch[1] -> {"/github.com/rjeczalik/fs/fs.go, Move|Delete}
+	//   ch[2] -> {"/github.com/rjeczalik/fs/fs.go, Create|Delete}
+	//
+	setup := [...]CallCase{{
+		// i=0
+		Call: Call{
+			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik", E: Create | Delete,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncWatch, P: "/github.com/rjeczalik", E: Create | Delete,
+			}},
+		},
+	}, {
+		// i=1
+		Call: Call{
+			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik", E: Create | Delete | Move,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik", E: Create | Delete,
+				NE: Create | Delete | Move,
+			}},
+		},
+	}, {
+		// i=2
+		Call: Call{
+			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik", E: Move | Write,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik", E: Create | Delete | Move,
+				NE: Create | Delete | Move | Write,
+			}},
+		},
+	}, {
+		// i=3
+		Call: Call{
+			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik/which", E: Write | Move,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncWatch, P: "/github.com/rjeczalik/which", E: Write | Move,
+			}},
+		},
+	}, {
+		// i=4
+		Call: Call{
+			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik/which", E: Create | Delete,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/which", E: Write | Move,
+				NE: Write | Move | Create | Delete,
+			}},
+		},
+	}, {
+		// i=5
+		Call: Call{
+			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik/which", E: Delete | Move,
+		},
+		Record: nil,
+	}, {
+		// i=6
+		Call: Call{
+			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik/fs/fs.go", E: Write,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncWatch, P: "/github.com/rjeczalik/fs/fs.go", E: Write,
+			}},
+		},
+	}, {
+		// i=7
+		Call: Call{
+			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik/fs/fs.go", E: Move | Delete,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go", E: Write,
+				NE: Write | Move | Delete,
+			}},
+		},
+	}, {
+		// i=8
+		Call: Call{
+			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik/fs/fs.go", E: Create | Delete,
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go", E: Write | Move | Delete,
+				NE: Write | Move | Delete | Create,
+			}},
+		},
+	}}
+	events := [...]EventCase{{
+		// i=0
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/.thumbs",
+			E: Create,
+		},
+		Receiver: Chans{ch[0], ch[1]},
+	}, {
+		// i=1
+		Event: TreeEvent{
+			P: "/github.com/rjecza/fs/fs.go",
+			E: Delete,
+		},
+		Receiver: Chans{ch[1], ch[2]}, // <-- fix
+	}, {
+		// i=2
+		Event: TreeEvent{
+			P: "/github.com/rjecza/fs/fs.go",
+			E: Delete,
+		},
+		Receiver: Chans{ch[1], ch[2]},
+	}}
+	cases := [...]CallCase{{
+		Call: Call{
+			F: FuncStop, C: ch[0],
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/which",
+				E: Create | Delete | Write | Move, NE: Create | Delete | Move,
+			}},
+		},
+	}}
+	fixture := NewTreeFixture()
+	fixture.TestCalls(t, setup[:])
+	fixture.TestEvents(t, events[:1])
+	fixture.TestCalls(t, cases[:])
+	// Ensure no extra events were dispatched.
+	if ei := ch.Drain(); len(ei) != 0 {
+		t.Errorf("want ei=nil; got %v", ei)
+	}
+}
+
+func TestTreeRecursiveWatch(t *testing.T) {
 	ch := NewChans(6)
 	calls := [...]CallCase{{
 		// i=0 create new watchpoint
@@ -522,4 +671,8 @@ func TestTreeRecursiveDir(t *testing.T) {
 	if ei := ch.Drain(); len(ei) != 0 {
 		t.Errorf("want ei=nil; got %v", ei)
 	}
+}
+
+func TestTreeRecursiveUnwatch(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
 }

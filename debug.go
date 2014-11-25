@@ -41,3 +41,10 @@ func (d Debug) Printf(format string, v ...interface{}) {
 		fmt.Printf(" (callstack=%v)\n", stacktrace(3))
 	}
 }
+
+var dbg = func() Debug {
+	if os.Getenv("DEBUG") != "" {
+		return true
+	}
+	return false
+}()
