@@ -562,10 +562,11 @@ func (t *Tree) Stop(c chan<- EventInfo) {
 		var err error
 		for _, nd := range *nds {
 			// TODO(rjeczalik): Handle recursive watchpoints.
-			switch diff := t.unregister(nd, c, ^Event(0)); {
+			switch diff := nd.Watch.Del(c, ^Event(0)); {
 			case diff == None:
 			case diff[1] == 0:
 				err = t.impl.Unwatch(nd.Name)
+				t.Del(nd.Name)
 			default:
 				err = t.impl.Rewatch(nd.Name, diff[0], diff[1])
 			}

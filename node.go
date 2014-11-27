@@ -45,6 +45,13 @@ func (p NodeSet) Search(nd Node) int {
 	return sort.Search(len(p), func(i int) bool { return p[i].Name >= nd.Name })
 }
 
+func (p *NodeSet) Names() (s []string) {
+	for i := range *p {
+		s = append(s, (*p)[i].Name)
+	}
+	return
+}
+
 func (p *NodeSet) Add(nd Node) {
 	switch i := p.Search(nd); {
 	case i == len(*p):

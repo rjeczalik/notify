@@ -350,17 +350,38 @@ func TestTreeStop(t *testing.T) {
 	}, {
 		// i=1
 		Event: TreeEvent{
-			P: "/github.com/rjecza/fs/fs.go",
+			P: "/github.com/rjeczalik/fs/fs.go",
 			E: Delete,
 		},
 		Receiver: Chans{ch[1], ch[2]}, // <-- fix
 	}, {
 		// i=2
 		Event: TreeEvent{
-			P: "/github.com/rjecza/fs/fs.go",
+			P: "/github.com/rjeczalik/fs/fs.go",
 			E: Delete,
 		},
 		Receiver: Chans{ch[1], ch[2]},
+	}, {
+		// i=3
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik",
+			E: Create,
+		},
+		Receiver: Chans{ch[0], ch[1]},
+	}, {
+		// i=4
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik",
+			E: Write,
+		},
+		Receiver: Chans{ch[2]},
+	}, {
+		// i=5
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fs/fs.go",
+			E: Write,
+		},
+		Receiver: Chans{ch[0]},
 	}}
 	cases := [...]CallCase{{
 		Call: Call{
@@ -368,14 +389,46 @@ func TestTreeStop(t *testing.T) {
 		},
 		Record: Record{
 			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go",
+				E: Create | Delete | Move | Write, NE: Create | Delete | Move,
+			}, {
 				F: FuncRewatch, P: "/github.com/rjeczalik/which",
 				E: Create | Delete | Write | Move, NE: Create | Delete | Move,
+			}},
+		},
+	}, {
+		Call: Call{
+			F: FuncStop, C: ch[1],
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik",
+				E: Create | Delete | Write | Move, NE: Move | Write,
+			}, {
+				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go",
+				E: Create | Delete | Move, NE: Create | Delete,
+			}, {
+				F: FuncRewatch, P: "/github.com/rjeczalik/which",
+				E: Create | Delete | Move, NE: Delete | Move,
+			}},
+		},
+	}, {
+		Call: Call{
+			F: FuncStop, C: ch[2],
+		},
+		Record: Record{
+			TreeAll: {{
+				F: FuncUnwatch, P: "/github.com/rjeczalik",
+			}, {
+				F: FuncUnwatch, P: "/github.com/rjeczalik/fs/fs.go",
+			}, {
+				F: FuncUnwatch, P: "/github.com/rjeczalik/which",
 			}},
 		},
 	}}
 	fixture := NewTreeFixture()
 	fixture.TestCalls(t, setup[:])
-	fixture.TestEvents(t, events[:1])
+	fixture.TestEvents(t, events[:])
 	fixture.TestCalls(t, cases[:])
 	// Ensure no extra events were dispatched.
 	if ei := ch.Drain(); len(ei) != 0 {
