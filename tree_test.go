@@ -353,7 +353,7 @@ func TestTreeStop(t *testing.T) {
 			P: "/github.com/rjeczalik/fs/fs.go",
 			E: Delete,
 		},
-		Receiver: Chans{ch[1], ch[2]}, // <-- fix
+		Receiver: Chans{ch[1], ch[2]},
 	}, {
 		// i=2
 		Event: TreeEvent{
@@ -434,6 +434,154 @@ func TestTreeStop(t *testing.T) {
 	if ei := ch.Drain(); len(ei) != 0 {
 		t.Errorf("want ei=nil; got %v", ei)
 	}
+}
+
+func TestTreeStopRecursive(t *testing.T) {
+	ch := NewChans(5)
+	// Watchpoints:
+	//
+	//   ch[0] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
+	//   ch[1] -> {"/github.com/rjeczalik/fakerpc/...", Create}
+	//   ch[2] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
+	//   ch[3] -> {"/github.com/rjeczalik/fakerpc", Create|Delete|Write}
+	//   ch[4] -> {"/github.com/rjeczalik/fakerpc/cli", Delete|Move}
+	//
+	setup := [...]CallCase{{
+		// i=0
+		Call: Call{
+			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik/fakerpc/...",
+			E: Create | Delete,
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fakerpc",
+				E: Create | Delete,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fakerpc/cli",
+				E: Create | Delete,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fakerpc/cmd",
+				E: Create | Delete,
+			}, {
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+				E: Create | Delete,
+			}},
+			TreeNativeRecursive: {{
+				F: FuncRecursiveWatch,
+				P: "/github.com/rjeczalik/fakerpc",
+				E: Create | Delete,
+			}},
+		},
+	}, {
+		// i=1
+		Call: Call{
+			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik/fakerpc/...",
+			E: Create,
+		},
+		Record: nil,
+	}, {
+		// i=2
+		Call: Call{
+			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik/fakerpc/...",
+			E: Create | Delete,
+		},
+		Record: nil,
+	}, {
+		// i=3
+		Call: Call{
+			F: FuncWatch, C: ch[3], P: "/github.com/rjeczalik/fakerpc",
+			E: Create | Delete | Write,
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/fakerpc",
+				E: Create | Delete, NE: Create | Delete | Write,
+			}},
+			TreeNativeRecursive: {{
+				F: FuncRecursiveRewatch, P: "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik/fakerpc", E: Create | Delete,
+				NE: Create | Delete | Write,
+			}},
+		},
+	}, {
+		// TODO(rjeczalik): Currently it sets new, single watchpoint inside the
+		// tree. Reconsider whether we want to minimize watchpoint number or
+		// keep small evenset per tree - current implementation does the latter.
+		// i=4
+		Call: Call{
+			F: FuncWatch, C: ch[4], P: "/github.com/rjeczalik/fakerpc/cli",
+			E: Delete | Move,
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F: FuncRewatch, P: "/github.com/rjeczalik/fakerpc/cli",
+				E: Create | Delete, NE: Create | Delete | Move,
+			}},
+			TreeNativeRecursive: {{
+				F: FuncWatch, P: "/github.com/rjeczalik/fakerpc/cli",
+				E: Delete | Move,
+			}},
+		},
+	}}
+	events := [...]EventCase{{
+		// i=0
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
+			E: Create,
+		},
+		Receiver: Chans{ch[0], ch[1], ch[2]},
+	}, {
+		// i=1
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
+			E: Delete,
+		},
+		Receiver: Chans{ch[0], ch[2]},
+	}, {
+		// i=2
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/fakerpc.go",
+			E: Write,
+		},
+		Receiver: Chans{ch[3]},
+	}, {
+		// i=3
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/fakerpc.go",
+			E: Delete,
+		},
+		Receiver: Chans{ch[0], ch[2], ch[3]},
+	}, {
+		// i=4
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/cli/cli_test.go",
+			E: Delete,
+		},
+		Receiver: Chans{ch[0], ch[2], ch[4]},
+	}, {
+		// i=5
+		Event: TreeEvent{
+			P: "/github.com/rjeczalik/fakerpc/cli/cli_test.go",
+			E: Move,
+		},
+		Receiver: Chans{ch[4]},
+	}}
+	cases := [...]CallCase{
+	// TODO
+	}
+	fixture := NewTreeFixture()
+	fixture.TestCalls(t, setup[:])
+	fixture.TestEvents(t, events[:])
+	fixture.TestCalls(t, cases[:])
+	// Ensure no extra events were dispatched.
+	if ei := ch.Drain(); len(ei) != 0 {
+		t.Errorf("want ei=nil; got %v", ei)
+	}
+
 }
 
 func TestTreeRecursiveWatch(t *testing.T) {
