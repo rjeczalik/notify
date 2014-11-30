@@ -375,27 +375,31 @@ func (t *Tree) unregister(nd Node, c chan<- EventInfo, e Event) EventDiff {
 func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 	nd := t.LookPath(p)
 	diff := t.register(nd, c, e) // TODO(rjeczalik): inline t.register here?
+	if t.isrec {
+		// If p is covered by a recursive watchpoint (which can be set above p),
+		// we need to rewatch it instead the current one.
+		if err = t.TryWalkPath(p, func(it Node, isbase bool) error {
+			if it.Watch.IsRecursive() && !isbase {
+				nd = it
+				diff = it.Watch.Diff(e)
+				return Skip
+			}
+			return nil
+		}); err != nil {
+			panic("[DEBUG] unexpected error: " + err.Error())
+		}
+		switch {
+		case diff == None, diff[0] == 0, !nd.Watch.IsRecursive():
+		default:
+			err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
+			diff = None
+		}
+	}
 	switch {
 	case diff == None:
 	case diff[0] == 0:
 		err = t.impl.Watch(p, diff[1])
 	default:
-		if t.isrec {
-			// If p is covered by a recursive watchpoint (which can be set above p),
-			// we need to rewatch it instead the current one.
-			nd := (*Node)(nil)
-			e := t.TryWalkPath(p, func(it Node, isbase bool) error {
-				if it.Watch.IsRecursive() {
-					nd = &it
-					return Skip
-				}
-				return nil
-			})
-			if e == nil && nd != nil {
-				err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
-				break
-			}
-		}
 		err = t.impl.Rewatch(p, diff[0], diff[1])
 	}
 	if err != nil {

@@ -29,6 +29,16 @@ var rec = func() (ch chan<- EventInfo) {
 	return
 }()
 
+// Diff TODO
+func (wp Watchpoint) Diff(e Event) EventDiff {
+	e &^= Recursive
+	if wp[nil]&e == e {
+		return None
+	}
+	total := wp[nil] &^ Recursive
+	return EventDiff{total, total | e}
+}
+
 // Add TODO
 //
 // Add assumes neither c nor e are nil or zero values.
