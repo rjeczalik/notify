@@ -570,18 +570,105 @@ func TestTreeStopRecursive(t *testing.T) {
 		},
 		Receiver: Chans{ch[4]},
 	}}
+	nop := [...]CallCase{{
+		// i=0
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik",
+		},
+		Record: nil,
+	}, {
+		// i=1
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik/fakerpc/cmd",
+		},
+		Record: nil,
+	}, {
+		// i=2
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com",
+		},
+		Record: nil,
+	}, {
+		// i=3
+		Call: Call{
+			F: FuncStop,
+			P: "/",
+		},
+		Record: nil,
+	}, {
+		// i=4
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+		},
+		Record: nil,
+	}, {
+		// i=5
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik/which",
+		},
+		Record: nil,
+	}, {
+		// i=6
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik/fakerpc/LICENSE",
+		},
+		Record: nil,
+	}, {
+		// i=7
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik/fakerpc/cli/cli.go",
+		},
+		Record: nil,
+	}, {
+		// i=8
+		Call: Call{
+			F: FuncStop,
+			P: "/github.com/rjeczalik/fakerpc/DOESNOTEXIST",
+		},
+		Record: nil,
+	}, {
+		// i=9
+		Call: Call{
+			F: FuncStop,
+			P: "/DOES/NOT/EXIST",
+		},
+		Record: nil,
+	}, {
+		// i=10
+		Call: Call{
+			F: FuncStop,
+			P: "https://4037702efda8a44467ef8931cc22168fb441ca6f:x-oauth-basic@github.com/rjeczalik/notify.git",
+		},
+		Record: nil,
+	}}
 	cases := [...]CallCase{
 	// TODO
 	}
 	fixture := NewTreeFixture()
+	// 1. Setup fixture tree with watches.
 	fixture.TestCalls(t, setup[:])
+	// 2. Test the fixture.
 	fixture.TestEvents(t, events[:])
+	// 3. Call Stop on unwatched paths, which should be a no-op to the Tree.
+	fixture.TestCalls(t, nop[:])
+	// 4. Call no-ops again, because we can.
+	fixture.TestCalls(t, nop[:])
+	// 6. Test the tree again.
+	fixture.TestEvents(t, events[:])
+	// 7. The cherry - test Stop on recursive watchpoints.
 	fixture.TestCalls(t, cases[:])
-	// Ensure no extra events were dispatched.
+	// 8. ???
+	// 9. Ensure no extra events were dispatched (and there was no 5).
 	if ei := ch.Drain(); len(ei) != 0 {
 		t.Errorf("want ei=nil; got %v", ei)
 	}
-
 }
 
 func TestTreeRecursiveWatch(t *testing.T) {

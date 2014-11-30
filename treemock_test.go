@@ -225,8 +225,11 @@ func NewTreeFixture() (tf TreeFixture) {
 // executed on the fixture's Tree. A spy Watcher mock records calls to it
 // and compares with the expected ones for each key in the list.
 func (tf TreeFixture) TestCalls(t *testing.T, cases []CallCase) {
-	for i, cas := range NativeCallCases(cases) {
-		for typ, tree := range tf {
+	cs := NativeCallCases(cases)
+	for typ, tree := range tf {
+		dbg.Printf("[TREEFIXTURE] TestCalls (len(cases)=%d, typ=%v)",
+			len(cs), typ)
+		for i, cas := range cs {
 			var record []Call
 			// Invoke call and record underlying calls.
 			if err := tree.Invoke(cas.Call); err != nil {
@@ -283,8 +286,11 @@ func equal(want, got EventInfo) error {
 
 // TestEvents TODO
 func (tf TreeFixture) TestEvents(t *testing.T, cases []EventCase) {
-	for i, cas := range NativeEventCases(cases) {
-		for typ, tree := range tf {
+	cs := NativeEventCases(cases)
+	for typ, tree := range tf {
+		dbg.Printf("[TREEFIXTURE] TestEvent (len(cases)=%d, typ=%v)",
+			len(cases), typ)
+		for i, cas := range cs {
 			n := len(cas.Receiver)
 			done := make(chan struct{})
 			ev := make(map[<-chan EventInfo]EventInfo)
