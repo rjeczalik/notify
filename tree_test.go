@@ -10,13 +10,6 @@ import (
 	"testing"
 )
 
-func (nd Node) Path(s ...string) Node {
-	for _, s := range s {
-		nd = nd.Child[s]
-	}
-	return nd
-}
-
 func TestTreeLookPath(t *testing.T) {
 	t.Skip("TODO(rjeczalik)")
 }
@@ -30,6 +23,7 @@ func p(p string) string {
 }
 
 func TestTreeDel(t *testing.T) {
+	t.Parallel()
 	cases := [...]struct {
 		before Node
 		p      string
@@ -108,6 +102,7 @@ func TestTreeWalk(t *testing.T) {
 }
 
 func TestTreeWatch(t *testing.T) {
+	t.Parallel()
 	ch := NewChans(3)
 	calls := [...]CallCase{{
 		// i=0
@@ -235,6 +230,7 @@ func TestTreeWatch(t *testing.T) {
 }
 
 func TestTreeStop(t *testing.T) {
+	t.Parallel()
 	ch := NewChans(3)
 	// Watchpoints:
 	//
@@ -494,6 +490,7 @@ func TestTreeStop(t *testing.T) {
 }
 
 func TestTreeStopRecursive(t *testing.T) {
+	t.Parallel()
 	ch := NewChans(5)
 	// Watchpoints:
 	//
@@ -802,6 +799,7 @@ func TestTreeStopRecursive(t *testing.T) {
 }
 
 func TestTreeRecursiveWatch(t *testing.T) {
+	t.Parallel()
 	ch := NewChans(6)
 	calls := [...]CallCase{{
 		// i=0 create new watchpoint
