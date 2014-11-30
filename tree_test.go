@@ -491,7 +491,7 @@ func TestTreeStop(t *testing.T) {
 
 func TestTreeStopRecursive(t *testing.T) {
 	t.Parallel()
-	ch := NewChans(5)
+	ch := NewChans(7)
 	// Watchpoints:
 	//
 	//   ch[0] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
@@ -499,6 +499,8 @@ func TestTreeStopRecursive(t *testing.T) {
 	// x ch[2] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
 	// x ch[3] -> {"/github.com/rjeczalik/fakerpc", Create|Delete|Write}
 	// x ch[4] -> {"/github.com/rjeczalik/fakerpc/cli", Delete|Move}
+	//   ch[5] -> {"/github.com/rjeczalik/fakerpc/cmd/...", Create|Delete}
+	//   ch[6] -> {"/github.com/rjeczalik/fakerpc/cmd/fakerpc/...", Move|Delete}
 	//
 	setup := [...]CallCase{{
 		// i=0
@@ -598,6 +600,40 @@ func TestTreeStopRecursive(t *testing.T) {
 				E: Delete | Move,
 			}},
 		},
+	}, {
+		// i=5
+		Call: Call{
+			F: FuncWatch,
+			C: ch[5],
+			P: "/github.com/rjeczalik/fakerpc/cmd/...",
+			E: Create | Delete,
+		},
+		Record: nil,
+	}, {
+		// i=6
+		// TODO(rjeczalik): Change case i=4 to rewatch parent wachpoint instead
+		// setting new and ensure this cased if fixed.
+		Call: Call{
+			F: FuncWatch,
+			C: ch[6],
+			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/...",
+			E: Move | Delete,
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
+				E:  Create | Delete,
+				NE: Create | Delete | Move,
+			}},
+			TreeNativeRecursive: {{
+				F:  FuncRecursiveRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete,
+				NE: Create | Delete | Move,
+			}},
+		},
 	}}
 	events := [...]EventCase{{
 		// i=0
@@ -605,14 +641,14 @@ func TestTreeStopRecursive(t *testing.T) {
 			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
 			E: Create,
 		},
-		Receiver: Chans{ch[0], ch[1], ch[2]},
+		Receiver: Chans{ch[0], ch[1], ch[2], ch[5]},
 	}, {
 		// i=1
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
 			E: Delete,
 		},
-		Receiver: Chans{ch[0], ch[2]},
+		Receiver: Chans{ch[0], ch[2], ch[5]}, // TODO(rjeczalik: add ch[6]
 	}, {
 		// i=2
 		Event: TreeEvent{
@@ -780,7 +816,7 @@ func TestTreeStopRecursive(t *testing.T) {
 	}}
 	fixture := NewTreeFixture()
 	// 1. Setup fixture tree with watches.
-	fixture.TestCalls(t, setup[:])
+	fixture.TestCalls(t, setup[:6]) // see TODO for case i=6
 	// 2. Test the fixture.
 	fixture.TestEvents(t, events[:])
 	// 3. Call Stop on unwatched paths, which should be a no-op to the Tree.
