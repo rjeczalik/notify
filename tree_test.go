@@ -238,104 +238,145 @@ func TestTreeStop(t *testing.T) {
 	ch := NewChans(3)
 	// Watchpoints:
 	//
-	//   ch[0] -> {"/github.com/rjeczalik",         Create|Delete}
-	//   ch[1] -> {"/github.com/rjeczalik",         Create|Delete|Move}
-	//   ch[2] -> {"/github.com/rjeczalik",         Move|Write}
-	//   ch[0] -> {"/github.com/rjeczalik/which",   Write|Move}
-	//   ch[1] -> {"/github.com/rjeczalik/which",   Create|Delete}
-	//   ch[2] -> {"/github.com/rjeczalik/which",   Delete|Move}
-	//   ch[0] -> {"/github.com/rjeczalik/fs/fs.go, Write}
-	//   ch[1] -> {"/github.com/rjeczalik/fs/fs.go, Move|Delete}
-	//   ch[2] -> {"/github.com/rjeczalik/fs/fs.go, Create|Delete}
+	// x ch[0] -> {"/github.com/rjeczalik",         Create|Delete}
+	// x ch[1] -> {"/github.com/rjeczalik",         Create|Delete|Move}
+	// x ch[2] -> {"/github.com/rjeczalik",         Move|Write}
+	// x ch[0] -> {"/github.com/rjeczalik/which",   Write|Move}
+	// x ch[1] -> {"/github.com/rjeczalik/which",   Create|Delete}
+	// x ch[2] -> {"/github.com/rjeczalik/which",   Delete|Move}
+	// x ch[0] -> {"/github.com/rjeczalik/fs/fs.go, Write}
+	// x ch[1] -> {"/github.com/rjeczalik/fs/fs.go, Move|Delete}
+	// x ch[2] -> {"/github.com/rjeczalik/fs/fs.go, Create|Delete}
 	//
 	setup := [...]CallCase{{
 		// i=0
 		Call: Call{
-			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik", E: Create | Delete,
+			F: FuncWatch,
+			C: ch[0],
+			P: "/github.com/rjeczalik",
+			E: Create | Delete,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncWatch, P: "/github.com/rjeczalik", E: Create | Delete,
+				F: FuncWatch,
+				P: "/github.com/rjeczalik",
+				E: Create | Delete,
 			}},
 		},
 	}, {
 		// i=1
 		Call: Call{
-			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik", E: Create | Delete | Move,
+			F: FuncWatch,
+			C: ch[1],
+			P: "/github.com/rjeczalik", E: Create | Delete | Move,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik", E: Create | Delete,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik",
+				E:  Create | Delete,
 				NE: Create | Delete | Move,
 			}},
 		},
 	}, {
 		// i=2
 		Call: Call{
-			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik", E: Move | Write,
+			F: FuncWatch,
+			C: ch[2],
+			P: "/github.com/rjeczalik", E: Move | Write,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik", E: Create | Delete | Move,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik",
+				E:  Create | Delete | Move,
 				NE: Create | Delete | Move | Write,
 			}},
 		},
 	}, {
 		// i=3
 		Call: Call{
-			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik/which", E: Write | Move,
+			F: FuncWatch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/which",
+			E: Write | Move,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncWatch, P: "/github.com/rjeczalik/which", E: Write | Move,
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/which",
+				E: Write | Move,
 			}},
 		},
 	}, {
 		// i=4
 		Call: Call{
-			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik/which", E: Create | Delete,
+			F: FuncWatch,
+			C: ch[1],
+			P: "/github.com/rjeczalik/which",
+			E: Create | Delete,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik/which", E: Write | Move,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which",
+				E:  Write | Move,
 				NE: Write | Move | Create | Delete,
 			}},
 		},
 	}, {
 		// i=5
 		Call: Call{
-			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik/which", E: Delete | Move,
+			F: FuncWatch,
+			C: ch[2],
+			P: "/github.com/rjeczalik/which",
+			E: Delete | Move,
 		},
 		Record: nil,
 	}, {
 		// i=6
 		Call: Call{
-			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik/fs/fs.go", E: Write,
+			F: FuncWatch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/fs/fs.go",
+			E: Write,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncWatch, P: "/github.com/rjeczalik/fs/fs.go", E: Write,
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fs/fs.go",
+				E: Write,
 			}},
 		},
 	}, {
 		// i=7
 		Call: Call{
-			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik/fs/fs.go", E: Move | Delete,
+			F: FuncWatch,
+			C: ch[1],
+			P: "/github.com/rjeczalik/fs/fs.go",
+			E: Move | Delete,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go", E: Write,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fs/fs.go",
+				E:  Write,
 				NE: Write | Move | Delete,
 			}},
 		},
 	}, {
 		// i=8
 		Call: Call{
-			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik/fs/fs.go", E: Create | Delete,
+			F: FuncWatch,
+			C: ch[2],
+			P: "/github.com/rjeczalik/fs/fs.go",
+			E: Create | Delete,
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go", E: Write | Move | Delete,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fs/fs.go",
+				E:  Write | Move | Delete,
 				NE: Write | Move | Delete | Create,
 			}},
 		},
@@ -385,44 +426,60 @@ func TestTreeStop(t *testing.T) {
 	}}
 	cases := [...]CallCase{{
 		Call: Call{
-			F: FuncStop, C: ch[0],
+			F: FuncStop,
+			C: ch[0],
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go",
-				E: Create | Delete | Move | Write, NE: Create | Delete | Move,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fs/fs.go",
+				E:  Create | Delete | Move | Write,
+				NE: Create | Delete | Move,
 			}, {
-				F: FuncRewatch, P: "/github.com/rjeczalik/which",
-				E: Create | Delete | Write | Move, NE: Create | Delete | Move,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which",
+				E:  Create | Delete | Write | Move,
+				NE: Create | Delete | Move,
 			}},
 		},
 	}, {
 		Call: Call{
-			F: FuncStop, C: ch[1],
+			F: FuncStop,
+			C: ch[1],
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik",
-				E: Create | Delete | Write | Move, NE: Move | Write,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik",
+				E:  Create | Delete | Write | Move,
+				NE: Move | Write,
 			}, {
-				F: FuncRewatch, P: "/github.com/rjeczalik/fs/fs.go",
-				E: Create | Delete | Move, NE: Create | Delete,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fs/fs.go",
+				E:  Create | Delete | Move,
+				NE: Create | Delete,
 			}, {
-				F: FuncRewatch, P: "/github.com/rjeczalik/which",
-				E: Create | Delete | Move, NE: Delete | Move,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/which",
+				E:  Create | Delete | Move,
+				NE: Delete | Move,
 			}},
 		},
 	}, {
 		Call: Call{
-			F: FuncStop, C: ch[2],
+			F: FuncStop,
+			C: ch[2],
 		},
 		Record: Record{
 			TreeAll: {{
-				F: FuncUnwatch, P: "/github.com/rjeczalik",
+				F: FuncUnwatch,
+				P: "/github.com/rjeczalik",
 			}, {
-				F: FuncUnwatch, P: "/github.com/rjeczalik/fs/fs.go",
+				F: FuncUnwatch,
+				P: "/github.com/rjeczalik/fs/fs.go",
 			}, {
-				F: FuncUnwatch, P: "/github.com/rjeczalik/which",
+				F: FuncUnwatch,
+				P: "/github.com/rjeczalik/which",
 			}},
 		},
 	}}
@@ -441,15 +498,17 @@ func TestTreeStopRecursive(t *testing.T) {
 	// Watchpoints:
 	//
 	//   ch[0] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
-	//   ch[1] -> {"/github.com/rjeczalik/fakerpc/...", Create}
-	//   ch[2] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
-	//   ch[3] -> {"/github.com/rjeczalik/fakerpc", Create|Delete|Write}
-	//   ch[4] -> {"/github.com/rjeczalik/fakerpc/cli", Delete|Move}
+	// x ch[1] -> {"/github.com/rjeczalik/fakerpc/...", Create}
+	// x ch[2] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
+	// x ch[3] -> {"/github.com/rjeczalik/fakerpc", Create|Delete|Write}
+	// x ch[4] -> {"/github.com/rjeczalik/fakerpc/cli", Delete|Move}
 	//
 	setup := [...]CallCase{{
 		// i=0
 		Call: Call{
-			F: FuncWatch, C: ch[0], P: "/github.com/rjeczalik/fakerpc/...",
+			F: FuncWatch,
+			C: ch[0],
+			P: "/github.com/rjeczalik/fakerpc/...",
 			E: Create | Delete,
 		},
 		Record: Record{
@@ -479,50 +538,66 @@ func TestTreeStopRecursive(t *testing.T) {
 	}, {
 		// i=1
 		Call: Call{
-			F: FuncWatch, C: ch[1], P: "/github.com/rjeczalik/fakerpc/...",
+			F: FuncWatch,
+			C: ch[1],
+			P: "/github.com/rjeczalik/fakerpc/...",
 			E: Create,
 		},
 		Record: nil,
 	}, {
 		// i=2
 		Call: Call{
-			F: FuncWatch, C: ch[2], P: "/github.com/rjeczalik/fakerpc/...",
+			F: FuncWatch,
+			C: ch[2],
+			P: "/github.com/rjeczalik/fakerpc/...",
 			E: Create | Delete,
 		},
 		Record: nil,
 	}, {
 		// i=3
 		Call: Call{
-			F: FuncWatch, C: ch[3], P: "/github.com/rjeczalik/fakerpc",
+			F: FuncWatch,
+			C: ch[3],
+			P: "/github.com/rjeczalik/fakerpc",
 			E: Create | Delete | Write,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik/fakerpc",
-				E: Create | Delete, NE: Create | Delete | Write,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete,
+				NE: Create | Delete | Write,
 			}},
 			TreeNativeRecursive: {{
-				F: FuncRecursiveRewatch, P: "/github.com/rjeczalik/fakerpc",
-				NP: "/github.com/rjeczalik/fakerpc", E: Create | Delete,
+				F:  FuncRecursiveRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete,
 				NE: Create | Delete | Write,
 			}},
 		},
 	}, {
+		// i=4
+		//
 		// TODO(rjeczalik): Currently it sets new, single watchpoint inside the
 		// tree. Reconsider whether we want to minimize watchpoint number or
 		// keep small evenset per tree - current implementation does the latter.
-		// i=4
 		Call: Call{
-			F: FuncWatch, C: ch[4], P: "/github.com/rjeczalik/fakerpc/cli",
+			F: FuncWatch,
+			C: ch[4],
+			P: "/github.com/rjeczalik/fakerpc/cli",
 			E: Delete | Move,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
-				F: FuncRewatch, P: "/github.com/rjeczalik/fakerpc/cli",
-				E: Create | Delete, NE: Create | Delete | Move,
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc/cli",
+				E:  Create | Delete,
+				NE: Create | Delete | Move,
 			}},
 			TreeNativeRecursive: {{
-				F: FuncWatch, P: "/github.com/rjeczalik/fakerpc/cli",
+				F: FuncWatch,
+				P: "/github.com/rjeczalik/fakerpc/cli",
 				E: Delete | Move,
 			}},
 		},
@@ -570,6 +645,9 @@ func TestTreeStopRecursive(t *testing.T) {
 		},
 		Receiver: Chans{ch[4]},
 	}}
+	// BUG(rjeczalik): Bummer, it's broken - Stop does not take path but channel,
+	// which is nil for each of nop cases - nil channel is nop by default. Extend
+	// fixture to be able to "inject" bad paths into Stop command.
 	nop := [...]CallCase{{
 		// i=0
 		Call: Call{
@@ -648,9 +726,61 @@ func TestTreeStopRecursive(t *testing.T) {
 		},
 		Record: nil,
 	}}
-	cases := [...]CallCase{
-	// TODO
-	}
+	cases := [...]CallCase{{
+		// i=0
+		Call: Call{
+			F: FuncStop,
+			C: ch[1],
+		},
+		Record: nil,
+	}, {
+		// i=1
+		//
+		// TODO(rjeczalik): See TODO for setup[i=4].
+		Call: Call{
+			F: FuncStop,
+			C: ch[4],
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F: FuncRewatch,
+				P: "/github.com/rjeczalik/fakerpc/cli",
+				E: Create | Delete | Move, NE: Create | Delete,
+			}},
+			TreeNativeRecursive: {{
+				F: FuncUnwatch,
+				P: "/github.com/rjeczalik/fakerpc/cli",
+			}},
+		},
+	}, {
+		// i=2
+		Call: Call{
+			F: FuncStop,
+			C: ch[2],
+		},
+		Record: nil,
+	}, {
+		// i=3
+		Call: Call{
+			F: FuncStop,
+			C: ch[3],
+		},
+		Record: Record{
+			TreeFakeRecursive: {{
+				F:  FuncRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete | Write,
+				NE: Create | Delete,
+			}},
+			TreeNativeRecursive: {{
+				F:  FuncRecursiveRewatch,
+				P:  "/github.com/rjeczalik/fakerpc",
+				NP: "/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete | Write,
+				NE: Create | Delete,
+			}},
+		},
+	}}
 	fixture := NewTreeFixture()
 	// 1. Setup fixture tree with watches.
 	fixture.TestCalls(t, setup[:])
@@ -663,7 +793,7 @@ func TestTreeStopRecursive(t *testing.T) {
 	// 6. Test the tree again.
 	fixture.TestEvents(t, events[:])
 	// 7. The cherry - test Stop on recursive watchpoints.
-	fixture.TestCalls(t, cases[:])
+	fixture.TestCalls(t, cases[:3]) // fix ch[3] and add case for ch[0]
 	// 8. ???
 	// 9. Ensure no extra events were dispatched (and there was no 5).
 	if ei := ch.Drain(); len(ei) != 0 {
