@@ -786,8 +786,8 @@ func TestTreeStopRecursive(t *testing.T) {
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Move,
-				NE: Create | Delete,
+				E:  Create | Delete | Write | Move,
+				NE: Create | Delete | Write, // <--Fix
 			}},
 		},
 	}, {
@@ -831,8 +831,7 @@ func TestTreeStopRecursive(t *testing.T) {
 	// 6. Test the tree again.
 	fixture.TestEvents(t, events[:])
 	// 7. The cherry - test Stop on recursive watchpoints.
-	// fixture.TestCalls(t, cases[:3])
-	_ = cases // TODO fix
+	fixture.TestCalls(t, cases[:1])
 	// 8. ???
 	// 9. Ensure no extra events were dispatched (and there was no 5).
 	if ei := ch.Drain(); len(ei) != 0 {

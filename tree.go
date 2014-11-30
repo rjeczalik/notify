@@ -576,13 +576,42 @@ func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 	}
 }
 
+// TODO(rjeczalik): lookupRecursiveWatchpoint?
+var errFound = errors.New("found")
+
 // Stop TODO
 func (t *Tree) Stop(c chan<- EventInfo) {
 	if nds, ok := t.cnd[c]; ok {
 		var err error
 		for _, nd := range *nds {
-			// TODO(rjeczalik): Handle recursive watchpoints.
-			switch diff := nd.Watch.Del(c, ^Event(0)); {
+			diff := nd.Watch.Del(c, ^Event(0))
+			if t.isrec {
+				if t.TryWalkPath(nd.Name, func(it Node, isbase bool) error {
+					if it.Watch.IsRecursive() && !isbase {
+						nd = it
+						return errFound
+					}
+					return nil
+				}) == errFound {
+					diff[0], diff[1] = nd.Watch[nil]&^Recursive, 0
+					_ = t.Walk(nd, func(it Node) (_ error) {
+						if it.Name != nd.Name {
+							diff[1] |= it.Watch[nil]
+						}
+						return
+					})
+					switch diff[1] &^= Recursive; {
+					case diff[0] == diff[1]:
+					case diff[1] == 0:
+						err = t.impl.RecursiveUnwatch(nd.Name)
+						t.Del(nd.Name)
+					default:
+						err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
+					}
+					diff = None
+				}
+			}
+			switch {
 			case diff == None:
 			case diff[1] == 0:
 				err = t.impl.Unwatch(nd.Name)
@@ -591,7 +620,7 @@ func (t *Tree) Stop(c chan<- EventInfo) {
 				err = t.impl.Rewatch(nd.Name, diff[0], diff[1])
 			}
 			if err != nil {
-				panic(err)
+				panic("[DEBUG] unhandled error: " + err.Error())
 			}
 		}
 		delete(t.cnd, c)
