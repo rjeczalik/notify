@@ -378,21 +378,22 @@ func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 	if t.isrec {
 		// If p is covered by a recursive watchpoint (which can be set above p),
 		// we need to rewatch it instead the current one.
-		if err = t.TryWalkPath(p, func(it Node, isbase bool) error {
-			if it.Watch.IsRecursive() && !isbase {
+		if t.TryWalkPath(p, func(it Node, isbase bool) error {
+			if it.Watch.IsRecursive() {
+				if !isbase {
+					diff = it.Watch.AddRecursive(e)
+				}
 				nd = it
-				diff = it.Watch.Diff(e)
-				return Skip
+				return found
 			}
 			return nil
-		}); err != nil {
-			panic("[DEBUG] unexpected error: " + err.Error())
-		}
-		switch {
-		case diff == None, diff[0] == 0, !nd.Watch.IsRecursive():
-		default:
-			err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
-			diff = None
+		}) == found {
+			switch {
+			case diff == None, diff[0] == 0:
+			default:
+				err = t.impl.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
+				diff = None
+			}
 		}
 	}
 	switch {
@@ -577,31 +578,34 @@ func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 }
 
 // TODO(rjeczalik): lookupRecursiveWatchpoint?
-var errFound = errors.New("found")
+var found = errors.New("found")
 
 // Stop TODO
 func (t *Tree) Stop(c chan<- EventInfo) {
 	if nds, ok := t.cnd[c]; ok {
 		var err error
 		for _, nd := range *nds {
-			diff := nd.Watch.Del(c, ^Event(0))
+			e := nd.Watch[c]
+			diff := nd.Watch.Del(c, e)
 			if t.isrec {
 				if t.TryWalkPath(nd.Name, func(it Node, isbase bool) error {
 					if it.Watch.IsRecursive() && !isbase {
 						nd = it
-						return errFound
+						return found
 					}
 					return nil
-				}) == errFound {
-					diff[0], diff[1] = nd.Watch[nil]&^Recursive, 0
-					_ = t.Walk(nd, func(it Node) (_ error) {
-						if it.Name != nd.Name {
-							diff[1] |= it.Watch[nil]
-						}
+				}) == found {
+					// Recalculate recurisve event set by walking the subtree.
+					diff = nd.Watch.DelRecursive(e)
+					diff[1] = 0
+					t.Walk(nd, func(it Node) (_ error) {
+						diff[1] |= it.Watch[nil]
 						return
 					})
-					switch diff[1] &^= Recursive; {
-					case diff[0] == diff[1]:
+					diff[1] &^= Recursive
+					nd.Watch.AddRecursive(diff[1])
+					switch {
+					case diff[0] == diff[1]: // None
 					case diff[1] == 0:
 						err = t.impl.RecursiveUnwatch(nd.Name)
 						t.Del(nd.Name)
