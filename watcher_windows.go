@@ -12,30 +12,38 @@ import (
 	"unsafe"
 )
 
-// TODO: (pknap) doc
+// readBufferSize defines the size of an array in which read statuses are stored.
+// The buffer have to be DWORD-aligned and, if notify is used in monitoring a
+// directory over the network, its size must not be greater than 64KB. Each of
+// watched directories uses its own buffer for storing events.
+const readBufferSize = 4096
+
+// Since all operations which go through the Windows completion routine are done
+// asynchronously, filter may set one of the constants below. This is done
+// in order to distinguish whether current folder should be re-registered in
+// ReadDirectoryChangesW function or some control operations need to be done.
+const (
+	stateRewatch uint32 = 1 << (28 + iota)
+	stateUnwatch
+)
+
+// Filter used in current implementation was split into four segments:
+//  - bits  0-11 store ReadDirectoryChangesW filters,
+//  - bits 12-19 store File notify actions,
+//  - bits 20-27 store notify specific events and flags,
+//  - bits 28-31 store states which are used in loop's FSM.
+// Constants below are used as masks to retrieve only specific filter parts.
 const (
 	onlyNotifyChanges uint32 = 0x00000FFF
 	onlyNGlobalEvents uint32 = 0x0FF00000
 	onlyMachineStates uint32 = 0xF0000000
 )
 
-// TODO: (pknap) doc (0 - normal)
-const (
-	stateRewatch uint32 = 1 << (28 + iota)
-	stateUnwatch
-)
-
-// readBufferSize defines the size of an array in which read statuses are stored.
-// The buffer have to be DWORD-aligned and, if notify is used in monitoring a
-// directory over the network, the buffer size must not be greater than 64KB.
-// Each of watched directories uses its own buffer for storing events.
-const readBufferSize = 4096
-
 // grip represents a single watched directory. It stores the data required by
-// ReadDirectoryChangesW function. Only the filter member value may by modified
-// by watcher implementation. Rest of the members have to remain constant since
-// they are used by Windows completion routine. This indicates that grip can be
-// removed only when all operations on the file handle are finished.
+// ReadDirectoryChangesW function. Only the filter, recursive, and handle members
+// may by modified by watcher implementation. Rest of the them have to remain
+// constant since they are used by Windows completion routine. This indicates that
+// grip can be removed only when all operations on the file handle are finished.
 type grip struct {
 	handle    syscall.Handle
 	filter    uint32
@@ -447,7 +455,6 @@ func (w *watcher) nonStateWatched(path string) (wd *watched, err error) {
 
 // Unwatch implements notify.Watcher interface.
 func (w *watcher) Unwatch(path string) error {
-	path = path[1:]
 	return w.unwatch(path)
 }
 
