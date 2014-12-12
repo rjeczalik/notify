@@ -19,9 +19,9 @@ import (
 const readBufferSize = 4096
 
 // Since all operations which go through the Windows completion routine are done
-// asynchronously, filter may set one of the constants below. This is done
+// asynchronously, filter may set one of the constants below. They were defined
 // in order to distinguish whether current folder should be re-registered in
-// ReadDirectoryChangesW function or some control operations need to be done.
+// ReadDirectoryChangesW function or some control operations need to be executed.
 const (
 	stateRewatch uint32 = 1 << (28 + iota)
 	stateUnwatch
@@ -493,24 +493,28 @@ func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 func decode(filter, action uint32) Event {
 	switch action {
 	case syscall.FILE_ACTION_ADDED:
-		return addrm(filter, Create, FILE_ACTION_ADDED)
+		return addrmv(filter, Create, FILE_ACTION_ADDED)
 	case syscall.FILE_ACTION_REMOVED:
-		return addrm(filter, Delete, FILE_ACTION_REMOVED)
+		return addrmv(filter, Delete, FILE_ACTION_REMOVED)
 	case syscall.FILE_ACTION_MODIFIED:
 		return Write
-	case syscall.FILE_ACTION_RENAMED_OLD_NAME, syscall.FILE_ACTION_RENAMED_NEW_NAME:
-		return Move
+	case syscall.FILE_ACTION_RENAMED_OLD_NAME:
+		return addrmv(filter, Move, FILE_ACTION_RENAMED_OLD_NAME)
+	case syscall.FILE_ACTION_RENAMED_NEW_NAME:
+		return addrmv(filter, Move, FILE_ACTION_RENAMED_NEW_NAME)
 	}
 	panic(`notify: cannot decode internal mask`)
 }
 
-// addrm decides whether the Windows action or the system-independent event
+// addrmv decides whether the Windows action or the system-independent event
 // should be returned. Since the grip's filter may be atomically changed during
 // watcher lifetime, it is possible that neither Windows nor notify masks are
 // present in variable memory.
-func addrm(filter uint32, e, syse Event) Event {
+func addrmv(filter uint32, e, syse Event) Event {
+	isdir := filter&uint32(dirmarker) != 0
 	switch {
-	case filter&uint32(FILE_NOTIFY_CHANGE_FILE_NAME|FILE_NOTIFY_CHANGE_DIR_NAME) != 0:
+	case isdir && filter&uint32(FILE_NOTIFY_CHANGE_DIR_NAME) != 0 ||
+		!isdir && filter&uint32(FILE_NOTIFY_CHANGE_FILE_NAME) != 0:
 		return syse
 	case filter&uint32(e) != 0:
 		return e
@@ -519,5 +523,4 @@ func addrm(filter uint32, e, syse Event) Event {
 	}
 }
 
-// TODO(pknap) : add system-dependent event decoder for FILE_ACTION_MODIFIED,
-// FILE_ACTION_RENAMED_OLD_NAME, and FILE_ACTION_RENAMED_NEW_NAME actions.
+// TODO(pknap) : add system-dependent event decoder for FILE_ACTION_MODIFIED action.
