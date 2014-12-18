@@ -25,6 +25,7 @@ const readBufferSize = 4096
 const (
 	stateRewatch uint32 = 1 << (28 + iota)
 	stateUnwatch
+	stateCPClose
 )
 
 // Filter used in current implementation was split into four segments:
@@ -234,7 +235,7 @@ func (wd *watched) closeHandle() (err error) {
 // All operations which remove watched objects from map `m` must be performed in
 // loop goroutine since these structures are used internally by operating system.
 type watcher struct {
-	sync.RWMutex
+	sync.Mutex
 	m   map[string]*watched
 	cph syscall.Handle
 	c   chan<- EventInfo
@@ -262,9 +263,9 @@ func (w *watcher) RecursiveWatch(path string, event Event) error {
 // already exists, function tries to rewatch it with new filters(NOT VALID). Moreover,
 // watch starts the main event loop goroutine when called for the first time.
 func (w *watcher) watch(path string, event Event, recursive bool) (err error) {
-	w.RLock()
+	w.Lock()
 	wd, ok := w.m[path]
-	w.RUnlock()
+	w.Unlock()
 	if !ok {
 		if err = w.lazyinit(); err != nil {
 			return
@@ -300,7 +301,9 @@ func (w *watcher) lazyinit() (err error) {
 			}
 			w.cph = cph
 			runtime.SetFinalizer(&w.cph, func(handle *syscall.Handle) {
-				syscall.CloseHandle(*handle)
+				if *handle != syscall.InvalidHandle {
+					syscall.CloseHandle(*handle)
+				}
 			})
 			go w.loop()
 		}
@@ -316,6 +319,14 @@ func (w *watcher) loop() {
 	for {
 		err := syscall.GetQueuedCompletionStatus(w.cph, &n, &key,
 			&overlapped, syscall.INFINITE)
+		if key == stateCPClose {
+			w.Lock()
+			handle := w.cph
+			w.cph = syscall.InvalidHandle
+			w.Unlock()
+			syscall.CloseHandle(handle)
+			return
+		}
 		if overlapped == nil {
 			// TODO: check key == rewatch delete or 0(panic)
 			continue
@@ -348,6 +359,7 @@ func (w *watcher) loopstate(overEx *overlappedEx) {
 			w.Lock()
 			delete(w.m, syscall.UTF16ToString(overEx.parent.pathw))
 			w.Unlock()
+		case stateCPClose:
 		default:
 			panic(`notify: windows loopstate logic error`)
 		}
@@ -430,7 +442,7 @@ func (w *watcher) rewatch(path string, oldevent, newevent uint32,
 	wd.filter = stateRewatch | newevent
 	wd.recursive, recursive = recursive, wd.recursive
 	if err = wd.closeHandle(); err != nil {
-		w.m[path].filter = oldevent
+		wd.filter = oldevent
 		wd.recursive = recursive
 		w.Unlock()
 		return
@@ -471,9 +483,9 @@ func (w *watcher) unwatch(path string) (err error) {
 		w.Unlock()
 		return
 	}
-	w.m[path].filter |= stateUnwatch
+	wd.filter |= stateUnwatch
 	if err = wd.closeHandle(); err != nil {
-		w.m[path].filter &^= stateUnwatch
+		wd.filter &^= stateUnwatch
 		w.Unlock()
 		return
 	}
@@ -484,6 +496,29 @@ func (w *watcher) unwatch(path string) (err error) {
 // Dispatch implements notify.Watcher interface.
 func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	w.c = c
+}
+
+// Close resets the whole watcher object, closes all existing file descriptors,
+// and sends stateCPClose state as completion key to the main watcher's loop.
+func (w *watcher) Close() (err error) {
+	w.Lock()
+	if w.cph == syscall.InvalidHandle {
+		w.Unlock()
+		return nil
+	}
+	for _, wd := range w.m {
+		wd.filter &^= onlyMachineStates
+		wd.filter |= stateCPClose
+		if e := wd.closeHandle(); e != nil && err == nil {
+			err = e
+		}
+	}
+	w.Unlock()
+	if e := syscall.PostQueuedCompletionStatus(
+		w.cph, 0, stateCPClose, nil); e != nil && err == nil {
+		return e
+	}
+	return
 }
 
 // decode creates a notify event from both non-raw filter and action which was
