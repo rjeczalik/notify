@@ -1,5 +1,5 @@
 // +build !darwin,!linux,!freebsd,!dragonfly,!netbsd,!openbsd,!windows
-// +build !fsnotify
+// +build !fsnotify !kqueue
 
 package notify
 
