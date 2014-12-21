@@ -26,14 +26,19 @@ var (
 
 //export gocallback
 func gocallback(_, ctx unsafe.Pointer, n C.size_t, paths, flags, ids uintptr) {
+	const (
+		offchar = unsafe.Sizeof((*C.char)(nil))
+		offflag = unsafe.Sizeof(C.FSEventStreamEventFlags(0))
+		offid   = unsafe.Sizeof(C.FSEventStreamEventId(0))
+	)
 	if n == 0 {
 		return
 	}
 	ev := make([]FSEvent, int(n))
 	for i := range ev {
-		ev[i].Path = C.GoString(*(**C.char)(unsafe.Pointer(paths + uintptr(i))))
-		ev[i].Flags = *(*uint32)(unsafe.Pointer((flags + uintptr(i))))
-		ev[i].ID = *(*uint64)(unsafe.Pointer(ids + uintptr(i)))
+		ev[i].Path = C.GoString(*(**C.char)(unsafe.Pointer(paths + offchar*uintptr(i))))
+		ev[i].Flags = *(*uint32)(unsafe.Pointer((flags + offflag*uintptr(i))))
+		ev[i].ID = *(*uint64)(unsafe.Pointer(ids + offid*uintptr(i)))
 	}
 	(*(*StreamFunc)(ctx))(ev)
 }
