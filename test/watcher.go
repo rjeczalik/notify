@@ -59,7 +59,7 @@ var defaultActions = Actions{
 }
 
 // Timeout is a default timeout for ExpectEvent and ExpectEvents tests.
-var Timeout = time.Second
+var Timeout = 5 * time.Second
 
 // W TODO
 type w struct {
@@ -67,6 +67,36 @@ type w struct {
 	path    string
 	t       *testing.T
 	iswatch uint32
+}
+
+func volumename(p string) string {
+	if p = filepath.VolumeName(p); p != "" {
+		return p
+	}
+	return "/"
+}
+
+// TODO(rjeczalik): Detect and handle loops.
+func canonicalize(p string) (string, error) {
+	vol := volumename(p)
+	i := len(vol)
+	for j := notify.IndexSep(p[i:]); j != -1; j = notify.IndexSep(p[i:]) {
+		fi, err := os.Lstat(p[:i+j])
+		if err != nil {
+			continue
+		}
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+			s, err := os.Readlink(p[:i+j])
+			if err != nil {
+				return "", err
+			}
+			p = vol + s + p[i+j:]
+			i = len(s)
+			continue
+		}
+		i += j + 1
+	}
+	return p, nil
 }
 
 // W TODO
@@ -78,6 +108,9 @@ func W(t *testing.T, actions Actions) *w {
 	}
 	path, err := FS.Dump()
 	if err != nil {
+		t.Fatal(err)
+	}
+	if path, err = canonicalize(path); err != nil {
 		t.Fatal(err)
 	}
 	return &w{
@@ -140,6 +173,9 @@ func (w *w) WatchAll(wr notify.Watcher, e notify.Event) error {
 	if !atomic.CompareAndSwapUint32(&w.iswatch, 0, 1) {
 		return ErrAlreadyWatched
 	}
+	if rw, ok := wr.(notify.RecursiveWatcher); ok {
+		return rw.RecursiveWatch(w.path, e)
+	}
 	return w.walk(watch(wr, e))
 }
 
@@ -147,6 +183,9 @@ func (w *w) WatchAll(wr notify.Watcher, e notify.Event) error {
 func (w *w) UnwatchAll(wr notify.Watcher) error {
 	if !atomic.CompareAndSwapUint32(&w.iswatch, 1, 0) {
 		return ErrNotWatched
+	}
+	if rw, ok := wr.(notify.RecursiveWatcher); ok {
+		return rw.RecursiveUnwatch(w.path)
 	}
 	return w.walk(unwatch(wr))
 }

@@ -5,6 +5,7 @@ package notify
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 )
@@ -39,10 +40,14 @@ func (w *watch) Dispatch(ev []FSEvent) {
 				continue
 			}
 		}
-		w.c <- &event{
+		select {
+		case w.c <- &event{
 			fse:   ev[i],
 			event: e,
 			isdir: ev[i].Flags&FSEventsIsDir != 0,
+		}:
+		default:
+			fmt.Println(i, "[DEBUG] (*watch).Dispatch: blocked", w.c)
 		}
 	}
 }
