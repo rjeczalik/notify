@@ -12,3 +12,19 @@ In practice:
 
 ![how it works](https://i.imgur.com/KZbSV.gif "how it works")
 
+### Windows
+
+Actions: **ADD** - `FILE_ACTION_ADDED`, **RM**   - `FILE_ACTION_REMOVED`, **CHMOD** - `FILE_ACTION_MODIFIED`, **MVOLD** - `FILE_ACTION_RENAMED_OLD_NAME`, **MVNEW** - `FILE_ACTION_RENAMED_NEW_NAME`.
+
+Event | ADD | RM | CHMOD | MVOLD | MVNEW 
+------------ | :-------------: | :------------: | :------------: | :-------------: | :------------: 
+FILE_NOTIFY_CHANGE_FILE_NAME |  :page_facing_up: |  :page_facing_up: |  |  :page_facing_up: |  :page_facing_up: 
+FILE_NOTIFY_CHANGE_DIR_NAME  |  :file_folder: |  :file_folder: |  |  :file_folder: |  :file_folder: 
+FILE_NOTIFY_CHANGE_ATTRIBUTES  |  |  |  :page_facing_up:  :file_folder: |  |
+FILE_NOTIFY_CHANGE_SIZE  |  |  |  :page_facing_up: |  |
+FILE_NOTIFY_CHANGE_LAST_WRITE  |  |  |  :page_facing_up: :file_folder: |  |
+FILE_NOTIFY_CHANGE_LAST_ACCESS  |  |  | :page_facing_up: :file_folder: |  |
+FILE_NOTIFY_CHANGE_CREATION  |  |  |  :page_facing_up: :file_folder: |  |
+FILE_NOTIFY_CHANGE_SECURITY  |  |  |  :page_facing_up: :file_folder: |  |
+
+:page_facing_up: - file; :file_folder: - folder.
