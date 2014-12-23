@@ -3,33 +3,26 @@
 
 package notify
 
-import (
-	"fmt"
-	"os"
-	"testing"
-	"time"
-)
+import "testing"
 
-func TestDebug(t *testing.T) {
-	if os.Getenv("DEBUG") == "" {
-		t.Skip("TODO(rjeczalik)")
+func TestCanonicalize(t *testing.T) {
+	cases := [...]struct {
+		path string
+		full string
+	}{
+		{"/etc", "/private/etc"},
+		{"/tmp", "/private/tmp"},
+		{"/var", "/private/var"},
 	}
-	c, stop := make(chan EventInfo, 16), make(chan struct{})
-	fs := &fsevents{
-		watches: make(map[string]*watch),
-	}
-	fs.Dispatch(c, stop)
-	go func() {
-		for ei := range c {
-			fmt.Println(ei)
+	for i, cas := range cases {
+		full, err := canonical(cas.path)
+		if err != nil {
+			t.Errorf("want err=nil; got %v (i=%d)", err, i)
+			continue
 		}
-	}()
-	if err := fs.RecursiveWatch("/private/tmp/wut", Create|Delete); err != nil {
-		t.Fatalf("want err=nil; got %v", err)
+		if full != cas.full {
+			t.Errorf("want full=%q; got %q (i=%d)", cas.full, full, i)
+			continue
+		}
 	}
-	fmt.Println("listening...")
-	time.Sleep(20 * time.Second)
-	fmt.Println("unwatching")
-	fs.Unwatch("/private/tmp/wut")
-	select {}
 }

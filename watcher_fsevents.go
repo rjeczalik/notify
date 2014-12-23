@@ -5,13 +5,16 @@ package notify
 
 import (
 	"errors"
-	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 )
 
-var errAlreadyWatched = errors.New("path is already watched")
-var errNotWatched = errors.New("path is not being watched")
+var (
+	errAlreadyWatched = errors.New("path is already watched")
+	errNotWatched     = errors.New("path is not being watched")
+)
 
 type watch struct {
 	c      chan<- EventInfo
@@ -40,14 +43,10 @@ func (w *watch) Dispatch(ev []FSEvent) {
 				continue
 			}
 		}
-		select {
-		case w.c <- &event{
+		w.c <- &event{
 			fse:   ev[i],
 			event: e,
 			isdir: ev[i].Flags&FSEventsIsDir != 0,
-		}:
-		default:
-			fmt.Println(i, "[DEBUG] (*watch).Dispatch: blocked", w.c)
 		}
 	}
 }
@@ -63,7 +62,35 @@ func newWatcher() Watcher {
 	}
 }
 
-func (fse *fsevents) watch(path string, event Event, isrec int32) error {
+// TODO(rjeczalik): Detect and handle loops.
+func canonical(p string) (string, error) {
+	for i := 1; i < len(p); i++ {
+		if j := IndexSep(p[i:]); j == -1 {
+			i = len(p)
+		} else {
+			i = i + j
+		}
+		fi, err := os.Lstat(p[:i])
+		if err != nil {
+			return "", err
+		}
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+			s, err := os.Readlink(p[:i])
+			if err != nil {
+				return "", err
+			}
+			p = "/" + s + p[i:]
+			i = len(s)
+			continue
+		}
+	}
+	return filepath.Clean(p), nil
+}
+
+func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
+	if path, err = canonical(path); err != nil {
+		return
+	}
 	if _, ok := fse.watches[path]; ok {
 		return errAlreadyWatched
 	}
@@ -74,10 +101,23 @@ func (fse *fsevents) watch(path string, event Event, isrec int32) error {
 		isrec:  isrec,
 	}
 	w.stream = NewStream(path, w.Dispatch)
-	if err := w.stream.Start(); err != nil {
-		return err
+	if err = w.stream.Start(); err != nil {
+		return
 	}
 	fse.watches[path] = w
+	return nil
+}
+
+func (fse *fsevents) unwatch(path string) (err error) {
+	if path, err = canonical(path); err != nil {
+		return
+	}
+	w, ok := fse.watches[path]
+	if !ok {
+		return errNotWatched
+	}
+	w.stream.Stop()
+	delete(fse.watches, path)
 	return nil
 }
 
@@ -86,13 +126,7 @@ func (fse *fsevents) Watch(path string, event Event) error {
 }
 
 func (fse *fsevents) Unwatch(path string) error {
-	w, ok := fse.watches[path]
-	if !ok {
-		return errNotWatched
-	}
-	w.stream.Stop()
-	delete(fse.watches, path)
-	return nil
+	return fse.unwatch(path)
 }
 
 func (fse *fsevents) Rewatch(path string, oldevent, newevent Event) error {
@@ -106,6 +140,7 @@ func (fse *fsevents) Rewatch(path string, oldevent, newevent Event) error {
 	return nil
 }
 
+// TODO(rjeczalik): remove
 func (fse *fsevents) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	fse.c = c
 	go func() {
@@ -120,7 +155,7 @@ func (fse *fsevents) RecursiveWatch(path string, event Event) error {
 
 func (fse *fsevents) RecursiveUnwatch(path string) error {
 	// TODO(rjeczalik): fail if w.isrec == 0?
-	return fse.Unwatch(path)
+	return fse.unwatch(path)
 }
 
 func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, newevent Event) error {

@@ -69,36 +69,6 @@ type w struct {
 	iswatch uint32
 }
 
-func volumename(p string) string {
-	if p = filepath.VolumeName(p); p != "" {
-		return p
-	}
-	return "/"
-}
-
-// TODO(rjeczalik): Detect and handle loops.
-func canonicalize(p string) (string, error) {
-	vol := volumename(p)
-	i := len(vol)
-	for j := notify.IndexSep(p[i:]); j != -1; j = notify.IndexSep(p[i:]) {
-		fi, err := os.Lstat(p[:i+j])
-		if err != nil {
-			continue
-		}
-		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-			s, err := os.Readlink(p[:i+j])
-			if err != nil {
-				return "", err
-			}
-			p = vol + s + p[i+j:]
-			i = len(s)
-			continue
-		}
-		i += j + 1
-	}
-	return p, nil
-}
-
 // W TODO
 func W(t *testing.T, actions Actions) *w {
 	for s, fn := range defaultActions {
@@ -108,9 +78,6 @@ func W(t *testing.T, actions Actions) *w {
 	}
 	path, err := FS.Dump()
 	if err != nil {
-		t.Fatal(err)
-	}
-	if path, err = canonicalize(path); err != nil {
 		t.Fatal(err)
 	}
 	return &w{
@@ -344,7 +311,7 @@ func ExpectEvent(t *testing.T, wr notify.Watcher, e notify.Event, ei []notify.Ev
 		t.Skip("TODO: ExpectEvent on nil Watcher")
 	}
 	w := W(t, defaultActions)
-	defer w.Close()
+	fmt.Println(w.path)
 	if err := w.WatchAll(wr, e); err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +325,7 @@ func ExpectEvents(t *testing.T, wr notify.Watcher, e notify.Event, ei map[notify
 		t.Skip("TODO: ExpectEvents on nil Watcher")
 	}
 	w := W(t, defaultActions)
-	defer w.Close()
+	fmt.Println(w.path)
 	if err := w.WatchAll(wr, e); err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +343,6 @@ func ExpectGroupEvents(t *testing.T, wr notify.Watcher, e notify.Event,
 		t.Skip("TODO: ExepctGroupEvents on nil Watcher")
 	}
 	w := W(t, defaultActions)
-	defer w.Close()
 	if err := w.WatchAll(wr, e); err != nil {
 		t.Fatal(err)
 	}

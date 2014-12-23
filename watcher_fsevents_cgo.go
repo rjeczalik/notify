@@ -4,9 +4,12 @@
 package notify
 
 // #include <CoreServices/CoreServices.h>
+//
 // typedef void (*CFRunLoopPerformCallBack)(void*);
+//
 // void gosource(void *);
 // void gostream(void*, void*, size_t, uintptr_t, uintptr_t, uintptr_t);
+//
 // #cgo LDFLAGS: -framework CoreServices
 import "C"
 
@@ -18,10 +21,7 @@ import (
 )
 
 // TODO
-var (
-	nilrl  C.CFRunLoopRef
-	nilref C.FSEventStreamRef
-)
+var nilstream C.FSEventStreamRef
 
 // TODO
 var (
@@ -40,6 +40,11 @@ var runloop C.CFRunLoopRef
 var source = C.CFRunLoopSourceCreate(nil, 0, &C.CFRunLoopSourceContext{
 	perform: (C.CFRunLoopPerformCallBack)(C.gosource),
 })
+
+var (
+	errCreate = os.NewSyscallError("FSEventStreamCreate", errors.New("NULL"))
+	errStart  = os.NewSyscallError("FSEventStreamStart", errors.New("false"))
+)
 
 // TODO
 func init() {
@@ -90,7 +95,6 @@ type StreamFunc func([]FSEvent)
 // Stream TODO
 type Stream struct {
 	path string
-	fn   StreamFunc
 	ref  C.FSEventStreamRef
 	ctx  C.FSEventStreamContext
 }
@@ -99,29 +103,23 @@ type Stream struct {
 func NewStream(path string, fn StreamFunc) *Stream {
 	return &Stream{
 		path: path,
-		fn:   fn,
+		ctx: C.FSEventStreamContext{
+			info: unsafe.Pointer(&fn),
+		},
 	}
 }
 
-func (s *Stream) String() string {
-	return s.path
-}
-
-var errCreate = os.NewSyscallError("FSEventStreamCreate", errors.New("NULL"))
-var errStart = os.NewSyscallError("FSEventStreamStart", errors.New("false"))
-
 // Start TODO
 func (s *Stream) Start() error {
-	if s.ref != nilref {
+	if s.ref != nilstream {
 		return nil
 	}
 	wg.Wait()
 	p := C.CFStringCreateWithCStringNoCopy(nil, C.CString(s.path), C.kCFStringEncodingUTF8, nil)
 	path := C.CFArrayCreate(nil, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
-	s.ctx.info = unsafe.Pointer(&s.fn)
 	ref := C.FSEventStreamCreate(nil, (C.FSEventStreamCallback)(C.gostream),
 		&s.ctx, path, now, latency, flags)
-	if ref == nilref {
+	if ref == nilstream {
 		return errCreate
 	}
 	C.FSEventStreamScheduleWithRunLoop(ref, runloop, C.kCFRunLoopDefaultMode)
@@ -142,7 +140,7 @@ func (s *Stream) Stop() {
 	//   Invalidate(): failed assertion 'streamRef != NULL'
 	//
 	// Check out why and fix.
-	if s.ref == nilref {
+	if s.ref == nilstream {
 		return
 	}
 	wg.Wait()
@@ -167,5 +165,5 @@ func (s *Stream) Stop() {
 	// C.FSEventStreamStop(s.ref)
 	C.FSEventStreamStop(s.ref)
 	C.FSEventStreamInvalidate(s.ref)
-	s.ref = nilref
+	s.ref = nilstream
 }
