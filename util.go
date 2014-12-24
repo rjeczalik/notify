@@ -4,6 +4,15 @@ import "os"
 
 const sep = string(os.PathSeparator)
 
+func nonil(err ...error) error {
+	for _, err := range err {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Joinevents TODO
 func joinevents(events []Event) (e Event) {
 	if len(events) == 0 {

@@ -16,6 +16,34 @@ var (
 	errNotWatched     = errors.New("path is not being watched")
 )
 
+var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
+
+func canonical(p string) (string, error) {
+	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
+		if depth > 128 {
+			return "", &os.PathError{Op: "canonical", Path: p, Err: errDepth}
+		}
+		if j := IndexSep(p[i:]); j == -1 {
+			i = len(p)
+		} else {
+			i = i + j
+		}
+		fi, err := os.Lstat(p[:i])
+		if err != nil {
+			return "", err
+		}
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+			s, err := os.Readlink(p[:i])
+			if err != nil {
+				return "", err
+			}
+			p = "/" + s + p[i:]
+			i = 1 // no guarantee s is canonical, start all over
+		}
+	}
+	return filepath.Clean(p), nil
+}
+
 type watch struct {
 	c      chan<- EventInfo
 	stream *Stream
@@ -60,31 +88,6 @@ func newWatcher() Watcher {
 	return &fsevents{
 		watches: make(map[string]*watch),
 	}
-}
-
-// TODO(rjeczalik): Detect and handle loops.
-func canonical(p string) (string, error) {
-	for i := 1; i < len(p); i++ {
-		if j := IndexSep(p[i:]); j == -1 {
-			i = len(p)
-		} else {
-			i = i + j
-		}
-		fi, err := os.Lstat(p[:i])
-		if err != nil {
-			return "", err
-		}
-		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-			s, err := os.Readlink(p[:i])
-			if err != nil {
-				return "", err
-			}
-			p = "/" + s + p[i:]
-			i = len(s)
-			continue
-		}
-	}
-	return filepath.Clean(p), nil
 }
 
 func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
