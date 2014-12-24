@@ -12,12 +12,16 @@ import (
 )
 
 var (
-	errAlreadyWatched = errors.New("path is already watched")
-	errNotWatched     = errors.New("path is not being watched")
+	errAlreadyWatched  = errors.New("path is already watched")
+	errNotWatched      = errors.New("path is not being watched")
+	errInvalidEventSet = errors.New("invalid event set provided")
 )
 
 var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
 
+// canonical resolves any symlink in the given path and returns it in a clean form.
+// It expects the path to be absolute. It fails to resolve circular symlinks by
+// maintaining a simple iteration limit.
 func canonical(p string) (string, error) {
 	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
 		if depth > 128 {
@@ -44,6 +48,10 @@ func canonical(p string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
+// watch represents a filesystem watchpoint. It is a higher level abstraction
+// over FSEvents' stream, which implements filtering of file events based
+// on path and event set. It emulates non-recursive watch-point by filtering out
+// events which paths are more than 1 level deeper than the watched path.
 type watch struct {
 	c      chan<- EventInfo
 	stream *Stream
@@ -52,6 +60,8 @@ type watch struct {
 	isrec  int32
 }
 
+// Dispatch is a stream function which forwards given file events for the watched
+// path to underlying FileInfo channel.
 func (w *watch) Dispatch(ev []FSEvent) {
 	events := atomic.LoadUint32(&w.events)
 	isrec := (atomic.LoadInt32(&w.isrec) == 1)
@@ -79,6 +89,8 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	}
 }
 
+// fsevents implements Watcher and RecursiveWatcher interfaces baked by FSEvents
+// framework.
 type fsevents struct {
 	watches map[string]*watch
 	c       chan<- EventInfo
@@ -124,21 +136,29 @@ func (fse *fsevents) unwatch(path string) (err error) {
 	return nil
 }
 
+// Watch implements Watcher interface. It fails with non-nil error when setting
+// the watch-point by FSEvents fails or with errAlreadyWatched error when
+// the given path is already watched.
 func (fse *fsevents) Watch(path string, event Event) error {
 	return fse.watch(path, event, 0)
 }
 
+// Unwatch implements Watcher interface. It fails with errNotWatched when
+// the given path is not being watched.
 func (fse *fsevents) Unwatch(path string) error {
 	return fse.unwatch(path)
 }
 
+// Rewatch implements Watcher interface. It fails with errNotWatched when
+// the given path is not being watched or with errInvalidEventSet when oldevent
+// does not match event set the watch-point currently holds.
 func (fse *fsevents) Rewatch(path string, oldevent, newevent Event) error {
 	w, ok := fse.watches[path]
 	if !ok {
 		return errNotWatched
 	}
 	if !atomic.CompareAndSwapUint32(&w.events, uint32(oldevent), uint32(newevent)) {
-		return errors.New("invalid event state diff")
+		return errInvalidEventSet
 	}
 	return nil
 }
@@ -152,15 +172,31 @@ func (fse *fsevents) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	}()
 }
 
+// RecursiveWatch implements RecursiveWatcher interface. It fails with non-nil
+// error when setting the watch-point by FSEvents fails or with errAlreadyWatched
+// error when the given path is already watched.
 func (fse *fsevents) RecursiveWatch(path string, event Event) error {
 	return fse.watch(path, event, 1)
 }
 
+// RecursiveUnwatch implements RecursiveWatcher interface. It fails with
+// errNotWatched when the given path is not being watched.
+//
+// TODO(rjeczalik): fail if w.isrec == 0?
 func (fse *fsevents) RecursiveUnwatch(path string) error {
-	// TODO(rjeczalik): fail if w.isrec == 0?
 	return fse.unwatch(path)
 }
 
+// RecrusiveRewatch implements RecursiveWatcher interface. It fails:
+//
+//   * with errNotWatched when the given path is not being watched
+//   * with errInvalidEventSet when oldevent does not match the current event set
+//   * with errAlreadyWatched when watch-point given by the oldpath was meant to
+//     be relocated to newpath, but the newpath is already watched
+//   * a non-nil error when setting the watch-point with FSEvents fails
+//
+// TODO(rjeczalik): Improve handling of watch-point relocation? See two TODOs
+// that follows.
 func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, newevent Event) error {
 	switch [2]bool{oldpath == newpath, oldevent == newevent} {
 	case [2]bool{true, true}:
@@ -193,8 +229,10 @@ func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, neweven
 	}
 }
 
+// Stop unwatches all watch-points.
 func (fse *fsevents) Stop() {
 	for _, w := range fse.watches {
 		w.stream.Stop()
 	}
+	fse.watches = make(map[string]*watch)
 }
