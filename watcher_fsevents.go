@@ -23,7 +23,7 @@ func canonical(p string) (string, error) {
 		if depth > 128 {
 			return "", &os.PathError{Op: "canonical", Path: p, Err: errDepth}
 		}
-		if j := IndexSep(p[i:]); j == -1 {
+		if j := strings.IndexRune(p[i:], '/'); j == -1 {
 			i = len(p)
 		} else {
 			i = i + j
