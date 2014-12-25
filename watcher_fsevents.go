@@ -22,6 +22,8 @@ var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)"
 // canonical resolves any symlink in the given path and returns it in a clean form.
 // It expects the path to be absolute. It fails to resolve circular symlinks by
 // maintaining a simple iteration limit.
+//
+// TODO(rjeczalik): handle relative symlinks?
 func canonical(p string) (string, error) {
 	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
 		if depth > 128 {
@@ -96,9 +98,10 @@ type fsevents struct {
 	c       chan<- EventInfo
 }
 
-func newWatcher() Watcher {
+func newWatcher(c chan<- EventInfo) Watcher {
 	return &fsevents{
 		watches: make(map[string]*watch),
+		c:       c,
 	}
 }
 
@@ -168,7 +171,7 @@ func (fse *fsevents) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	fse.c = c
 	go func() {
 		<-stop
-		fse.Stop()
+		fse.Close()
 	}()
 }
 
@@ -229,10 +232,11 @@ func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, neweven
 	}
 }
 
-// Stop unwatches all watch-points.
-func (fse *fsevents) Stop() {
+// Close unwatches all watch-points.
+func (fse *fsevents) Close() error {
 	for _, w := range fse.watches {
 		w.stream.Stop()
 	}
 	fse.watches = make(map[string]*watch)
+	return nil
 }

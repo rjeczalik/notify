@@ -242,10 +242,11 @@ type watcher struct {
 }
 
 // NewWatcher creates new non-recursive watcher backed by ReadDirectoryChangesW.
-func newWatcher() *watcher {
+func newWatcher(c chan<- EventInfo) *watcher {
 	return &watcher{
 		m:   make(map[string]*watched),
 		cph: syscall.InvalidHandle,
+		c:   c,
 	}
 }
 
@@ -494,6 +495,8 @@ func (w *watcher) unwatch(path string) (err error) {
 }
 
 // Dispatch implements notify.Watcher interface.
+//
+// TODO(rjeczalik): remove
 func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
 	w.c = c
 }

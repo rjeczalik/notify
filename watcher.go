@@ -6,8 +6,8 @@ package notify
 // filesystem event notification functionalities.
 //
 // The newWatcher function must be implemented by each supported platform.
-func NewWatcher() Watcher {
-	return newWatcher()
+func NewWatcher(c chan<- EventInfo) Watcher {
+	return newWatcher(c)
 }
 
 // Watcher is a temporary interface for wrapping inotify, ReadDirChangesW,

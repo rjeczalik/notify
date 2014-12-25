@@ -15,26 +15,38 @@ import (
 // TODO: Take into account currently monitored files with those read from dir.
 
 // newWatcher returns `kqueue` Watcher implementation.
-func newWatcher() Watcher {
+func newWatcher(c chan<- EventInfo) Watcher {
 	k := &kqueue{
 		idLkp:  make(map[int]*watched, 0),
 		pthLkp: make(map[string]*watched, 0),
+		c:      c,
+		s:      make(chan struct{}),
 	}
 	if err := k.init(); err != nil {
 		// TODO: Does it really has to be this way?
 		panic(err)
 	}
+	go k.monitor()
 	return k
 }
 
-// stop closes all still open file descriptors and kqueue.
-func (k *kqueue) stop() {
-	for i := range k.idLkp {
-		syscall.Close(k.idLkp[i].fd)
+// Close closes all still open file descriptors and kqueue.
+func (k *kqueue) Close() error {
+	k.Lock()
+	if k.s != nil {
+		close(k.s)
+		k.s = nil
+	}
+	for _, w := range k.idLkp {
+		syscall.Close(w.fd)
 	}
 	if k.fd != nil {
 		syscall.Close(*k.fd)
+		k.fd = nil
 	}
+	k.idLkp, k.pthLkp = nil, nil
+	k.Unlock()
+	return nil
 }
 
 // sendEvents sends reported events one by one through chan.
@@ -99,7 +111,6 @@ func (k *kqueue) monitor() {
 		var kevn [1]syscall.Kevent_t
 		select {
 		case <-k.s:
-			k.stop()
 			return
 		default:
 		}
@@ -176,7 +187,7 @@ type kqueue struct {
 	// c is a channel used to pass events further.
 	c chan<- EventInfo
 	// s is a channel used to stop monitoring.
-	s <-chan struct{}
+	s chan struct{}
 }
 
 // watched is a data structure representing watched file/directory.
@@ -258,7 +269,7 @@ func (k *kqueue) singlewatch(p string, e Event, direct, dir bool) error {
 }
 
 // unwatch stops watching `p` file/directory.
-func (k *kqueue) singleunwatch(p string, direct bool) (err error) {
+func (k *kqueue) singleunwatch(p string, direct bool) error {
 	w := k.pthLkp[p]
 	if w == nil {
 		return errNotWatched
@@ -270,37 +281,36 @@ func (k *kqueue) singleunwatch(p string, direct bool) (err error) {
 	}
 	var kevn [1]syscall.Kevent_t
 	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_DELETE)
-	if _, err = syscall.Kevent(*k.fd, kevn[:], nil, nil); err != nil {
-		return
+	if _, err := syscall.Kevent(*k.fd, kevn[:], nil, nil); err != nil {
+		return err
 	}
 	if w.eNonDir&w.eDir != 0 {
-		if err = k.singlewatch(p, w.eNonDir|w.eDir, w.eNonDir == 0, w.dir); err != nil {
-			return
+		if err := k.singlewatch(p, w.eNonDir|w.eDir, w.eNonDir == 0, w.dir); err != nil {
+			return err
 		}
 	} else {
 		k.del(w)
 	}
-	return
+	return nil
 }
 
 // walk runs `f` func on each file from `p` directory.
-func (k *kqueue) walk(p string, f func(os.FileInfo) error) (err error) {
-	var fp *os.File
-	if fp, err = os.Open(p); err != nil {
-		return
+func (k *kqueue) walk(p string, f func(os.FileInfo) error) error {
+	fp, err := os.Open(p)
+	if err != nil {
+		return err
 	}
-	var ls []os.FileInfo
-	if ls, err = fp.Readdir(-1); err != nil {
-		fp.Close()
-		return
-	}
+	ls, err := fp.Readdir(0)
 	fp.Close()
+	if err != nil {
+		return err
+	}
 	for i := range ls {
-		if err = f(ls[i]); err != nil {
-			return
+		if err := f(ls[i]); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 func (k *kqueue) unwatch(p string, isdir bool) error {
@@ -371,7 +381,7 @@ func isdir(p string) (bool, error) {
 }
 
 // Dispatch implements `Watcher` interface.
+//
+// TODO(rjeczalik): remove
 func (k *kqueue) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
-	k.c, k.s = c, stop
-	go k.monitor()
 }

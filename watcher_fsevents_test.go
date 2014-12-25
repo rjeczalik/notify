@@ -31,7 +31,7 @@ func symlink(s string) (string, error) {
 	return name, nil
 }
 
-func remove(s ...string) {
+func removeall(s ...string) {
 	for _, s := range s {
 		os.Remove(s)
 	}
@@ -76,7 +76,7 @@ func TestCanonicalizeMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatal(nonil(err, os.Remove(link1)))
 	}
-	defer remove(link1, link2)
+	defer removeall(link1, link2)
 	cases := [...]caseCanonical{
 		{link1, "/private/etc"},
 		{link1 + "/hosts", "/private/etc/hosts"},
@@ -94,7 +94,7 @@ func TestCanonicalizeCircular(t *testing.T) {
 	if err != nil {
 		t.Fatal(nonil(err, os.Remove(tmp1)))
 	}
-	defer remove(tmp1, tmp2)
+	defer removeall(tmp1, tmp2)
 	// Symlink tmp1 -> tmp2.
 	if err = nonil(os.Remove(tmp1), os.Symlink(tmp2, tmp1)); err != nil {
 		t.Fatal(err)
