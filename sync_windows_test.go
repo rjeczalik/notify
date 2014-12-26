@@ -2,9 +2,12 @@
 
 package notify
 
-import "golang.org/x/sys/windows"
+// TODO(rjeczalik): this repo works only go1.4
+// import "golang.org/x/sys/windows"
 
-var modkernel32 = windows.NewLazyDLL("kernel32.dll")
+import "syscall"
+
+var modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 var procSetSystemFileCacheSize = modkernel32.NewProc("SetSystemFileCacheSize")
 
 // TODO

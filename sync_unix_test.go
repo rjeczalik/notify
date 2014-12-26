@@ -2,9 +2,12 @@
 
 package notify
 
-import "golang.org/x/sys/unix"
+// TODO(rjeczalik): this repo works only with go1.4
+// import "golang.org/x/sys/unix"
 
-// TODO
+import "syscall"
+
+// Sync TODO
 func Sync() {
-	unix.Sync()
+	syscall.Sync()
 }
