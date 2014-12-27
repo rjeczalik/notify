@@ -6,6 +6,7 @@ clone_folder: c:\projects\src\github.com\rjeczalik\notify
 
 environment:
  GOPATH: c:\projects
+ DEBUG: XD
 
 install:
  - set PATH=%GOPATH%\bin;%PATH%
