@@ -242,12 +242,18 @@ type watcher struct {
 }
 
 // NewWatcher creates new non-recursive watcher backed by ReadDirectoryChangesW.
-func newWatcher(c chan<- EventInfo) *watcher {
-	return &watcher{
+func newWatcher(c chan<- EventInfo) (w *watcher) {
+	w = &watcher{
 		m:   make(map[string]*watched),
 		cph: syscall.InvalidHandle,
 		c:   c,
 	}
+	runtime.SetFinalizer(w, func(w *watcher) {
+		if w.cph != syscall.InvalidHandle {
+			syscall.CloseHandle(w.cph)
+		}
+	})
+	return
 }
 
 // Watch implements notify.Watcher interface.
@@ -286,29 +292,22 @@ func (w *watcher) watch(path string, event Event, recursive bool) (err error) {
 	return nil
 }
 
-// lazyinit creates IO completion port and sets the finalizer in order to close
-// the port's handler at the end of program execution. This method uses Double-
-// Checked Locking optimization.
+// lazyinit creates an I/O completion port and starts the main event processing
+// loop. This method uses Double-Checked Locking optimization.
 func (w *watcher) lazyinit() (err error) {
 	invalid := uintptr(syscall.InvalidHandle)
 	if atomic.LoadUintptr((*uintptr)(&w.cph)) == invalid {
 		w.Lock()
+		defer w.Unlock()
 		if atomic.LoadUintptr((*uintptr)(&w.cph)) == invalid {
 			cph := syscall.InvalidHandle
 			if cph, err = syscall.CreateIoCompletionPort(
 				cph, 0, 0, 0); err != nil {
-				w.Unlock()
 				return
 			}
 			w.cph = cph
-			runtime.SetFinalizer(&w.cph, func(handle *syscall.Handle) {
-				if *handle != syscall.InvalidHandle {
-					syscall.CloseHandle(*handle)
-				}
-			})
 			go w.loop()
 		}
-		w.Unlock()
 	}
 	return
 }
