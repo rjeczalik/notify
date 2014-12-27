@@ -104,16 +104,30 @@ func newWatcherTest(t *testing.T, tree string) *W {
 		t:    t,
 		root: root,
 	}
-	if w, ok := w.watcher().(RecursiveWatcher); ok {
-		if err := w.RecursiveWatch(root, Create|Delete|Move|Write); err != nil {
+	if rw, ok := w.watcher().(RecursiveWatcher); ok {
+		if err := rw.RecursiveWatch(root, Create|Delete|Move|Write); err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		panic("TODO(rjeczalik)")
+		fn := func(path string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if fi.IsDir() {
+				if err := w.watcher().Watch(path, Create|Delete|Move|Write); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if err := filepath.Walk(root, fn); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return w
 }
 
+// watcher TODO
 func (w *W) watcher() Watcher {
 	if w.Watcher == nil {
 		c := make(chan EventInfo, 128)
@@ -123,6 +137,7 @@ func (w *W) watcher() Watcher {
 	return w.Watcher
 }
 
+// timeout TODO
 func (w *W) timeout() time.Duration {
 	if w.Timeout != 0 {
 		return w.Timeout
@@ -199,6 +214,8 @@ func write(w *W, path string, p []byte) (func(), EventInfo) {
 }
 
 // Expect TODO
+//
+// TODO(rjeczalik): refactor, allow for deferred testing
 func (w *W) Expect(fn func(), expected EventInfo) {
 	fn()
 	select {
