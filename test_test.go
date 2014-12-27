@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-// TODO(rjeczalik): add debug printing
-
 func isDir(path string) bool {
 	r := path[len(path)-1]
 	return r == '\\' || r == '/'
@@ -159,7 +157,7 @@ func (w *W) Stop() {
 
 // create TODO
 func create(w *W, path string) (func(), EventInfo) {
-	ei := eventinfo{path: path, event: Create}
+	ei := eventinfo{path: strings.TrimRight(path, `/\`), event: Create}
 	fn := func() {
 		var err error
 		if ei.isdir, err = tmpcreate(w.root, filepath.FromSlash(path)); err != nil {
@@ -172,7 +170,7 @@ func create(w *W, path string) (func(), EventInfo) {
 
 // remove TODO
 func remove(w *W, path string) (func(), EventInfo) {
-	ei := eventinfo{path: path, event: Delete}
+	ei := eventinfo{path: strings.TrimRight(path, `/\`), event: Delete}
 	fn := func() {
 		if err := os.RemoveAll(filepath.Join(w.root, filepath.FromSlash(path))); err != nil {
 			w.t.Fatal(err)
@@ -184,7 +182,7 @@ func remove(w *W, path string) (func(), EventInfo) {
 
 // rename TODO
 func rename(w *W, oldpath, newpath string) (func(), EventInfo) {
-	ei := eventinfo{path: newpath, event: Move}
+	ei := eventinfo{path: strings.TrimRight(newpath, `/\`), event: Move}
 	fn := func() {
 		err := os.Rename(filepath.Join(w.root, filepath.FromSlash(oldpath)),
 			filepath.Join(w.root, filepath.FromSlash(newpath)))
@@ -198,7 +196,7 @@ func rename(w *W, oldpath, newpath string) (func(), EventInfo) {
 
 // write TODO
 func write(w *W, path string, p []byte) (func(), EventInfo) {
-	ei := eventinfo{path: path, event: Write}
+	ei := eventinfo{path: strings.TrimRight(path, `/\`), event: Write}
 	fn := func() {
 		perm := os.FileMode(0644)
 		if isDir(path) {
@@ -220,6 +218,7 @@ func (w *W) Expect(fn func(), expected EventInfo) {
 	fn()
 	select {
 	case ei := <-w.C:
+		dbg.Printf("[WATCHER_TEST] received event: path=%q, event=%v, isdir=%v", ei.Path(), ei.Event(), ei.IsDir())
 		if ei.Event() != expected.Event() {
 			w.t.Fatalf("want event=%v; got %v", expected.Event(), ei.Event())
 		}
