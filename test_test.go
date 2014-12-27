@@ -163,7 +163,6 @@ func create(w *W, path string) (func(), EventInfo) {
 		if ei.isdir, err = tmpcreate(w.root, filepath.FromSlash(path)); err != nil {
 			w.t.Fatal(err)
 		}
-		Sync()
 	}
 	return fn, ei
 }
@@ -175,7 +174,6 @@ func remove(w *W, path string) (func(), EventInfo) {
 		if err := os.RemoveAll(filepath.Join(w.root, filepath.FromSlash(path))); err != nil {
 			w.t.Fatal(err)
 		}
-		Sync()
 	}
 	return fn, ei
 }
@@ -189,7 +187,6 @@ func rename(w *W, oldpath, newpath string) (func(), EventInfo) {
 		if err != nil {
 			w.t.Fatal(err)
 		}
-		Sync()
 	}
 	return fn, ei
 }
@@ -206,7 +203,6 @@ func write(w *W, path string, p []byte) (func(), EventInfo) {
 		if err != nil {
 			w.t.Fatal(err)
 		}
-		Sync()
 	}
 	return fn, ei
 }
@@ -216,9 +212,11 @@ func write(w *W, path string, p []byte) (func(), EventInfo) {
 // TODO(rjeczalik): refactor, allow for deferred testing
 func (w *W) Expect(fn func(), expected EventInfo) {
 	fn()
+	Sync()
 	select {
 	case ei := <-w.C:
-		dbg.Printf("[WATCHER_TEST] received event: path=%q, event=%v, isdir=%v", ei.Path(), ei.Event(), ei.IsDir())
+		dbg.Printf("[WATCHER_TEST] received event: path=%q, event=%v, isdir=%v, sys=%v",
+			ei.Path(), ei.Event(), ei.IsDir(), ei.Sys())
 		if ei.Event() != expected.Event() {
 			w.t.Fatalf("want event=%v; got %v", expected.Event(), ei.Event())
 		}
