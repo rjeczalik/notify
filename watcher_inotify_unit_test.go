@@ -90,7 +90,7 @@ func TestEventMaskEvent(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if e := decodemask(uint32(test.passed), uint32(test.got)); e != test.received {
+		if e := decode(uint32(test.passed), uint32(test.got)); e != test.received {
 			t.Errorf("want event=%v; got %v (i=%d)", test.received, e, i)
 		}
 	}
