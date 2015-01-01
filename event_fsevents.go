@@ -13,25 +13,25 @@ const (
 )
 
 const (
-	FSEventsMustScanSubDirs = 0x00001
-	FSEventsUserDropped     = 0x00002
-	FSEventsKernelDropped   = 0x00004
-	FSEventsEventIdsWrapped = 0x00008
-	FSEventsHistoryDone     = 0x00010
-	FSEventsRootChanged     = 0x00020
-	FSEventsMount           = 0x00040
-	FSEventsUnmount         = 0x00080
-	FSEventsCreated         = 0x00100
-	FSEventsRemoved         = 0x00200
-	FSEventsInodeMetaMod    = 0x00400
-	FSEventsRenamed         = 0x00800
-	FSEventsModified        = 0x01000
-	FSEventsFinderInfoMod   = 0x02000
-	FSEventsChangeOwner     = 0x04000
-	FSEventsXattrMod        = 0x08000
-	FSEventsIsFile          = 0x10000
-	FSEventsIsDir           = 0x20000
-	FSEventsIsSymlink       = 0x40000
+	FSEventsMustScanSubDirs Event = 0x00001
+	FSEventsUserDropped           = 0x00002
+	FSEventsKernelDropped         = 0x00004
+	FSEventsEventIdsWrapped       = 0x00008
+	FSEventsHistoryDone           = 0x00010
+	FSEventsRootChanged           = 0x00020
+	FSEventsMount                 = 0x00040
+	FSEventsUnmount               = 0x00080
+	FSEventsCreated               = 0x00100
+	FSEventsRemoved               = 0x00200
+	FSEventsInodeMetaMod          = 0x00400
+	FSEventsRenamed               = 0x00800
+	FSEventsModified              = 0x01000
+	FSEventsFinderInfoMod         = 0x02000
+	FSEventsChangeOwner           = 0x04000
+	FSEventsXattrMod              = 0x08000
+	FSEventsIsFile                = 0x10000
+	FSEventsIsDir                 = 0x20000
+	FSEventsIsSymlink             = 0x40000
 )
 
 var osestr = map[Event]string{

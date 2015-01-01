@@ -23,7 +23,7 @@ var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)"
 // It expects the path to be absolute. It fails to resolve circular symlinks by
 // maintaining a simple iteration limit.
 //
-// TODO(rjeczalik): handle relative symlinks?
+// TODO(rjeczalik): replace with realpath?
 func canonical(p string) (string, error) {
 	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
 		if depth > 128 {
@@ -50,11 +50,73 @@ func canonical(p string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
+const (
+	failure = uint32(FSEventsMustScanSubDirs | FSEventsUserDropped | FSEventsKernelDropped)
+	filter  = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed |
+		FSEventsModified | FSEventsInodeMetaMod)
+)
+
+// splitflags separates event flags from single set into slice of flags.
+func splitflags(set uint32) (e []uint32) {
+	for i := uint32(1); set != 0; i, set = i<<1, set>>1 {
+		if (set & 1) != 0 {
+			e = append(e, i)
+		}
+	}
+	return
+}
+
+// flagdiff stores last event flags per path in order to filter out old flags
+// for new events, which appratenly FSEvents likes to retain. It's a disgusting
+// hack, it should be researched how to get rid of it.
+type flagdiff map[string]uint32
+
+// diff filters out redundant (old) flags from the given set. It does so by using
+// half-ass heuristics invented during manual testing. They're most likely broken
+// and/or not covering all the use-cases. They should be rewritten or at least fully
+// tested to ensure proper accuracy.
+func (fd flagdiff) diff(name string, set uint32) uint32 {
+	old, ok := fd[name]
+	fd[name] = set & filter
+	if !ok || set&old != old {
+		return set
+	}
+	switch old = set &^ old; {
+	case old == set:
+		delete(fd, name)
+	// For the following series of events:
+	//
+	//   ~ $ touch /tmp/XD
+	//   ~ $ echo XD > /tmp/XD
+	//   ~ $ echo XD > /tmp/XD
+	//   ~ $ rm /tmp/XD
+	//   ~ $ touch /tmp/XD
+	//
+	// FSEvents yields:
+	//
+	//   1) /tmp/XD Create
+	//   2) /tmp/XD Create|Write
+	//   3) /tmp/XD Create|Write
+	//   4) /tmp/XD Create|Delete|Write
+	//   5) /tmp/XD Create|Delete|Write
+	//
+	// This case is to ensure Create from 5) is not missed.
+	case old&FSEventsRemoved != 0:
+		fd[name] &^= FSEventsCreated
+	// For the before-mentioned series of events this case is to ensure Write
+	// from 3) is not missed.
+	case old&filter == 0:
+		return set & (FSEventsModified | FSEventsInodeMetaMod)
+	}
+	return old
+}
+
 // watch represents a filesystem watchpoint. It is a higher level abstraction
 // over FSEvents' stream, which implements filtering of file events based
 // on path and event set. It emulates non-recursive watch-point by filtering out
 // events which paths are more than 1 level deeper than the watched path.
 type watch struct {
+	fd     flagdiff // TODO(rjeczalik): find nicer hack
 	c      chan<- EventInfo
 	stream *Stream
 	path   string
@@ -68,25 +130,35 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	events := atomic.LoadUint32(&w.events)
 	isrec := (atomic.LoadInt32(&w.isrec) == 1)
 	for i := range ev {
-		e := Event(ev[i].Flags & events)
-		if e == 0 {
-			continue
+		if ev[i].Flags&failure != 0 {
+			// TODO(rjeczalik): missing error handling
+			panic("unhandled error: " + Event(ev[i].Flags).String())
 		}
 		if !strings.HasPrefix(ev[i].Path, w.path) {
 			continue
 		}
-		if n := len(w.path); len(ev[i].Path) > n {
+		n, base := len(w.path), ""
+		if len(ev[i].Path) > n {
 			if ev[i].Path[n] != '/' {
 				continue
 			}
-			if !isrec && strings.IndexByte(ev[i].Path[n+1:], '/') != -1 {
+			base = ev[i].Path[n+1:]
+			if !isrec && strings.IndexByte(base, '/') != -1 {
 				continue
 			}
 		}
-		w.c <- &event{
-			fse:   ev[i],
-			event: e,
-			isdir: ev[i].Flags&FSEventsIsDir != 0,
+		// TODO(rjeczalik): get diff only from filtered events?
+		e := w.fd.diff(string(base), ev[i].Flags) & events
+		if e == 0 {
+			continue
+		}
+		isdir := ev[i].Flags&FSEventsIsDir != 0
+		for _, e := range splitflags(e) {
+			w.c <- &event{
+				fse:   ev[i],
+				event: Event(e),
+				isdir: isdir,
+			}
 		}
 	}
 }
@@ -117,6 +189,7 @@ func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
 		path:   path,
 		events: uint32(event),
 		isrec:  isrec,
+		fd:     make(flagdiff),
 	}
 	w.stream = NewStream(path, w.Dispatch)
 	if err = w.stream.Start(); err != nil {
