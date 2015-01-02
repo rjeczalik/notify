@@ -66,7 +66,11 @@ func tmptree(root, list string) (string, error) {
 	}
 	defer f.Close()
 	if root == "" {
-		if root, err = ioutil.TempDir("", "tmptree"); err != nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		if root, err = ioutil.TempDir(pwd, "tmptree"); err != nil {
 			return "", err
 		}
 	}
