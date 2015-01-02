@@ -140,8 +140,8 @@ func (w *watcher) epollinit() (err error) {
 		return
 	}
 	w.epes = []syscall.EpollEvent{
-		syscall.EpollEvent{syscall.EPOLLIN, int32(w.fd), 0},
-		syscall.EpollEvent{syscall.EPOLLIN, int32(w.pipefd[0]), 0},
+		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(w.fd), Pad: 0},
+		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(w.pipefd[0]), Pad: 0},
 	}
 	if err = syscall.EpollCtl(
 		w.epfd, syscall.EPOLL_CTL_ADD, int(w.fd), &w.epes[0]); err != nil {
