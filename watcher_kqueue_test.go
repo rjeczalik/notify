@@ -1,5 +1,6 @@
-// +build darwin,kqueue dragonfly freebsd netbsd openbsd
-// +build !fsnotify
+// +build ignore
+
+// TODO(rjeczalik): rewrite with test_test.go
 
 package notify_test
 
