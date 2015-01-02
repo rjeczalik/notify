@@ -163,7 +163,7 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	}
 }
 
-// fsevents implements Watcher and RecursiveWatcher interfaces baked by FSEvents
+// fsevents implements Watcher and RecursiveWatcher interfaces backed by FSEvents
 // framework.
 type fsevents struct {
 	watches map[string]*watch

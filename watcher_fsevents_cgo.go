@@ -32,7 +32,7 @@ var (
 var runloop C.CFRunLoopRef // global runloop which all streams are registered with
 var wg sync.WaitGroup      // used to wait until the runloop starts
 
-// source is used for synchronization purposes - it signal when runloop has
+// source is used for synchronization purposes - it signals when runloop has
 // started and is ready via the wg. It also serves purpose of a dummy source,
 // thanks to it the runloop does not return as it also has at least one source
 // registered.

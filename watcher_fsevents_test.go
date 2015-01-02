@@ -166,3 +166,18 @@ func TestFlagdiff(t *testing.T) {
 		}
 	}
 }
+
+// Test for cases 3) and 5) with shadowed write&create events.
+//
+// See comment for (flagdiff).diff method.
+func TestWatcherShadowedWriteCreate(t *testing.T) {
+	w := newWatcherTest(t, "testdata/gopath.txt")
+	defer w.Stop()
+
+	w.Expect(create(w, "src/github.com/rjeczalik/which/which.go"))
+	w.Expect(write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")))
+	w.Expect(write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")))
+	w.Expect(remove(w, "src/github.com/rjeczalik/which/which.go"))
+	w.Expect(create(w, "src/github.com/rjeczalik/which/which.go"))
+	w.Expect(write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")))
+}

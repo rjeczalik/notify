@@ -20,15 +20,3 @@ func TestWatcher(t *testing.T) {
 	w.Expect(create(w, "file"))
 	w.Expect(create(w, "dir/"))
 }
-
-func TestWatcherWrites(t *testing.T) {
-	w := newWatcherTest(t, "testdata/gopath.txt")
-	defer w.Stop()
-
-	w.Expect(create(w, "src/github.com/rjeczalik/which/which.go"))
-	w.Expect(write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")))
-	w.Expect(write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")))
-	w.Expect(remove(w, "src/github.com/rjeczalik/which/which.go"))
-	w.Expect(create(w, "src/github.com/rjeczalik/which/which.go"))
-	w.Expect(write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")))
-}
