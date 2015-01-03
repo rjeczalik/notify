@@ -54,7 +54,6 @@ func iread(w *W, path string, p []byte) WCase {
 
 func iwrite(w *W, path string, p []byte) WCase {
 	cas := write(w, path, p)
-	path := cas.Events[0].Path()
 	cas.Events = append(cas.Events,
 		eventinfo{path: path, event: IN_ACCESS},
 		eventinfo{path: path, event: IN_OPEN},
