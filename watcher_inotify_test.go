@@ -13,8 +13,7 @@ import (
 func iopen(w *W, path string) WCase {
 	return WCase{
 		Action: func() {
-			path = filepath.Join(w.root, filepath.FromSlash(path))
-			f, err := os.OpenFile(path, os.O_RDWR, 0644)
+			f, err := os.OpenFile(filepath.Join(w.root, path), os.O_RDWR, 0644)
 			if err != nil {
 				w.Fatalf("OpenFile(%q)=%v", path, err)
 			}
@@ -34,8 +33,7 @@ func iopen(w *W, path string) WCase {
 func iread(w *W, path string, p []byte) WCase {
 	return WCase{
 		Action: func() {
-			path = filepath.Join(w.root, filepath.FromSlash(path))
-			f, err := os.OpenFile(path, os.O_RDWR, 0644)
+			f, err := os.OpenFile(filepath.Join(w.root, path), os.O_RDWR, 0644)
 			if err != nil {
 				w.Fatalf("OpenFile(%q)=%v", path, err)
 			}
@@ -57,6 +55,7 @@ func iread(w *W, path string, p []byte) WCase {
 
 func iwrite(w *W, path string, p []byte) WCase {
 	cas := write(w, path, p)
+	path = cas.Events[0].Path()
 	cas.Events = append(cas.Events,
 		eventinfo{path: path, event: IN_ACCESS},
 		eventinfo{path: path, event: IN_OPEN},
