@@ -139,36 +139,12 @@ func (s *Stream) Start() error {
 
 // Stop stops underlying FSEventStream and unregisters it from global runloop.
 func (s *Stream) Stop() {
-	// BUG(rjeczalik): Stop gets called twice from TestWatcherBasic:
-	//
-	//   2014-12-23 17:09 notify.test[4764] (FSEvents.framework) FSEventStream
-	//   Invalidate(): failed assertion 'streamRef != NULL'
-	//
-	// Check out why and fix.
 	if s.ref == nilstream {
 		return
 	}
 	wg.Wait()
-	// TODO(rjeczalik): Do we care about unflushed events? Stop means probably no.
-	// The drawback is enabling flush would require fixing the following failures
-	// during TestWatcherBasic test:
-	//
-	//   2014-12-23 13:39 notify.test[5888] (FSEvents.framework) FSEventStreamFlushAsync:
-	//   ERROR: f2d_flush_rpc() => (ipc/send) invalid destination port (268435459)
-	//
-	//   2014-12-23 13:39 notify.test[5888] (FSEvents.framework) FSEventStreamUnschedule
-	//   FromRunLoop(): failed assertion 'streamRef != NULL'
-	//
-	//   2014-12-23 13:39 notify.test[5888] (FSEvents.framework) FSEventStreamStop():
-	//   failed assertion 'streamRef != NULL
-	//
-	// Wtf, stop is legit - starts were successful.
-	//
-	// C.FSEventStreamFlushAsync(s.ref)
-	// C.FSEventStreamUnscheduleFromRunLoop(s.ref, runloop, C.kCFRunLoopDefaultMode)
-	// C.CFRunLoopWakeUp(runloop)
-	// C.FSEventStreamStop(s.ref)
 	C.FSEventStreamStop(s.ref)
 	C.FSEventStreamInvalidate(s.ref)
+	C.CFRunLoopWakeUp(runloop)
 	s.ref = nilstream
 }
