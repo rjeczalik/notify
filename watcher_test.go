@@ -5,18 +5,22 @@ import "testing"
 // NOTE Set DEBUG env var for extra debugging info.
 
 func TestWatcher(t *testing.T) {
-	w := newWatcherTest(t, "testdata/gopath.txt")
+	w := NewWatcherTest(t, "testdata/gopath.txt")
 	defer w.Stop()
 
-	w.Expect(create(w, "src/github.com/rjeczalik/which/.which.go.swp"))
-	w.Expect(create(w, "src/github.com/rjeczalik/fs/fs_test.go"))
-	w.Expect(create(w, "src/github.com/rjeczalik/fs/binfs/"))
-	w.Expect(create(w, "src/github.com/rjeczalik/fs/binfs.go"))
-	w.Expect(create(w, "src/github.com/rjeczalik/fs/binfs_test.go"))
-	w.Expect(remove(w, "src/github.com/rjeczalik/fs/binfs/")) // #53
-	w.Expect(create(w, "src/github.com/rjeczalik/fs/binfs/"))
-	w.Expect(create(w, "src/github.com/rjeczalik/fs/virfs"))
-	w.Expect(remove(w, "src/github.com/rjeczalik/fs/virfs"))
-	w.Expect(create(w, "file"))
-	w.Expect(create(w, "dir/"))
+	cases := [...]WCase{
+		create(w, "src/github.com/rjeczalik/which/.which.go.swp"),
+		create(w, "src/github.com/rjeczalik/fs/fs_test.go"),
+		create(w, "src/github.com/rjeczalik/fs/binfs/"),
+		create(w, "src/github.com/rjeczalik/fs/binfs.go"),
+		create(w, "src/github.com/rjeczalik/fs/binfs_test.go"),
+		remove(w, "src/github.com/rjeczalik/fs/binfs/"),
+		create(w, "src/github.com/rjeczalik/fs/binfs/"),
+		create(w, "src/github.com/rjeczalik/fs/virfs"),
+		remove(w, "src/github.com/rjeczalik/fs/virfs"),
+		create(w, "file"),
+		create(w, "dir/"),
+	}
+
+	w.ExpectAny(cases[:])
 }

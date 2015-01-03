@@ -83,12 +83,10 @@ func tmptree(root, list string) (string, error) {
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
-	Sync()
 	return root, nil
 }
 
-// NOTE for debugging only
-func TestDump(t *testing.T) {
+func TestDebug(t *testing.T) {
 	var root string
 	var args bool
 	for _, arg := range os.Args {
@@ -105,7 +103,7 @@ func TestDump(t *testing.T) {
 		t.Skip()
 	}
 	if _, err := tmptree(root, filepath.Join("testdata", "gopath.txt")); err != nil {
-		t.Fatal(err)
+		t.Fatalf(`want tmptree(%q, "testdata/gopath.txt")=nil; got %v`, root, err)
 	}
 	fmt.Println(root)
 }
@@ -118,10 +116,16 @@ type eventinfo struct {
 }
 
 func (ei eventinfo) Sys() interface{} { return ei.sys }
-func (ei eventinfo) Path() string     { return ei.path }
+func (ei eventinfo) Path() string     { return strings.TrimRight(ei.path, `/\`) }
 func (ei eventinfo) Event() Event     { return ei.event }
 func (ei eventinfo) IsDir() bool      { return ei.isdir }
 func (ei eventinfo) String() string   { return fmt.Sprintf("%s on %q", ei.event, ei.path) }
+
+// WCase TODO
+type WCase struct {
+	Action func()
+	Events []EventInfo
+}
 
 // W TODO
 type W struct {
@@ -134,26 +138,29 @@ type W struct {
 	// Timeout TODO
 	Timeout time.Duration
 
-	t    *testing.T
-	root string
-	i    int
-
-	repro []string // NOTE for debugging only
+	t     *testing.T
+	root  string
+	debug []string // NOTE for debugging only
 }
 
-// newWatcherTest TODO
-func newWatcherTest(t *testing.T, tree string) *W {
+// NewWatcherTest TODO
+func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
+	t.Parallel()
 	root, err := tmptree("", filepath.FromSlash(tree))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf(`tmptree("", %q)=%v`, tree, err)
 	}
+	Sync()
 	w := &W{
 		t:    t,
 		root: root,
 	}
+	if len(events) == 0 {
+		events = []Event{Create, Delete, Write, Move}
+	}
 	if rw, ok := w.watcher().(RecursiveWatcher); ok {
-		if err := rw.RecursiveWatch(root, Create|Delete|Move|Write); err != nil {
-			t.Fatal(err)
+		if err := rw.RecursiveWatch(root, joinevents(events)); err != nil {
+			t.Fatalf("RecursiveWatch(%q, All)=%v", root, err)
 		}
 	} else {
 		fn := func(path string, fi os.FileInfo, err error) error {
@@ -161,42 +168,48 @@ func newWatcherTest(t *testing.T, tree string) *W {
 				return err
 			}
 			if fi.IsDir() {
-				if err := w.watcher().Watch(path, Create|Delete|Move|Write); err != nil {
+				if err := w.watcher().Watch(path, joinevents(events)); err != nil {
 					return err
 				}
 			}
 			return nil
 		}
 		if err := filepath.Walk(root, fn); err != nil {
-			t.Fatal(err)
+			t.Fatalf("Walk(%q, fn)=%v", root, err)
 		}
 	}
 	return w
 }
 
-// NOTE for debugging only
-func (w *W) printrepro() {
-	fmt.Println("[D] [WATCHER_TEST] to reproduce manually:")
-	fmt.Printf("go test -run TestDump -- %s\n", w.root)
+func (w *W) printdebug() {
+	fmt.Println("[D] [WATCHER_TEST] to debugduce manually:")
+	fmt.Printf("go test -run TestDebug -- %s\n", w.root)
 	fmt.Println("cd", w.root)
-	for _, repro := range w.repro {
-		fmt.Println(repro)
+	for _, debug := range w.debug {
+		fmt.Println(debug)
 	}
 	fmt.Println()
 }
 
+// Fatal TODO
 func (w *W) Fatal(v interface{}) {
 	if dbg {
-		w.printrepro()
+		w.printdebug()
 	}
 	w.t.Fatal(v)
 }
 
+// Fatalf TODO
 func (w *W) Fatalf(format string, v ...interface{}) {
 	if dbg {
-		w.printrepro()
+		w.printdebug()
 	}
-	w.t.Fatalf(format+" (i=%d)", append(v, w.i)...)
+	w.t.Fatalf(format, v...)
+}
+
+// Debug TODO
+func (w *W) Debug(command string) {
+	w.debug = append(w.debug, command)
 }
 
 // watcher TODO
@@ -222,92 +235,110 @@ func (w *W) Stop() {
 	defer os.RemoveAll(w.root)
 	// TODO(rjeczalik): make Close part of Watcher interface
 	if err := w.watcher().(io.Closer).Close(); err != nil {
-		w.Fatal(err)
+		w.Fatalf("w.Watcher.Close()=%v", err)
 	}
 }
 
 // create TODO
-func create(w *W, path string) (func(), EventInfo) {
-	ei := eventinfo{path: strings.TrimRight(path, `/\`), event: Create}
-	fn := func() {
-		isdir, err := tmpcreate(w.root, filepath.FromSlash(path))
-		if err != nil {
-			w.Fatal(err)
-		}
-		if ei.isdir = isdir; isdir {
-			w.repro = append(w.repro, fmt.Sprintf("mkdir %s", path))
-		} else {
-			w.repro = append(w.repro, fmt.Sprintf("touch %s", path))
-		}
+func create(w *W, path string) WCase {
+	return WCase{
+		Action: func() {
+			isdir, err := tmpcreate(w.root, filepath.FromSlash(path))
+			if err != nil {
+				w.Fatalf("tmpcreate(%q, %q)=%v", w.root, path, err)
+			}
+			if isdir {
+				w.Debug(fmt.Sprintf("mkdir %s", path))
+			} else {
+				w.Debug(fmt.Sprintf("touch %s", path))
+			}
+		},
+		Events: []EventInfo{
+			eventinfo{path: path, event: Create},
+		},
 	}
-	return fn, ei
 }
 
 // remove TODO
-func remove(w *W, path string) (func(), EventInfo) {
-	ei := eventinfo{path: strings.TrimRight(path, `/\`), event: Delete}
-	fn := func() {
-		if err := os.RemoveAll(filepath.Join(w.root, filepath.FromSlash(path))); err != nil {
-			w.Fatal(err)
-		}
-		w.repro = append(w.repro, fmt.Sprintf("rm -rf %s", path))
+func remove(w *W, path string) WCase {
+	return WCase{
+		Action: func() {
+			if err := os.RemoveAll(filepath.Join(w.root, filepath.FromSlash(path))); err != nil {
+				w.Fatal(err)
+			}
+			w.Debug(fmt.Sprintf("rm -rf %s", path))
+		},
+		Events: []EventInfo{
+			eventinfo{path: path, event: Delete},
+		},
 	}
-	return fn, ei
 }
 
 // rename TODO
-func rename(w *W, oldpath, newpath string) (func(), EventInfo) {
-	ei := eventinfo{path: strings.TrimRight(newpath, `/\`), event: Move}
-	fn := func() {
-		err := os.Rename(filepath.Join(w.root, filepath.FromSlash(oldpath)),
-			filepath.Join(w.root, filepath.FromSlash(newpath)))
-		if err != nil {
-			w.Fatal(err)
-		}
-		w.repro = append(w.repro, fmt.Sprintf("mv %s %s", oldpath, newpath))
+func rename(w *W, oldpath, newpath string) WCase {
+	return WCase{
+		Action: func() {
+			err := os.Rename(filepath.Join(w.root, filepath.FromSlash(oldpath)),
+				filepath.Join(w.root, filepath.FromSlash(newpath)))
+			if err != nil {
+				w.Fatal(err)
+			}
+			w.Debug(fmt.Sprintf("mv %s %s", oldpath, newpath))
+		},
+		Events: []EventInfo{
+			eventinfo{path: newpath, event: Move},
+		},
 	}
-	return fn, ei
 }
 
 // write TODO
-func write(w *W, path string, p []byte) (func(), EventInfo) {
-	ei := eventinfo{path: strings.TrimRight(path, `/\`), event: Write}
-	fn := func() {
-		f, err := os.OpenFile(filepath.Join(w.root, filepath.FromSlash(path)),
-			os.O_WRONLY, 0644)
-		if err != nil {
-			w.Fatal(err)
-		}
-		if _, err := f.Write(p); err != nil {
-			w.Fatal(err)
-		}
-		if err := nonil(f.Sync(), f.Close()); err != nil {
-			w.Fatal(err)
-		}
-		w.repro = append(w.repro, fmt.Sprintf("echo %q > %s", p, path))
+func write(w *W, path string, p []byte) WCase {
+	return WCase{
+		Action: func() {
+			f, err := os.OpenFile(filepath.Join(w.root, filepath.FromSlash(path)),
+				os.O_WRONLY, 0644)
+			if err != nil {
+				w.Fatalf("OpenFile(%q)=%v", path, err)
+			}
+			if _, err := f.Write(p); err != nil {
+				w.Fatalf("Write(%q)=%v", path, err)
+			}
+			if err := nonil(f.Sync(), f.Close()); err != nil {
+				w.Fatalf("Sync(%q)/Close(%q)=%v", path, path, err)
+			}
+			w.Debug(fmt.Sprintf("echo %q > %s", p, path))
+		},
+		Events: []EventInfo{
+			eventinfo{path: path, event: Write},
+		},
 	}
-	return fn, ei
 }
 
-// Expect TODO
-//
-// TODO(rjeczalik): refactor, allow for deferred testing
-func (w *W) Expect(fn func(), expected EventInfo) {
-	fn()
-	Sync()
-	w.i++ // NOTE for debugging only
-	select {
-	case ei := <-w.C:
-		dbg.Printf("[WATCHER_TEST] received event: path=%q, event=%v, isdir=%v, sys=%v",
-			ei.Path(), ei.Event(), ei.IsDir(), ei.Sys())
-		if ei.Event() != expected.Event() {
-			w.Fatalf("want event=%v; got %v (path=%s)", expected.Event(), ei.Event(),
-				ei.Path())
+// ExpectAny TODO
+func (w *W) ExpectAny(cases []WCase) {
+Test:
+	for i, cas := range cases {
+		cas.Action()
+		Sync()
+		want := cas.Events[0]
+		select {
+		case ei := <-w.C:
+			dbg.Printf("received: path=%q, event=%v, isdir=%v, sys=%v (i=%d)",
+				ei.Path(), ei.Event(), ei.IsDir(), ei.Sys(), i)
+			for j, want := range cas.Events {
+				if ei.Event() != want.Event() {
+					dbg.Printf("want event=%v; got %v (path=%s, i=%d, j=%d)",
+						want.Event(), ei.Event(), ei.Path(), i, j)
+					continue
+				}
+				if !strings.HasSuffix(ei.Path(), want.Path()) {
+					dbg.Printf("want path=%s; got %s (i=%d)", want.Path(), ei.Path(), i)
+					continue
+				}
+				continue Test
+			}
+		case <-time.After(w.timeout()):
+			w.Fatalf("timed out after %v waiting for %v (i=%d)", w.timeout(), want, i)
 		}
-		if !strings.HasSuffix(ei.Path(), expected.Path()) {
-			w.Fatalf("want path=%s; got %s", expected.Path(), ei.Path())
-		}
-	case <-time.After(w.timeout()):
-		w.Fatalf("timed out after %v waiting for %v", w.timeout(), expected)
 	}
 }
