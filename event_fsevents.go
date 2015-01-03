@@ -57,10 +57,8 @@ var ekind = map[Event]Event{}
 type event struct {
 	fse   FSEvent
 	event Event
-	isdir bool
 }
 
-func (ei *event) Event() Event         { return ei.event }
-func (ei *event) Path() string         { return ei.fse.Path }
-func (ei *event) IsDir() (bool, error) { return ei.isdir, nil }
-func (ei *event) Sys() interface{}     { return &ei.fse }
+func (ei *event) Event() Event     { return ei.event }
+func (ei *event) Path() string     { return ei.fse.Path }
+func (ei *event) Sys() interface{} { return &ei.fse }

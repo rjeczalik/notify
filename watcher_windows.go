@@ -400,12 +400,12 @@ func (w *watcher) send(es []*event) {
 		switch Event(e.action) {
 		case (FILE_ACTION_ADDED >> 12), (FILE_ACTION_REMOVED >> 12):
 			if e.filter&uint32(dirmarker) != 0 {
-				e.objtype = objectDirectory
+				e.objtype = ObjectDirectory
 			} else {
-				e.objtype = objectFile
+				e.objtype = ObjectFile
 			}
 		default:
-			e.objtype = objectUnknown
+			e.objtype = ObjectUnknown
 		}
 		w.c <- e
 	}

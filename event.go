@@ -43,7 +43,6 @@ func (e Event) String() string {
 type EventInfo interface {
 	Event() Event
 	Path() string // always clean and absolute
-	IsDir() (bool, error)
 	String() string
 	Sys() interface{}
 }

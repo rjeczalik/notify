@@ -152,12 +152,10 @@ func (w *watch) Dispatch(ev []FSEvent) {
 		if e == 0 {
 			continue
 		}
-		isdir := ev[i].Flags&FSEventsIsDir != 0
 		for _, e := range splitflags(e) {
 			w.c <- &event{
 				fse:   ev[i],
 				event: Event(e),
-				isdir: isdir,
 			}
 		}
 	}

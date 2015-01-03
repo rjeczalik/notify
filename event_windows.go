@@ -63,16 +63,12 @@ var osestr = map[Event]string{
 
 var ekind = map[Event]Event{}
 
-// errUnknownType is returned by IsDir method when it is not possible(without
-// os.Stat fun.) to check if event was triggered on regular file or a directory.
-var errUnknownType = errors.New("notify: unknown type")
-
-type objectType int8
+type ObjectType uint8
 
 const (
-	objectUnknown objectType = iota
-	objectFile
-	objectDirectory
+	ObjectUnknown ObjectType = iota
+	ObjectFile
+	ObjectDirectory
 )
 
 // TODO(ppknap) : doc.
@@ -85,15 +81,6 @@ type event struct {
 	e       Event
 }
 
-func (e *event) Event() Event { return e.e }
-func (e *event) Path() string { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
-func (e *event) IsDir() (bool, error) {
-	switch e.objtype {
-	case objectFile:
-		return false, nil
-	case objectDirectory:
-		return true, nil
-	}
-	return false, errUnknownType
-}
-func (e *event) Sys() interface{} { return nil }
+func (e *event) Event() Event     { return e.e }
+func (e *event) Path() string     { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
+func (e *event) Sys() interface{} { return e.objtype }
