@@ -106,15 +106,13 @@ func (t *Tree) loopdispatch(c <-chan EventInfo) {
 }
 
 // NewTree TODO
-func NewTree(w Watcher) *Tree {
-	c := make(chan EventInfo, 128)
+func NewTree(w Watcher, c <-chan EventInfo) *Tree {
 	t := &Tree{
 		Root: Node{Child: make(map[string]Node), Watch: make(Watchpoint)},
 		cnd:  make(ChanNodesMap),
 		stop: make(chan struct{}),
 	}
 	t.setimpl(w)
-	t.impl.Dispatch(c, t.stop)
 	go t.loopdispatch(c)
 	return t
 }

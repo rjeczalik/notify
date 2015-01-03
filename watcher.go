@@ -39,15 +39,6 @@ type Watcher interface {
 	// the existing event set currently registered for the given path, and the
 	// new, requested event set.
 	Rewatch(path string, old, new Event) error
-
-	// Dispatch requests to fan in all events from all the created watchers into c.
-	// It is guaranteed the c is non-nil. All unexpected events are ignored.
-	//
-	// The Dispatch method is called once on package init by the notify runtime.
-	//
-	// The stop channel is closed when the notify runtime is stopped and is no
-	// longer receiving events sent to c.
-	Dispatch(c chan<- EventInfo, stop <-chan struct{})
 }
 
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support

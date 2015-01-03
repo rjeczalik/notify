@@ -9,7 +9,8 @@ var g *Tree
 func tree() *Tree {
 	once.Do(func() {
 		if g == nil {
-			g = NewTree(NewWatcher(nil))
+			c := make(chan EventInfo, 128)
+			g = NewTree(NewWatcher(c), c)
 		}
 	})
 	return g

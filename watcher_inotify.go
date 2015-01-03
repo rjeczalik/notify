@@ -308,13 +308,6 @@ func (w *watcher) Unwatch(pathname string) (err error) {
 	return nil
 }
 
-// Dispatch implements notify.Watcher interface.
-//
-// TODO(rjeczalik): remove
-func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
-	w.c = c
-}
-
 func (w *watcher) Close() (err error) {
 	w.Lock()
 	if fd := atomic.LoadInt32(&w.fd); fd == invalidDescriptor {

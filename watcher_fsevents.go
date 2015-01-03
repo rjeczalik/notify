@@ -11,13 +11,25 @@ import (
 	"sync/atomic"
 )
 
+const (
+	failure = uint32(FSEventsMustScanSubDirs | FSEventsUserDropped | FSEventsKernelDropped)
+	filter  = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed |
+		FSEventsModified | FSEventsInodeMetaMod)
+)
+
 var (
 	errAlreadyWatched  = errors.New("path is already watched")
 	errNotWatched      = errors.New("path is not being watched")
 	errInvalidEventSet = errors.New("invalid event set provided")
+	errDepth           = errors.New("exceeded allowed iteration count (circular symlink?)")
 )
 
-var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
+// FSEvent represents single file event.
+type FSEvent struct {
+	Path  string
+	ID    uint64
+	Flags uint32
+}
 
 // canonical resolves any symlink in the given path and returns it in a clean form.
 // It expects the path to be absolute. It fails to resolve circular symlinks by
@@ -49,12 +61,6 @@ func canonical(p string) (string, error) {
 	}
 	return filepath.Clean(p), nil
 }
-
-const (
-	failure = uint32(FSEventsMustScanSubDirs | FSEventsUserDropped | FSEventsKernelDropped)
-	filter  = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed |
-		FSEventsModified | FSEventsInodeMetaMod)
-)
 
 // splitflags separates event flags from single set into slice of flags.
 func splitflags(set uint32) (e []uint32) {
@@ -235,15 +241,6 @@ func (fse *fsevents) Rewatch(path string, oldevent, newevent Event) error {
 		return errInvalidEventSet
 	}
 	return nil
-}
-
-// TODO(rjeczalik): remove
-func (fse *fsevents) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
-	fse.c = c
-	go func() {
-		<-stop
-		fse.Close()
-	}()
 }
 
 // RecursiveWatch implements RecursiveWatcher interface. It fails with non-nil

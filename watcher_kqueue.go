@@ -379,9 +379,3 @@ func isdir(p string) (bool, error) {
 	}
 	return fi.IsDir(), nil
 }
-
-// Dispatch implements `Watcher` interface.
-//
-// TODO(rjeczalik): remove
-func (k *kqueue) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
-}

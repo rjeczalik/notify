@@ -71,7 +71,6 @@ type FuncType string
 const (
 	FuncWatch            = FuncType("Watch")
 	FuncUnwatch          = FuncType("Unwatch")
-	FuncDispatch         = FuncType("Dispatch")
 	FuncRewatch          = FuncType("Rewatch")
 	FuncRecursiveWatch   = FuncType("RecursiveWatch")
 	FuncRecursiveUnwatch = FuncType("RecursiveUnwatch")
@@ -184,11 +183,6 @@ type MockedTree struct {
 	C    chan<- EventInfo // event dispatch channel
 }
 
-// Dispatch implements Watcher interface.
-func (mt *MockedTree) Dispatch(c chan<- EventInfo, _ <-chan struct{}) {
-	mt.C = c
-}
-
 // Invoke TODO
 func (mt *MockedTree) Invoke(call Call) error {
 	switch call.F {
@@ -212,9 +206,10 @@ func NewTreeFixture() (tf TreeFixture) {
 	for _, typ := range TreeTypes {
 		// TODO(rjeczalik): Copy FS to allow for modying tree via Create and
 		// Delete events.
-		mt := &MockedTree{}
+		c := make(chan EventInfo, 128)
+		mt := &MockedTree{C: c}
 		tf[typ] = mt
-		mt.Tree = NewTree(SpyWatcher(typ, mt))
+		mt.Tree = NewTree(SpyWatcher(typ, mt), c)
 		mt.Tree.FS = MFS
 	}
 	return

@@ -497,13 +497,6 @@ func (w *watcher) unwatch(path string) (err error) {
 	return
 }
 
-// Dispatch implements notify.Watcher interface.
-//
-// TODO(rjeczalik): remove
-func (w *watcher) Dispatch(c chan<- EventInfo, stop <-chan struct{}) {
-	w.c = c
-}
-
 // Close resets the whole watcher object, closes all existing file descriptors,
 // and sends stateCPClose state as completion key to the main watcher's loop.
 func (w *watcher) Close() (err error) {

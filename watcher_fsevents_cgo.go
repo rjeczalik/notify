@@ -83,13 +83,6 @@ func gostream(_, ctx unsafe.Pointer, n C.size_t, paths, flags, ids uintptr) {
 	(*(*StreamFunc)(ctx))(ev)
 }
 
-// FSEvent represents single file event.
-type FSEvent struct {
-	Path  string
-	ID    uint64
-	Flags uint32
-}
-
 // StreamFunc is a callback called when stream receives file events.
 type StreamFunc func([]FSEvent)
 
