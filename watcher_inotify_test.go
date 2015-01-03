@@ -6,12 +6,14 @@ package notify
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
 func iopen(w *W, path string) WCase {
 	return WCase{
 		Action: func() {
+			path = filepath.Join(w.root, filepath.FromSlash(path))
 			f, err := os.OpenFile(path, os.O_RDWR, 0644)
 			if err != nil {
 				w.Fatalf("OpenFile(%q)=%v", path, err)
@@ -32,6 +34,7 @@ func iopen(w *W, path string) WCase {
 func iread(w *W, path string, p []byte) WCase {
 	return WCase{
 		Action: func() {
+			path = filepath.Join(w.root, filepath.FromSlash(path))
 			f, err := os.OpenFile(path, os.O_RDWR, 0644)
 			if err != nil {
 				w.Fatalf("OpenFile(%q)=%v", path, err)
@@ -81,9 +84,9 @@ func TestWatcherInotify(t *testing.T) {
 	defer w.Stop()
 
 	cases := [...]WCase{
-		iopen(w, "github.com/rjeczalik/fs/fs.go"),
-		iwrite(w, "github.com/rjeczalik/fs/fs.go", []byte("XD")),
-		iread(w, "github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		iopen(w, "src/github.com/rjeczalik/fs/fs.go"),
+		iwrite(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		iread(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 	}
 
 	w.ExpectAny(cases[:])
