@@ -72,7 +72,7 @@ type event struct {
 	impl watched
 }
 
-func (e *event) Event() Event     { return decode(e.impl.mask, e.sys.Mask) }
-func (e *event) Path() string     { return e.impl.pathname }
-func (e *event) IsDir() bool      { return e.sys.Mask&syscall.IN_ISDIR != 0 }
-func (e *event) Sys() interface{} { return e.sys }
+func (e *event) Event() Event         { return decode(e.impl.mask, e.sys.Mask) }
+func (e *event) Path() string         { return e.impl.pathname }
+func (e *event) IsDir() (bool, error) { return e.sys.Mask&syscall.IN_ISDIR != 0, nil }
+func (e *event) Sys() interface{}     { return e.sys }

@@ -60,7 +60,7 @@ type event struct {
 	isdir bool
 }
 
-func (ei *event) Event() Event     { return ei.event }
-func (ei *event) Path() string     { return ei.fse.Path }
-func (ei *event) IsDir() bool      { return ei.isdir }
-func (ei *event) Sys() interface{} { return &ei.fse }
+func (ei *event) Event() Event         { return ei.event }
+func (ei *event) Path() string         { return ei.fse.Path }
+func (ei *event) IsDir() (bool, error) { return ei.isdir, nil }
+func (ei *event) Sys() interface{}     { return &ei.fse }

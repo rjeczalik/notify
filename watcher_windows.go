@@ -399,9 +399,13 @@ func (w *watcher) send(es []*event) {
 		}
 		switch Event(e.action) {
 		case (FILE_ACTION_ADDED >> 12), (FILE_ACTION_REMOVED >> 12):
-			e.isdir = e.filter&uint32(dirmarker) != 0
+			if e.filter&uint32(dirmarker) != 0 {
+				e.objtype = objectDirectory
+			} else {
+				e.objtype = objectFile
+			}
 		default:
-			// TODO(pknap) : or not TODO?
+			e.objtype = objectUnknown
 		}
 		w.c <- e
 	}

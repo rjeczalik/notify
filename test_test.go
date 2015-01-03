@@ -115,11 +115,11 @@ type eventinfo struct {
 	isdir bool
 }
 
-func (ei eventinfo) Sys() interface{} { return ei.sys }
-func (ei eventinfo) Path() string     { return strings.TrimRight(ei.path, `/\`) }
-func (ei eventinfo) Event() Event     { return ei.event }
-func (ei eventinfo) IsDir() bool      { return ei.isdir }
-func (ei eventinfo) String() string   { return fmt.Sprintf("%s on %q", ei.event, ei.path) }
+func (ei eventinfo) Sys() interface{}     { return ei.sys }
+func (ei eventinfo) Path() string         { return strings.TrimRight(ei.path, `/\`) }
+func (ei eventinfo) Event() Event         { return ei.event }
+func (ei eventinfo) IsDir() (bool, error) { return ei.isdir, nil }
+func (ei eventinfo) String() string       { return fmt.Sprintf("%s on %q", ei.event, ei.path) }
 
 // WCase TODO
 type WCase struct {
@@ -323,8 +323,9 @@ Test:
 		want := cas.Events[0]
 		select {
 		case ei := <-w.C:
+			isdir, _ := ei.IsDir()
 			dbg.Printf("received: path=%q, event=%v, isdir=%v, sys=%v (i=%d)",
-				ei.Path(), ei.Event(), ei.IsDir(), ei.Sys(), i)
+				ei.Path(), ei.Event(), isdir, ei.Sys(), i)
 			for j, want := range cas.Events {
 				if ei.Event() != want.Event() {
 					dbg.Printf("want event=%v; got %v (path=%s, i=%d, j=%d)",

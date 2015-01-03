@@ -129,11 +129,11 @@ type TreeEvent struct {
 }
 
 // TreeEvent implements EventInfo interface.
-func (e TreeEvent) Event() Event     { return e.E }
-func (e TreeEvent) Path() string     { return e.P }
-func (e TreeEvent) IsDir() bool      { return IsDir(e.P) }
-func (e TreeEvent) String() string   { return e.E.String() + " - " + e.P }
-func (e TreeEvent) Sys() interface{} { return nil }
+func (e TreeEvent) Event() Event         { return e.E }
+func (e TreeEvent) Path() string         { return e.P }
+func (e TreeEvent) IsDir() (bool, error) { return IsDir(e.P), nil }
+func (e TreeEvent) String() string       { return e.E.String() + " - " + e.P }
+func (e TreeEvent) Sys() interface{}     { return nil }
 
 // Record TODO
 type Record map[TreeType][]Call
@@ -270,15 +270,18 @@ func str(ei EventInfo) string {
 	if ei == nil {
 		return "<nil>"
 	}
+	isdir, _ := ei.IsDir()
 	return fmt.Sprintf("{Name()=%q, Event()=%v, IsDir()=%v}", ei.Path(), ei.Event(),
-		ei.IsDir())
+		isdir)
 }
 
 func equal(want, got EventInfo) error {
 	if (want == nil && got != nil) || (want != nil && got == nil) {
 		return fmt.Errorf("want EventInfo=%s; got %s", str(want), str(got))
 	}
-	if want.Path() != got.Path() || want.Event() != got.Event() || want.IsDir() != got.IsDir() {
+	wantisDir, _ := want.IsDir()
+	gotisDir, _ := want.IsDir()
+	if want.Path() != got.Path() || want.Event() != got.Event() || wantisDir != gotisDir {
 		return fmt.Errorf("want EventInfo=%s; got %s", str(want), str(got))
 	}
 	return nil

@@ -36,10 +36,10 @@ type event struct {
 	isdir bool // tribool - yes, no, can't tell?
 }
 
-func (e event) Event() Event     { return e.ev }
-func (e event) Path() string     { return e.name }
-func (e event) IsDir() bool      { return e.isdir }
-func (e event) Sys() interface{} { return nil } // no-one cares about fsnotify.Event
+func (e event) Event() Event         { return e.ev }
+func (e event) Path() string         { return e.name }
+func (e event) IsDir() (bool, error) { return e.isdir, nil }
+func (e event) Sys() interface{}     { return nil } // no-one cares about fsnotify.Event
 
 func newEvent(ev fsnotifyv1.Event) EventInfo {
 	e := event{
