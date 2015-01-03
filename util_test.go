@@ -41,8 +41,8 @@ func TestTreeSplit(t *testing.T) {
 		if dir != cas.dir {
 			t.Errorf("want dir=%s; got %s (i=%d)", cas.dir, dir, i)
 		}
-		if base != cas.base {
-			t.Errorf("want base=%s; got %s (i=%d)", cas.base, base, i)
+		if want := filepath.FromSlash(cas.base); base != want {
+			t.Errorf("want base=%s; got %s (i=%d)", want, base, i)
 		}
 	}
 }
