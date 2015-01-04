@@ -10,8 +10,10 @@ const (
 	Delete
 	Write
 	Move
-	Recursive // An internal event, in final version won't be exported.
 )
+
+// An internal event, in final version won't be exported.
+const Recursive = Move << 1
 
 // Inotify events.
 const (
@@ -27,21 +29,7 @@ const (
 	IN_DELETE        = Event(syscall.IN_DELETE)
 	IN_DELETE_SELF   = Event(syscall.IN_DELETE_SELF)
 	IN_MOVE_SELF     = Event(syscall.IN_MOVE_SELF)
-	IN_CLOSE         = Event(syscall.IN_CLOSE)
-	IN_MOVE          = Event(syscall.IN_MOVE)
-	IN_ALL_EVENTS    = Event(syscall.IN_ALL_EVENTS)
 )
-
-// Inotify behavior events.
-const (
-	//IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW) // TODO add support
-	//IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK) // TODO add support
-	IN_MASK_ADD = Event(syscall.IN_MASK_ADD)
-	//IN_ONESHOT     = Event(syscall.IN_ONESHOT)  // TODO add support
-	//IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)  // TODO add support
-)
-
-const invalid = ^(All | IN_ALL_EVENTS)
 
 var osestr = map[Event]string{
 	IN_ACCESS:        "notify.IN_ACCESS",
@@ -56,9 +44,16 @@ var osestr = map[Event]string{
 	IN_DELETE:        "notify.IN_DELETE",
 	IN_DELETE_SELF:   "notify.IN_DELETE_SELF",
 	IN_MOVE_SELF:     "notify.IN_MOVE_SELF",
-	IN_CLOSE:         "notify.IN_CLOSE",
-	IN_MOVE:          "notify.IN_MOVE",
 }
+
+// Inotify behavior events.
+const (
+	IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW)
+	IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK)
+	IN_MASK_ADD    = Event(syscall.IN_MASK_ADD)
+	IN_ONESHOT     = Event(syscall.IN_ONESHOT)
+	IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)
+)
 
 var ekind = map[Event]Event{
 	syscall.IN_MOVED_FROM:  Create,

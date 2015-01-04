@@ -13,9 +13,10 @@ const (
 	Delete
 	Write
 	Move
-
-	Recursive // An internal event, in final version won't be exported.
 )
+
+// An internal event, in final version won't be exported.
+const Recursive = Move << 1
 
 const dirmarker Event = Recursive << 1
 
@@ -62,10 +63,8 @@ var osestr = map[Event]string{
 
 var ekind = map[Event]Event{}
 
-type ObjectType uint8
-
 const (
-	ObjectUnknown ObjectType = iota
+	ObjectUnknown uint8 = iota
 	ObjectFile
 	ObjectDirectory
 )
@@ -74,7 +73,7 @@ const (
 type event struct {
 	pathw   []uint16
 	name    string
-	objtype ObjectType
+	objtype uint8
 	action  uint32
 	filter  uint32
 	e       Event

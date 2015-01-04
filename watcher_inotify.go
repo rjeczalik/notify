@@ -80,7 +80,7 @@ func (w *watcher) Rewatch(pathname string, _, newevent Event) error {
 func (w *watcher) watch(pathname string, e Event) (err error) {
 	// Adding new filters with IN_MASK_ADD mask is not supported.
 	e &^= Event(syscall.IN_MASK_ADD)
-	if e&^(All|IN_ALL_EVENTS) != 0 {
+	if e&^(All|Event(syscall.IN_ALL_EVENTS)) != 0 {
 		return errors.New("notify: unknown event")
 	}
 	if err = w.lazyinit(); err != nil {
