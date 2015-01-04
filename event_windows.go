@@ -4,7 +4,6 @@
 package notify
 
 import (
-	"errors"
 	"path/filepath"
 	"syscall"
 )
@@ -75,7 +74,7 @@ const (
 type event struct {
 	pathw   []uint16
 	name    string
-	objtype objectType
+	objtype ObjectType
 	action  uint32
 	filter  uint32
 	e       Event

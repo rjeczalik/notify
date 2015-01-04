@@ -16,8 +16,9 @@ var none = uintptr(1<<(unsafe.Sizeof(uintptr(0))*8) - 1)
 
 // TODO
 func Sync() {
-	r, _, err := procSetSystemFileCacheSize.Call(none, none, 0)
-	if r == 0 {
-		panic(err)
-	}
+	// TODO : ppknap
+	//r, _, err := procSetSystemFileCacheSize.Call(none, none, 0)
+	//if r == 0 {
+	//	panic(err)
+	//}
 }

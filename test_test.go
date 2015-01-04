@@ -213,7 +213,7 @@ func (w *W) Debug(command string) {
 // watcher TODO
 func (w *W) watcher() Watcher {
 	if w.Watcher == nil {
-		c := make(chan EventInfo, 128)
+		c := make(chan EventInfo, 512)
 		w.Watcher = NewWatcher(c)
 		w.C = c
 	}
