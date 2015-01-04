@@ -11,7 +11,7 @@ func NewWatcher(c chan<- EventInfo) Watcher {
 }
 
 // Watcher is a temporary interface for wrapping inotify, ReadDirChangesW,
-// FSEvents, kqueue, poller and fsnotify implementations.
+// FSEvents, kqueue and poller implementations.
 //
 // The watcher implementation is expected to do its own mapping between paths and
 // create watchers if underlying event notification does not support it. For

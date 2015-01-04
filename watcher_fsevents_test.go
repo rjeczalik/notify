@@ -1,5 +1,4 @@
 // +build darwin,!kqueue
-// +build !fsnotify
 
 package notify
 

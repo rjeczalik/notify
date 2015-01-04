@@ -1,5 +1,5 @@
 // +build !darwin,!linux,!freebsd,!dragonfly,!netbsd,!openbsd,!windows
-// +build !fsnotify !kqueue
+// +build !kqueue
 
 package notify
 
@@ -24,5 +24,5 @@ const (
 var osestr = map[Event]string{}
 
 var ekind = map[Event]Event{
-	Move: Create, // TODO(rjeczalik): Move (fsnotify.Rename) does not work, workaround?
+	Move: Create,
 }

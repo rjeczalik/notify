@@ -1,5 +1,4 @@
 // +build windows
-// +build !fsnotify
 
 package notify
 
