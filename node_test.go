@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func TestNodeAdd(t *testing.T) {
+
+}
+
 func TestTreeNodeSet(t *testing.T) {
 	cases := [...]struct {
 		nd  []Node

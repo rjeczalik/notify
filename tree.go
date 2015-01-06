@@ -20,15 +20,6 @@ import (
 // TODO(rjeczalik): Concurrent tree-dispatch.
 // TODO(rjeczalik): Move to separate package notify/tree.
 
-// Skip TODO
-var Skip = errors.New("skip")
-
-// WalkPathFunc TODO
-type WalkPathFunc func(nd Node, isbase bool) error
-
-// WalkFunc TODO
-type WalkFunc func(Node) error
-
 // PathError TODO
 type PathError struct {
 	Name string
