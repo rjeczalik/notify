@@ -29,6 +29,12 @@ func newWatcher(c chan<- EventInfo) Watcher {
 	return k
 }
 
+// KqEvent represents a single event.
+type KqEvent struct {
+	Kq *syscall.Kevent_t
+	FI os.FileInfo
+}
+
 // Close closes all still open file descriptors and kqueue.
 func (k *kqueue) Close() error {
 	k.Lock()
@@ -131,14 +137,14 @@ func (k *kqueue) monitor() {
 			}
 			hist[int(kevn[0].Ident)] = struct{}{}
 			o := unmask(kevn[0].Fflags, w.eDir|w.eNonDir)
-			if w.dir {
+			if w.fi.IsDir() {
 				// If it's dir and delete we have to send it and continue, because
 				// other processing relies on opening (in this case not existing) dir.
 				if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
 					// Write is reported also for Delete on directory. Because of that
 					// we have to filter it out explicitly.
-					evn = append(evn, event{w.dir, w.p,
-						o & ^Write & ^NOTE_WRITE, &kevn[0]})
+					evn = append(evn, event{w.p,
+						o & ^Write & ^NOTE_WRITE, KqEvent{&kevn[0], w.fi}})
 					k.del(w)
 					k.Unlock()
 					continue
@@ -146,14 +152,14 @@ func (k *kqueue) monitor() {
 				if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
 					if err := k.walk(w.p, func(fi os.FileInfo) error {
 						p := filepath.Join(w.p, fi.Name())
-						if err := k.singlewatch(p, w.eDir, false, fi.IsDir()); err != nil {
+						if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
 							if err != errNoNewWatch {
 								// TODO: pass error via chan because state of monitoring is
 								// invalid.
 								panic(err)
 							}
 						} else if (w.eDir & Create) != 0 {
-							evn = append(evn, event{fi.IsDir(), p, Create, nil})
+							evn = append(evn, event{p, Create, KqEvent{nil, fi}})
 						}
 						return nil
 					}); err != nil {
@@ -162,7 +168,7 @@ func (k *kqueue) monitor() {
 					}
 				}
 			} else {
-				evn = append(evn, event{w.dir, w.p, o, &kevn[0]})
+				evn = append(evn, event{w.p, o, KqEvent{&kevn[0], w.fi}})
 			}
 			if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
 				k.del(w)
@@ -195,8 +201,8 @@ type watched struct {
 	p string
 	// fd is a file descriptor for watched file/directory.
 	fd int
-	// dir is a boolean specifying if watched is directory.
-	dir bool
+	// fi provides information about watched file/dir.
+	fi os.FileInfo
 	// eDir represents events watched directly.
 	eDir Event
 	// eNonDir represents events watched indirectly.
@@ -213,16 +219,16 @@ func (k *kqueue) init() error {
 	return nil
 }
 
-func (k *kqueue) watch(p string, e Event, isdir bool) error {
-	if err := k.singlewatch(p, e, true, isdir); err != nil {
+func (k *kqueue) watch(p string, e Event, fi os.FileInfo) error {
+	if err := k.singlewatch(p, e, true, fi); err != nil {
 		if err != errNoNewWatch {
 			return nil
 		}
 	}
-	if isdir {
+	if fi.IsDir() {
 		err := k.walk(p, func(fi os.FileInfo) (err error) {
-			if err = k.singlewatch(filepath.Join(p, fi.Name()),
-				e, false, fi.IsDir()); err != nil {
+			if err = k.singlewatch(filepath.Join(p, fi.Name()), e, false,
+				fi); err != nil {
 				if err != errNoNewWatch {
 					return
 				}
@@ -240,14 +246,15 @@ var errNoNewWatch = errors.New("kqueue: file already watched")
 var errNotWatched = errors.New("kqueue: cannot unwatch not watched file")
 
 // watch starts to watch given `p` file/directory.
-func (k *kqueue) singlewatch(p string, e Event, direct, dir bool) error {
+func (k *kqueue) singlewatch(p string, e Event, direct bool,
+	fi os.FileInfo) error {
 	w, ok := k.pthLkp[p]
 	if !ok {
 		fd, err := syscall.Open(p, syscall.O_NONBLOCK|syscall.O_RDONLY, 0)
 		if err != nil {
 			return err
 		}
-		w = &watched{fd: fd, p: p, dir: dir}
+		w = &watched{fd: fd, p: p, fi: fi}
 	}
 	if direct {
 		w.eDir |= e
@@ -284,7 +291,8 @@ func (k *kqueue) singleunwatch(p string, direct bool) error {
 		return err
 	}
 	if w.eNonDir&w.eDir != 0 {
-		if err := k.singlewatch(p, w.eNonDir|w.eDir, w.eNonDir == 0, w.dir); err != nil {
+		if err := k.singlewatch(p, w.eNonDir|w.eDir, w.eNonDir == 0,
+			w.fi); err != nil {
 			return err
 		}
 	} else {
@@ -312,8 +320,8 @@ func (k *kqueue) walk(p string, f func(os.FileInfo) error) error {
 	return nil
 }
 
-func (k *kqueue) unwatch(p string, isdir bool) error {
-	if isdir {
+func (k *kqueue) unwatch(p string, fi os.FileInfo) error {
+	if fi.IsDir() {
 		err := k.walk(p, func(fi os.FileInfo) error {
 			if !fi.IsDir() {
 				return k.singleunwatch(filepath.Join(p, fi.Name()), false)
@@ -328,53 +336,43 @@ func (k *kqueue) unwatch(p string, isdir bool) error {
 }
 
 // Watch implements Watcher interface.
-func (k *kqueue) Watch(p string, e Event) (err error) {
-	b, err := isdir(p)
+func (k *kqueue) Watch(p string, e Event) error {
+	fi, err := os.Stat(p)
 	if err != nil {
-		return
+		return err
 	}
 	k.Lock()
-	err = k.watch(p, e, b)
+	err = k.watch(p, e, fi)
 	k.Unlock()
-	return
+	return nil
 }
 
 // Unwatch implements Watcher interface.
-func (k *kqueue) Unwatch(p string) (err error) {
-	b, err := isdir(p)
+func (k *kqueue) Unwatch(p string) error {
+	fi, err := os.Stat(p)
 	if err != nil {
-		return
+		return err
 	}
 	k.Lock()
-	err = k.unwatch(p, b)
+	err = k.unwatch(p, fi)
 	k.Unlock()
-	return
+	return nil
 }
 
 // Rewatch implements Watcher interface.
 //
 // TODO(rjeczalik): This is a naive hack. Rewrite might help.
-func (k *kqueue) Rewatch(p string, _, e Event) (err error) {
-	b, err := isdir(p)
-	if err != nil {
-		return
-	}
-	k.Lock()
-	if err = k.unwatch(p, b); err == nil {
-		// TODO(rjeczalik): If watch fails then we leave kqueue in inconsistent
-		// state. Handle? Panic? Native version of rewatch?
-		err = k.watch(p, e, b)
-	}
-	k.Unlock()
-	return
-}
-
-// isdir returns a boolean indicating if `p` string represents
-// path to a directory.
-func isdir(p string) (bool, error) {
+func (k *kqueue) Rewatch(p string, _, e Event) error {
 	fi, err := os.Stat(p)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return fi.IsDir(), nil
+	k.Lock()
+	if err = k.unwatch(p, fi); err == nil {
+		// TODO(rjeczalik): If watch fails then we leave kqueue in inconsistent
+		// state. Handle? Panic? Native version of rewatch?
+		err = k.watch(p, e, fi)
+	}
+	k.Unlock()
+	return nil
 }
