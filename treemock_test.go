@@ -177,19 +177,19 @@ func NativeEventCases(cases []EventCase) []EventCase {
 
 // MockedTree TODO
 type MockedTree struct {
-	Spy                   // implements Watcher, RecursiveWatcher or RecursiveRewatcher
-	Tree *Tree            // actual tree being tested
-	N    int              // call start offset
-	C    chan<- EventInfo // event dispatch channel
+	Spy                      // implements Watcher, RecursiveWatcher or RecursiveRewatcher
+	BigTree *BigTree         // actual tree being tested
+	N       int              // call start offset
+	C       chan<- EventInfo // event dispatch channel
 }
 
 // Invoke TODO
 func (mt *MockedTree) Invoke(call Call) error {
 	switch call.F {
 	case FuncWatch:
-		return mt.Tree.Watch(call.P, call.C, call.E)
+		return mt.BigTree.Watch(call.P, call.C, call.E)
 	case FuncStop:
-		mt.Tree.Stop(call.C)
+		mt.BigTree.Stop(call.C)
 		return nil
 	}
 	panic("(*TreeFixture).invoke: invalid Tree call: " + call.F)
@@ -209,8 +209,8 @@ func NewTreeFixture() (tf TreeFixture) {
 		c := make(chan EventInfo, 128)
 		mt := &MockedTree{C: c}
 		tf[typ] = mt
-		mt.Tree = NewTree(SpyWatcher(typ, mt), c)
-		mt.Tree.FS = MFS
+		mt.BigTree = NewTree(SpyWatcher(typ, mt), c)
+		mt.BigTree.FS = MFS
 	}
 	return
 }

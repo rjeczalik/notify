@@ -36,7 +36,7 @@ type Impl interface {
 }
 
 // Tree TODO
-type Tree struct {
+type BigTree struct {
 	FS   fs.Filesystem
 	Root Node
 
@@ -46,14 +46,14 @@ type Tree struct {
 	isrec bool
 }
 
-func (t *Tree) fs() fs.Filesystem {
+func (t *BigTree) fs() fs.Filesystem {
 	if t.FS != nil {
 		return t.FS
 	}
 	return fs.Default
 }
 
-func (t *Tree) setimpl(w Watcher) {
+func (t *BigTree) setimpl(w Watcher) {
 	if os, ok := w.(Impl); ok {
 		t.impl = os
 		t.isrec = true
@@ -65,7 +65,7 @@ func (t *Tree) setimpl(w Watcher) {
 	}{w, t}
 }
 
-func (t *Tree) loopdispatch(c <-chan EventInfo) {
+func (t *BigTree) loopdispatch(c <-chan EventInfo) {
 	nd, ok := Node{}, false
 	for {
 		select {
@@ -97,8 +97,8 @@ func (t *Tree) loopdispatch(c <-chan EventInfo) {
 }
 
 // NewTree TODO
-func NewTree(w Watcher, c <-chan EventInfo) *Tree {
-	t := &Tree{
+func NewTree(w Watcher, c <-chan EventInfo) *BigTree {
+	t := &BigTree{
 		Root: Node{Child: make(map[string]Node), Watch: make(Watchpoint)},
 		cnd:  make(ChanNodesMap),
 		stop: make(chan struct{}),
@@ -108,13 +108,13 @@ func NewTree(w Watcher, c <-chan EventInfo) *Tree {
 	return t
 }
 
-func (t *Tree) root(p string) (Node, int) {
+func (t *BigTree) root(p string) (Node, int) {
 	vol := filepath.VolumeName(p)
 	return t.Root.child(vol), len(vol) + 1
 }
 
 // TryLookPath TODO
-func (t *Tree) TryLookPath(p string) (it Node, err error) {
+func (t *BigTree) TryLookPath(p string) (it Node, err error) {
 	// TODO(rjeczalik): os.PathSeparator or enforce callers to not pass separator?
 	if p == "" || p == "/" {
 		return t.Root, nil
@@ -145,7 +145,7 @@ func (t *Tree) TryLookPath(p string) (it Node, err error) {
 // LookPath TODO
 //
 // TODO(rjeczalik): LookPath(p) should be Look(w.Root, p)
-func (t *Tree) LookPath(p string) Node {
+func (t *BigTree) LookPath(p string) Node {
 	// TODO(rjeczalik): os.PathSeparator or enforce callers to not pass separator?
 	if p == "" || p == "/" {
 		return t.Root
@@ -159,7 +159,7 @@ func (t *Tree) LookPath(p string) Node {
 }
 
 // Look TODO
-func (t *Tree) Look(nd Node, p string) Node {
+func (t *BigTree) Look(nd Node, p string) Node {
 	if nd.Name == p {
 		return nd
 	}
@@ -177,7 +177,7 @@ func (t *Tree) Look(nd Node, p string) Node {
 // Del TODO
 //
 // TODO(rjeczalik):
-func (t *Tree) Del(p string) {
+func (t *BigTree) Del(p string) {
 	it, i := t.root(p)
 	stack := []Node{it}
 	for j := IndexSep(p[i:]); j != -1; j = IndexSep(p[i:]) {
@@ -205,7 +205,7 @@ func (t *Tree) Del(p string) {
 }
 
 // TryWalkPath TODO
-func (t *Tree) TryWalkPath(p string, fn WalkPathFunc) error {
+func (t *BigTree) TryWalkPath(p string, fn WalkPathFunc) error {
 	ok := false
 	it, i := t.root(p)
 	for j := IndexSep(p[i:]); j != -1; j = IndexSep(p[i:]) {
@@ -241,7 +241,7 @@ func (t *Tree) TryWalkPath(p string, fn WalkPathFunc) error {
 // WalkPath TODO
 //
 // NOTE(rjeczalik): WalkPath assumes the p is clean.
-func (t *Tree) WalkPath(p string, fn WalkPathFunc) error {
+func (t *BigTree) WalkPath(p string, fn WalkPathFunc) error {
 	it, i := t.root(p)
 	for j := IndexSep(p[i:]); j != -1; j = IndexSep(p[i:]) {
 		it = it.child(p[i : i+j])
@@ -263,7 +263,7 @@ func (t *Tree) WalkPath(p string, fn WalkPathFunc) error {
 // WalkDir TODO
 //
 // Uses BFS.
-func (t *Tree) WalkDir(nd Node, fn WalkFunc) error {
+func (t *BigTree) WalkDir(nd Node, fn WalkFunc) error {
 	switch err := fn(nd); err {
 	case nil:
 	case Skip:
@@ -303,7 +303,7 @@ func (t *Tree) WalkDir(nd Node, fn WalkFunc) error {
 // Walk TODO
 //
 // Uses BFS.
-func (t *Tree) Walk(nd Node, fn WalkFunc) error {
+func (t *BigTree) Walk(nd Node, fn WalkFunc) error {
 	switch err := fn(nd); err {
 	case nil:
 	case Skip:
@@ -339,7 +339,7 @@ func (t *Tree) Walk(nd Node, fn WalkFunc) error {
 }
 
 // TODO(rjeczalik): Rename.
-func (t *Tree) register(nd Node, c chan<- EventInfo, e Event) EventDiff {
+func (t *BigTree) register(nd Node, c chan<- EventInfo, e Event) EventDiff {
 	t.cnd.Add(c, nd)
 	// TODO(rjeczalik): check if any of the parents are being watched recursively
 	// and the event set is sufficient.
@@ -347,7 +347,7 @@ func (t *Tree) register(nd Node, c chan<- EventInfo, e Event) EventDiff {
 }
 
 // TODO(rjeczalik): Rename.
-func (t *Tree) unregister(nd Node, c chan<- EventInfo, e Event) EventDiff {
+func (t *BigTree) unregister(nd Node, c chan<- EventInfo, e Event) EventDiff {
 	diff := nd.Watch.Del(c, e)
 	if diff != None && diff[1] == 0 {
 		// TODO(rjeczalik): Use Node for lookup?
@@ -361,7 +361,7 @@ func (t *Tree) unregister(nd Node, c chan<- EventInfo, e Event) EventDiff {
 //
 // TODO(rjeczalik): check if any of the parents are being watched recursively
 // and the event set is sufficient.
-func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
+func (t *BigTree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 	nd := t.LookPath(p)
 	diff := t.register(nd, c, e) // TODO(rjeczalik): inline t.register here?
 	if t.isrec {
@@ -400,7 +400,7 @@ func (t *Tree) watch(p string, c chan<- EventInfo, e Event) (err error) {
 }
 
 // NOTE(rjeczalik): strategy for fake recursive watcher
-func (t *Tree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
+func (t *BigTree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
 	diff := nd.Watch.AddRecursive(e)
 	switch {
 	case diff == None:
@@ -421,7 +421,7 @@ func (t *Tree) watchrec(nd Node, c chan<- EventInfo, e Event) (err error) {
 }
 
 // NOTE(rjeczalik): strategy for native recursive watcher
-func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
+func (t *BigTree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	nd := (*Node)(nil)
 	// Look up existing, recursive watchpoint already covering the given p.
 	err := t.TryWalkPath(p, func(it Node, isbase bool) error {
@@ -541,7 +541,7 @@ func (t *Tree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 //
 // Watch does not support symlinks as it does not care. If user cares, p should
 // be passed to os.Readlink first.
-func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
+func (t *BigTree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 	if c == nil {
 		panic("notify: Watch using nil channel")
 	}
@@ -570,7 +570,7 @@ func (t *Tree) Watch(p string, c chan<- EventInfo, e ...Event) (err error) {
 var found = errors.New("found")
 
 // Stop TODO
-func (t *Tree) Stop(c chan<- EventInfo) {
+func (t *BigTree) Stop(c chan<- EventInfo) {
 	if nds, ok := t.cnd[c]; ok {
 		var err error
 		for _, nd := range *nds {
@@ -624,13 +624,13 @@ func (t *Tree) Stop(c chan<- EventInfo) {
 // Close TODO
 //
 // TODO(rjeczalik): Make unexported or remove all watchpoints?
-func (t *Tree) Close() error {
+func (t *BigTree) Close() error {
 	close(t.stop)
 	return nil
 }
 
 // RecursiveWatch implements notify.RecursiveWatcher interface.
-func (t *Tree) RecursiveWatch(p string, e Event) error {
+func (t *BigTree) RecursiveWatch(p string, e Event) error {
 	// Before we're able to decide whether we should watch or rewatch p,
 	// an watchpoint must be registered for the path.
 	// That's why till this point we already have a watchpoint, so we just watch
@@ -652,12 +652,12 @@ func (t *Tree) RecursiveWatch(p string, e Event) error {
 }
 
 // RecursiveUnwatch implements notify.RecursiveWatcher interface.
-func (t *Tree) RecursiveUnwatch(p string) error {
+func (t *BigTree) RecursiveUnwatch(p string) error {
 	return errors.New("RecurisveUnwatch TODO(rjeczalik)")
 }
 
 // Rewatch implements notify.Rewatcher interface.
-func (t *Tree) Rewatch(p string, olde, newe Event) error {
+func (t *BigTree) Rewatch(p string, olde, newe Event) error {
 	if err := t.impl.Unwatch(p); err != nil {
 		return err
 	}
@@ -665,7 +665,7 @@ func (t *Tree) Rewatch(p string, olde, newe Event) error {
 }
 
 // RecursiveRewatch implements notify.RecursiveRewatcher interface.
-func (t *Tree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
+func (t *BigTree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 	if oldp != newp {
 		switch {
 		case strings.HasPrefix(newp, oldp):

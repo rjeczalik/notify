@@ -4,9 +4,9 @@ import "sync"
 
 var once sync.Once
 var m sync.Mutex
-var g *Tree
+var g *BigTree
 
-func tree() *Tree {
+func tree() *BigTree {
 	once.Do(func() {
 		if g == nil {
 			c := make(chan EventInfo, 128)

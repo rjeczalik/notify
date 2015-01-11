@@ -83,7 +83,7 @@ func TestTreeDel(t *testing.T) {
 		Node{Child: map[string]Node{}},
 	}}
 	for i, cas := range cases {
-		if (&Tree{Root: cas.before}).Del(cas.p); !reflect.DeepEqual(cas.before, cas.after) {
+		if (&BigTree{Root: cas.before}).Del(cas.p); !reflect.DeepEqual(cas.before, cas.after) {
 			t.Errorf("want tree=%v; got %v (i=%d)", cas.after, cas.before, i)
 		}
 	}
