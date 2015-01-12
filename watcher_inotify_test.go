@@ -22,9 +22,9 @@ func iopen(w *W, path string) WCase {
 			w.Debug(fmt.Sprintf("open %q", path))
 		},
 		Events: []EventInfo{
-			eventinfo{path: path, event: IN_ACCESS},
-			eventinfo{path: path, event: IN_OPEN},
-			eventinfo{path: path, event: IN_CLOSE_NOWRITE},
+			Call{P: path, E: IN_ACCESS},
+			Call{P: path, E: IN_OPEN},
+			Call{P: path, E: IN_CLOSE_NOWRITE},
 		},
 	}
 }
@@ -45,9 +45,9 @@ func iread(w *W, path string, p []byte) WCase {
 			w.Debug(fmt.Sprintf("read %q", path))
 		},
 		Events: []EventInfo{
-			eventinfo{path: path, event: IN_ACCESS},
-			eventinfo{path: path, event: IN_OPEN},
-			eventinfo{path: path, event: IN_CLOSE_NOWRITE},
+			Call{P: path, E: IN_ACCESS},
+			Call{P: path, E: IN_OPEN},
+			Call{P: path, E: IN_CLOSE_NOWRITE},
 		},
 	}
 }
@@ -56,10 +56,10 @@ func iwrite(w *W, path string, p []byte) WCase {
 	cas := write(w, path, p)
 	path = cas.Events[0].Path()
 	cas.Events = append(cas.Events,
-		eventinfo{path: path, event: IN_ACCESS},
-		eventinfo{path: path, event: IN_OPEN},
-		eventinfo{path: path, event: IN_MODIFY},
-		eventinfo{path: path, event: IN_CLOSE_WRITE},
+		Call{P: path, E: IN_ACCESS},
+		Call{P: path, E: IN_OPEN},
+		Call{P: path, E: IN_MODIFY},
+		Call{P: path, E: IN_CLOSE_WRITE},
 	)
 	return cas
 }
