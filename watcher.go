@@ -39,6 +39,9 @@ type Watcher interface {
 	// the existing event set currently registered for the given path, and the
 	// new, requested event set.
 	Rewatch(path string, old, new Event) error
+
+	// Close TODO(rjeczalik)
+	Close() error
 }
 
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support

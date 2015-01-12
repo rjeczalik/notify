@@ -5,78 +5,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
 const buffer = 16
-
-// Chans TODO
-type Chans []chan EventInfo
-
-// Foreach TODO
-func (c Chans) Foreach(fn func(chan<- EventInfo, Node)) {
-	for i, ch := range c {
-		fn(ch, Node{Name: strconv.Itoa(i)})
-	}
-}
-
-// Drain TODO
-func (c Chans) Drain() (ei []EventInfo) {
-	n := len(c)
-	stop := make(chan struct{})
-	eich := make(chan EventInfo, n*buffer)
-	go func() {
-		defer close(eich)
-		cases := make([]reflect.SelectCase, n+1)
-		for i := range c {
-			cases[i].Chan = reflect.ValueOf(c[i])
-			cases[i].Dir = reflect.SelectRecv
-		}
-		cases[n].Chan = reflect.ValueOf(stop)
-		cases[n].Dir = reflect.SelectRecv
-		for {
-			i, v, ok := reflect.Select(cases)
-			if i == n {
-				return
-			}
-			if !ok {
-				panic("(Chans).Drain(): unexpected chan close")
-			}
-			eich <- v.Interface().(EventInfo)
-		}
-	}()
-	<-time.After(timeout * time.Duration(n))
-	close(stop)
-	for e := range eich {
-		ei = append(ei, e)
-	}
-	return
-}
-
-// NewChans TODO
-func NewChans(n int) Chans {
-	ch := make([]chan EventInfo, n)
-	for i := range ch {
-		ch[i] = make(chan EventInfo, buffer)
-	}
-	return ch
-}
-
-// FuncType represents enums for Watcher interface.
-type FuncType string
-
-const (
-	FuncWatch            = FuncType("Watch")
-	FuncUnwatch          = FuncType("Unwatch")
-	FuncRewatch          = FuncType("Rewatch")
-	FuncRecursiveWatch   = FuncType("RecursiveWatch")
-	FuncRecursiveUnwatch = FuncType("RecursiveUnwatch")
-	FuncRecursiveRewatch = FuncType("RecursiveRewatch")
-	FuncStop             = FuncType("Stop")
-)
 
 // TreeType TODO
 type TreeType uint8
@@ -108,17 +42,6 @@ func (typ TreeType) String() string {
 // path separator is assumed to be a directory.
 func IsDir(p string) bool {
 	return strings.HasSuffix(p, sep) || strings.HasSuffix(p, sep+"...")
-}
-
-// Call represents single call to Watcher issued by the Tree
-// and recorded by a spy Watcher mock.
-type Call struct {
-	F  FuncType
-	C  chan EventInfo
-	P  string // regular Path argument and old path from RecursiveRewatch call
-	NP string // new Path argument from RecursiveRewatch call
-	E  Event  // regular Event argument and old Event from a Rewatch call
-	NE Event  // new Event argument from Rewatch call
 }
 
 // TreeEvent TODO
@@ -165,7 +88,7 @@ type EventCase struct {
 	Receiver []chan EventInfo // receiver only
 }
 
-// NativeEventCases TODO
+// NativeEventCases is a test function which takes cases as an argument.
 func NativeEventCases(cases []EventCase) []EventCase {
 	if runtime.GOOS == "windows" {
 		for i := range cases {
@@ -321,9 +244,6 @@ func (tf TreeFixture) TestEvents(t *testing.T, cases []EventCase) {
 	}
 }
 
-// Spy is a mock for Watcher interface, which records every call.
-type Spy []Call
-
 // SpyWatcher TODO
 func SpyWatcher(typ TreeType, tree *MockedTree) Watcher {
 	switch typ {
@@ -338,40 +258,4 @@ func SpyWatcher(typ TreeType, tree *MockedTree) Watcher {
 		}{tree, tree}
 	}
 	panic(fmt.Sprintf("notify/test: unsupported runtime type: %d (%s)", typ, typ))
-}
-
-// Watch implements Watcher interface.
-func (s *Spy) Watch(p string, e Event) (_ error) {
-	*s = append(*s, Call{F: FuncWatch, P: p, E: e})
-	return
-}
-
-// Unwatch implements Watcher interface.
-func (s *Spy) Unwatch(p string) (_ error) {
-	*s = append(*s, Call{F: FuncUnwatch, P: p})
-	return
-}
-
-// Rewatch implements Rewatcher interface.
-func (s *Spy) Rewatch(p string, olde, newe Event) (_ error) {
-	*s = append(*s, Call{F: FuncRewatch, P: p, E: olde, NE: newe})
-	return
-}
-
-// RecursiveWatch implements RecursiveWatcher interface.
-func (s *Spy) RecursiveWatch(p string, e Event) (_ error) {
-	*s = append(*s, Call{F: FuncRecursiveWatch, P: p, E: e})
-	return
-}
-
-// RecursiveUnwatch implements RecursiveWatcher interface.
-func (s *Spy) RecursiveUnwatch(p string) (_ error) {
-	*s = append(*s, Call{F: FuncRecursiveUnwatch, P: p})
-	return
-}
-
-// RecursiveRewatch implements RecursiveRewatcher interface.
-func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe Event) (_ error) {
-	*s = append(*s, Call{F: FuncRecursiveRewatch, P: oldp, NP: newp, E: olde, NE: newe})
-	return
 }

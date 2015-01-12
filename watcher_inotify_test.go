@@ -79,7 +79,7 @@ var events = []Event{
 
 func TestWatcherInotify(t *testing.T) {
 	w := NewWatcherTest(t, "testdata/gopath.txt", events...)
-	defer w.Stop()
+	defer w.Close()
 
 	cases := [...]WCase{
 		iopen(w, "src/github.com/rjeczalik/fs/fs.go"),

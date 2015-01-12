@@ -171,7 +171,7 @@ func TestFlagdiff(t *testing.T) {
 // See comment for (flagdiff).diff method.
 func TestWatcherShadowedWriteCreate(t *testing.T) {
 	w := NewWatcherTest(t, "testdata/gopath.txt")
-	defer w.Stop()
+	defer w.Close()
 
 	cases := [...]WCase{
 		create(w, "src/github.com/rjeczalik/which/which.go"),

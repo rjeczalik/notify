@@ -6,7 +6,7 @@ import "testing"
 
 func TestWatcher(t *testing.T) {
 	w := NewWatcherTest(t, "testdata/gopath.txt")
-	defer w.Stop()
+	defer w.Close()
 
 	cases := [...]WCase{
 		create(w, "src/github.com/rjeczalik/which/.which.go.swp"),
