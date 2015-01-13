@@ -14,6 +14,22 @@ import (
 	"time"
 )
 
+// NOTE(rjeczalik): some useful environment variables:
+//
+//   - DEBUG gives some extra information about generated events
+//   - TEST_NOTIFY_TIMEOUT allows for changing default wait time for watcher's
+//     events
+//
+
+func timeout() time.Duration {
+	if s := os.Getenv("TEST_NOTIFY_TIMEOUT"); s != "" {
+		if t, err := time.ParseDuration(s); err == nil {
+			return t
+		}
+	}
+	return 2 * time.Second
+}
+
 func isDir(path string) bool {
 	r := path[len(path)-1]
 	return r == '\\' || r == '/'
@@ -114,6 +130,14 @@ func TestDebug(t *testing.T) {
 type WCase struct {
 	Action func()
 	Events []EventInfo
+}
+
+func (cas WCase) String() string {
+	s := make([]string, 0, len(cas.Events))
+	for _, ei := range cas.Events {
+		s = append(s, "Event("+ei.Event().String()+")@"+filepath.FromSlash(ei.Path()))
+	}
+	return strings.Join(s, ", ")
 }
 
 // W TODO
@@ -229,7 +253,7 @@ func (w *W) timeout() time.Duration {
 	if w.Timeout != 0 {
 		return w.Timeout
 	}
-	return 2 * time.Second
+	return timeout()
 }
 
 // Close TODO
@@ -426,7 +450,7 @@ func (c Chans) Drain() (ei []EventInfo) {
 			eich <- v.Interface().(EventInfo)
 		}
 	}()
-	<-time.After(timeout * time.Duration(n))
+	<-time.After(50 * time.Duration(n) * time.Millisecond)
 	close(stop)
 	for e := range eich {
 		ei = append(ei, e)
@@ -711,7 +735,8 @@ func (n *N) ExpectNotifyEvents(cases []NCase) {
 				}
 			}
 		case <-time.After(n.timeout()):
-			n.t.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
+			n.t.Fatalf("ExpectNotifyEvents did not receive any of the expected events [%v] "+
+				"after %v (i=%d)", cas.Event, n.timeout(), i)
 		}
 	}
 }

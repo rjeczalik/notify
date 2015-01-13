@@ -181,8 +181,6 @@ func (tf TreeFixture) TestCalls(t *testing.T, cases []CallCase) {
 	}
 }
 
-var timeout = 50 * time.Millisecond
-
 func str(ei EventInfo) string {
 	if ei == nil {
 		return "<nil>"
@@ -231,9 +229,8 @@ func (tf TreeFixture) TestEvents(t *testing.T, cases []EventCase) {
 			tree.C <- cas.Event
 			select {
 			case <-done:
-			case <-time.After(timeout):
-				t.Fatalf("ExpectEvents has timed out after %v (i=%d, typ=%v)",
-					timeout, i, typ)
+			case <-time.After(50 * time.Millisecond):
+				t.Fatalf("ExpectEvents has timed out after 50ms (i=%d, typ=%v)", i, typ)
 			}
 			for _, got := range ev {
 				if err := equal(cas.Event, got); err != nil {

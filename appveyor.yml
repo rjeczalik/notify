@@ -10,6 +10,7 @@ environment:
 
 install:
  - set PATH=%GOPATH%\bin;%PATH%
+ - set TEST_NOTIFY_TIMEOUT=5s
  - cd %APPVEYOR_BUILD_FOLDER%
  - go version
  - go get code.google.com/p/go.tools/cmd/vet
