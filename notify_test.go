@@ -27,7 +27,7 @@ func TestNotifyExample(t *testing.T) {
 		Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swp"),
 		Receiver: Chans{ch[1]},
 	}, {
-		Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swp"),
+		Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swo"),
 		Receiver: Chans{ch[1]},
 	}, {
 		Event:    remove(n.W(), "src/github.com/rjeczalik/fs/cmd/gotree/go.go"),
@@ -55,7 +55,7 @@ func TestNotifyExample(t *testing.T) {
 		Event:    write(n.W(), "src/github.com/rjeczalik/which/README.md", []byte("XD")),
 		Receiver: nil,
 	}, {
-		Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swo"),
+		Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swr"),
 		Receiver: nil,
 	}, {
 		Event:    remove(n.W(), "src/github.com/rjeczalik/fs/cmd/gotree/main.go"),
