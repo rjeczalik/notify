@@ -6,7 +6,7 @@ import (
 )
 
 func TestNodeAdd(t *testing.T) {
-
+	t.Skip("TODO(rjeczalik)")
 }
 
 func TestTreeNodeSet(t *testing.T) {

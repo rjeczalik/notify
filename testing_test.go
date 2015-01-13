@@ -2,7 +2,6 @@ package notify
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -176,7 +175,7 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 }
 
 func (w *W) printdebug() {
-	fmt.Println("[D] [WATCHER_TEST] to debugduce manually:")
+	fmt.Println("[D] [WATCHER_TEST] to reproduce manually:")
 	fmt.Printf("go test -run TestDebug -- %s\n", w.root)
 	fmt.Println("cd", w.root)
 	for _, debug := range w.debug {
@@ -360,7 +359,6 @@ Test:
 	for i, cas := range cases {
 		cas.Action()
 		Sync()
-		want := cas.Events[0]
 		select {
 		case ei := <-w.C:
 			dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d)", ei.Path(),
@@ -373,7 +371,8 @@ Test:
 				continue Test
 			}
 		case <-time.After(w.timeout()):
-			w.Fatalf("timed out after %v waiting for %v (i=%d)", w.timeout(), want, i)
+			w.Fatalf("timed out after %v waiting for one of %v (i=%d)", w.timeout(),
+				cas.Events, i)
 		}
 	}
 }
@@ -510,14 +509,19 @@ type TCase struct {
 
 // NCase TODO(rjeczalik)
 type NCase struct {
-	Action   WCase
+	Event    WCase
 	Receiver Chans
 }
 
 // N TODO(rjeczalik)
 type N struct {
 	// Notifier TODO(rjeczalik)
+	//
+	// TODO(rjeczalik): unexport
 	Notifier Notifier
+
+	// Timeout TODO(rjeczalik)
+	Timeout time.Duration
 
 	t   *testing.T
 	w   *W
@@ -566,14 +570,29 @@ func NewRecursiveTreeTest(t *testing.T, tree string) *N {
 	return newTreeN(t, tree, fn)
 }
 
+func (n *N) timeout() time.Duration {
+	if n.Timeout != 0 {
+		return n.Timeout
+	}
+	return n.w.timeout()
+}
+
+// W TODO(rjeczalik)
+func (n *N) W() *W {
+	return n.w
+}
+
 // Close TODO
 func (n *N) Close() error {
 	return n.w.Close()
 }
 
 // Watch TODO(rjeczalik)
-func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) error {
-	return n.Notifier.Watch(filepath.Join(n.w.root, path), c, events...)
+func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
+	path = filepath.Join(n.w.root, path)
+	if err := n.Notifier.Watch(path, c, events...); err != nil {
+		n.t.Errorf("Watch(%s, %p, %v)=%v", path, c, events, err)
+	}
 }
 
 // Stop TODO(rjeczalik)
@@ -582,15 +601,23 @@ func (n *N) Stop(c chan<- EventInfo) {
 }
 
 // Call TODO(rjeczalik)
-func (n *N) Call(call Call) error {
-	switch call.F {
-	case FuncWatch:
-		return n.Watch(call.P, call.C, call.E)
-	case FuncStop:
-		n.Stop(call.C)
-		return nil
-	default:
-		return errors.New("unsupported call type: " + string(call.F))
+func (n *N) Call(calls ...Call) {
+	for i := range calls {
+		switch calls[i].F {
+		case FuncWatch:
+			n.Watch(calls[i].P, calls[i].C, calls[i].E)
+		case FuncStop:
+			n.Stop(calls[i].C)
+		default:
+			panic("unsupported call type: " + string(calls[i].F))
+		}
+	}
+}
+
+// ExpectDry TODO(rjeczalik)
+func (n *N) ExpectDry(ch Chans) {
+	if ei := ch.Drain(); len(ei) != 0 {
+		n.t.Errorf("unexpected dangling events: %v", ei)
 	}
 }
 
@@ -598,10 +625,7 @@ func (n *N) Call(call Call) error {
 func (n *N) ExpectRecordedCalls(cases []RCase) {
 	j := 0
 	for i, cas := range cases {
-		if err := n.Call(cas.Call); err != nil {
-			n.t.Fatalf("Call(%v)=%v (i=%d)", cas, err, i)
-			continue
-		}
+		n.Call(cas.Call)
 		record := (*n.spy)[j:]
 		if len(cas.Record) == 0 && len(record) == 0 {
 			continue
@@ -619,45 +643,74 @@ func (n *N) ExpectRecordedCalls(cases []RCase) {
 	}
 }
 
+func (n *N) collect(ch Chans) <-chan []EventInfo {
+	done := make(chan []EventInfo)
+	go func() {
+		cases := make([]reflect.SelectCase, len(ch))
+		unique := make(map[<-chan EventInfo]EventInfo, len(ch))
+		for i := range ch {
+			cases[i].Chan = reflect.ValueOf(ch[i])
+			cases[i].Dir = reflect.SelectRecv
+		}
+		for i := len(cases); i != 0; i = len(cases) {
+			j, v, ok := reflect.Select(cases)
+			if !ok {
+				n.t.Fatal("unexpected chan close")
+			}
+			ch := cases[j].Chan.Interface().(chan EventInfo)
+			unique[ch] = v.Interface().(EventInfo)
+			cases[j], cases = cases[i-1], cases[:i-1]
+		}
+		collected := make([]EventInfo, 0, len(ch))
+		for _, ch := range unique {
+			collected = append(collected, ch)
+		}
+		done <- collected
+	}()
+	return done
+}
+
 // ExpectTreeEvents TODO(rjeczalik)
 func (n *N) ExpectTreeEvents(cases []TCase) {
 	for i, cas := range cases {
+		ch := n.collect(cas.Receiver)
 		cas.Event.P = filepath.Join(n.w.root, filepath.FromSlash(cas.Event.P))
-		x := len(cas.Receiver)
-		done := make(chan struct{})
-		ev := make(map[<-chan EventInfo]EventInfo)
-		go func() {
-			cases := make([]reflect.SelectCase, x)
-			for i := range cases {
-				cases[i].Chan = reflect.ValueOf(cas.Receiver[i])
-				cases[i].Dir = reflect.SelectRecv
-			}
-			for x := len(cases); x > 0; x = len(cases) {
-				j, v, ok := reflect.Select(cases)
-				if !ok {
-					n.t.Fatalf("unexpected chan close (i=%d, j=%d)", i, j)
-				}
-				ch := cases[j].Chan.Interface().(chan EventInfo)
-				ev[ch] = v.Interface().(EventInfo)
-				cases[j], cases = cases[x-1], cases[:x-1]
-			}
-			close(done)
-		}()
 		n.c <- &cas.Event
 		select {
-		case <-done:
-		case <-time.After(n.w.timeout()):
-			n.t.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.w.timeout(), i)
-		}
-		for _, got := range ev {
-			if err := EqualEventInfo(&cas.Event, got); err != nil {
-				n.t.Error(err, i)
+		case collected := <-ch:
+			for _, got := range collected {
+				if err := EqualEventInfo(&cas.Event, got); err != nil {
+					n.t.Error(err, i)
+				}
 			}
+		case <-time.After(n.timeout()):
+			n.t.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
 		}
 	}
 }
 
 // ExpectNotifyEvents TODO(rjeczalik)
 func (n *N) ExpectNotifyEvents(cases []NCase) {
-	// TODO
+	for i, cas := range cases {
+		ch := n.collect(cas.Receiver)
+		cas.Event.Action()
+		Sync()
+		select {
+		case collected := <-ch:
+		Compare:
+			for j, ei := range collected {
+				dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d, j=%d)", ei.Path(),
+					ei.Event(), ei.Sys(), i, j)
+				for _, want := range cas.Event.Events {
+					if err := EqualEventInfo(want, ei); err != nil {
+						dbg.Print(err, j)
+						continue
+					}
+					continue Compare
+				}
+			}
+		case <-time.After(n.timeout()):
+			n.t.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
+		}
+	}
 }

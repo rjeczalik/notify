@@ -3,7 +3,7 @@ package notify
 import "testing"
 
 func TestRecursiveTreeWatch(t *testing.T) {
-	n := NewTreeTest(t, "testdata/gopath.txt")
+	n := NewRecursiveTreeTest(t, "testdata/gopath.txt")
 	defer n.Close()
 
 	ch := NewChans(3)
@@ -97,6 +97,9 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			NE: Create | Delete,
 		}},
 	}}
+
+	n.ExpectRecordedCalls(cases[:])
+
 	events := [...]TCase{{
 		Event: Call{
 			P: "src/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
@@ -117,11 +120,6 @@ func TestRecursiveTreeWatch(t *testing.T) {
 		Receiver: Chans{ch[1]},
 	}}
 
-	n.ExpectRecordedCalls(cases[:])
 	n.ExpectTreeEvents(events[:])
-
-	// Ensure no extra events were dispatched.
-	if ei := ch.Drain(); len(ei) != 0 {
-		t.Errorf("want ei=nil; got %v", ei)
-	}
+	n.ExpectDry(ch)
 }
