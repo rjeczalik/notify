@@ -245,12 +245,13 @@ func (w *W) Close() error {
 // Equal TODO
 func EqualEventInfo(want, got EventInfo) error {
 	if got.Event() != want.Event() {
-		return fmt.Errorf("want ei.Event()=%v; got %v (path=%s)", want.Event(),
+		return fmt.Errorf("want Event()=%v; got %v (path=%s)", want.Event(),
 			got.Event(), want.Path())
 	}
-	if path := strings.TrimRight(want.Path(), `/\`); !strings.HasSuffix(got.Path(), path) {
-		return fmt.Errorf("want ei.Path()=%s; got %s (event=%v)", want.Path(),
-			got.Path(), want.Event())
+	path := strings.TrimRight(filepath.FromSlash(want.Path()), `/\`)
+	if !strings.HasSuffix(got.Path(), path) {
+		return fmt.Errorf("want Path()=%s; got %s (event=%v)", path, got.Path(),
+			want.Event())
 	}
 	return nil
 }
