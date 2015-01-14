@@ -8,117 +8,140 @@ func TestRecursiveTreeWatch(t *testing.T) {
 
 	ch := NewChans(3)
 
-	cases := [...]RCase{{
+	cases := [...]RCase{
 		// i=0
-		Call: Call{
-			F: FuncWatch,
-			C: ch[0],
-			P: "src/github.com/rjeczalik/fakerpc",
-			E: Create | Delete | Move,
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[0],
+				P: "src/github.com/rjeczalik/fakerpc",
+				E: Create | Delete | Move,
+			},
+			Record: []Call{{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fakerpc",
+				E: Delete | Create | Move,
+			}},
 		},
-		Record: []Call{{
-			F: FuncWatch,
-			P: "src/github.com/rjeczalik/fakerpc",
-			E: Delete | Create | Move,
-		}},
-	}, { // i=1
-		Call: Call{
-			F: FuncWatch,
-			C: ch[1],
-			P: "src/github.com/rjeczalik/fakerpc",
-			E: Delete | Move,
+		// i=1
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[1],
+				P: "src/github.com/rjeczalik/fakerpc",
+				E: Delete | Move,
+			},
+			Record: nil,
 		},
-		Record: nil,
-	}, { // i=2
-		Call: Call{
-			F: FuncWatch,
-			C: ch[2],
-			P: "src/github.com/rjeczalik/fakerpc",
-			E: Move,
+		// i=2
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[2],
+				P: "src/github.com/rjeczalik/fakerpc",
+				E: Move,
+			},
+			Record: nil,
 		},
-		Record: nil,
-	}, { // i=3
-		Call: Call{
-			F: FuncWatch,
-			C: ch[0],
-			P: "src/github.com/rjeczalik/fs",
-			E: Create | Delete,
+		// i=3
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[0],
+				P: "src/github.com/rjeczalik/fs",
+				E: Create | Delete,
+			},
+			Record: []Call{{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs",
+				E: Create | Delete,
+			}},
 		},
-		Record: []Call{{
-			F: FuncWatch,
-			P: "src/github.com/rjeczalik/fs",
-			E: Create | Delete,
-		}},
-	}, { // i=4
-		Call: Call{
-			F: FuncWatch,
-			C: ch[0],
-			P: "src/github.com/rjeczalik/fs",
-			E: Create,
+		// i=4
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[0],
+				P: "src/github.com/rjeczalik/fs",
+				E: Create,
+			},
+			Record: nil,
 		},
-		Record: nil,
-	}, { // i=5
-		Call: Call{
-			F: FuncStop,
-			C: ch[0],
+		// i=5
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[0],
+			},
+			Record: []Call{{
+				F:  FuncRewatch,
+				P:  "src/github.com/rjeczalik/fakerpc",
+				E:  Create | Delete | Move,
+				NE: Delete | Move,
+			}, {
+				F: FuncUnwatch,
+				P: "src/github.com/rjeczalik/fs",
+			}},
 		},
-		Record: []Call{{
-			F:  FuncRewatch,
-			P:  "src/github.com/rjeczalik/fakerpc",
-			E:  Create | Delete | Move,
-			NE: Delete | Move,
-		}, {
-			F: FuncUnwatch,
-			P: "src/github.com/rjeczalik/fs",
-		}},
-	}, { // i=6
-		Call: Call{
-			F: FuncWatch,
-			C: ch[0],
-			P: "src/github.com/rjeczalik/which",
-			E: Create,
+		// i=6
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[0],
+				P: "src/github.com/rjeczalik/which",
+				E: Create,
+			},
+			Record: []Call{{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/which",
+				E: Create,
+			}},
 		},
-		Record: []Call{{
-			F: FuncWatch,
-			P: "src/github.com/rjeczalik/which",
-			E: Create,
-		}},
-	}, { // i=7
-		Call: Call{
-			F: FuncWatch,
-			C: ch[1],
-			P: "src/github.com/rjeczalik/which",
-			E: Delete,
+		// i=7
+		{
+			Call: Call{
+				F: FuncWatch,
+				C: ch[1],
+				P: "src/github.com/rjeczalik/which",
+				E: Delete,
+			},
+			Record: []Call{{
+				F:  FuncRewatch,
+				P:  "src/github.com/rjeczalik/which",
+				E:  Create,
+				NE: Create | Delete,
+			}},
 		},
-		Record: []Call{{
-			F:  FuncRewatch,
-			P:  "src/github.com/rjeczalik/which",
-			E:  Create,
-			NE: Create | Delete,
-		}},
-	}}
+	}
 
 	n.ExpectRecordedCalls(cases[:])
 
-	events := [...]TCase{{
-		Event: Call{
-			P: "src/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
-			E: Delete,
+	events := [...]TCase{
+		// i=0
+		{
+			Event: Call{
+				P: "src/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
+				E: Delete,
+			},
+			Receiver: Chans{ch[1]},
 		},
-		Receiver: Chans{ch[1]},
-	}, {
-		Event: Call{
-			P: "src/github.com/rjeczalik/fakerpc/.travis.yml",
-			E: Move,
+		// i=1
+		{
+			Event: Call{
+				P: "src/github.com/rjeczalik/fakerpc/.travis.yml",
+				E: Move,
+			},
+			Receiver: Chans{ch[1], ch[2]},
 		},
-		Receiver: Chans{ch[1], ch[2]},
-	}, {
-		Event: Call{
-			P: "src/github.com/rjeczalik/fakerpc/which",
-			E: Delete,
+		// i=2
+		{
+			Event: Call{
+				P: "src/github.com/rjeczalik/fakerpc/which",
+				E: Delete,
+			},
+			Receiver: Chans{ch[1]},
 		},
-		Receiver: Chans{ch[1]},
-	}}
+	}
 
 	n.ExpectTreeEvents(events[:])
 	n.ExpectDry(ch)
