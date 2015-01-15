@@ -709,11 +709,11 @@ func (n *N) ExpectTreeEvents(cases []TCase) {
 		case collected := <-ch:
 			for _, got := range collected {
 				if err := EqualEventInfo(&cas.Event, got); err != nil {
-					n.t.Error(err, i)
+					n.w.Fatalf("%s (i=%d)", err, i)
 				}
 			}
 		case <-time.After(n.timeout()):
-			n.t.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
+			n.w.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
 		}
 	}
 }
@@ -737,9 +737,11 @@ func (n *N) ExpectNotifyEvents(cases []NCase) {
 					}
 					continue Compare
 				}
+				n.w.Fatalf("ExpectNotifyEvents received an event which does not"+
+					" match any of the expected ones (i=%d): %v", i, ei)
 			}
 		case <-time.After(n.timeout()):
-			n.t.Fatalf("ExpectNotifyEvents did not receive any of the expected events [%v] "+
+			n.w.Fatalf("ExpectNotifyEvents did not receive any of the expected events [%v] "+
 				"after %v (i=%d)", cas.Event, n.timeout(), i)
 		}
 	}
