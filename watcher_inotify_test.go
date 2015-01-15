@@ -78,7 +78,7 @@ var events = []Event{
 }
 
 func TestWatcherInotify(t *testing.T) {
-	w := NewWatcherTest(t, "testdata/gopath.txt", events...)
+	w := NewWatcherTest(t, "testdata/vfs.txt", events...)
 	defer w.Close()
 
 	cases := [...]WCase{

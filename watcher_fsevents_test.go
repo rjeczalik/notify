@@ -170,16 +170,16 @@ func TestFlagdiff(t *testing.T) {
 //
 // See comment for (flagdiff).diff method.
 func TestWatcherShadowedWriteCreate(t *testing.T) {
-	w := NewWatcherTest(t, "testdata/gopath.txt")
+	w := NewWatcherTest(t, "testdata/vfs.txt")
 	defer w.Close()
 
 	cases := [...]WCase{
-		create(w, "src/github.com/rjeczalik/which/which.go"),
-		write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")),
-		write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")),
-		remove(w, "src/github.com/rjeczalik/which/which.go"),
-		create(w, "src/github.com/rjeczalik/which/which.go"),
-		write(w, "src/github.com/rjeczalik/which/which.go", []byte("XD")),
+		create(w, "src/github.com/rjeczalik/fs/fs.go"),
+		write(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		write(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		remove(w, "src/github.com/rjeczalik/fs/fs.go"),
+		create(w, "src/github.com/rjeczalik/fs/fs.go"),
+		write(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 	}
 
 	w.ExpectAny(cases[:])

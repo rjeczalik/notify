@@ -88,7 +88,7 @@ func tmptree(root, list string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if root, err = ioutil.TempDir(pwd, "tmptree"); err != nil {
+		if root, err = ioutil.TempDir(filepath.Join(pwd, "testdata"), filepath.Base(list)); err != nil {
 			return "", err
 		}
 	}
@@ -120,8 +120,8 @@ func TestDebug(t *testing.T) {
 	if root == "" {
 		t.Skip()
 	}
-	if _, err := tmptree(root, filepath.Join("testdata", "gopath.txt")); err != nil {
-		t.Fatalf(`want tmptree(%q, "testdata/gopath.txt")=nil; got %v`, root, err)
+	if _, err := tmptree(root, filepath.Join("testdata", "vfs.txt")); err != nil {
+		t.Fatalf(`want tmptree(%q, "testdata/vfs.txt")=nil; got %v`, root, err)
 	}
 	fmt.Println(root)
 }

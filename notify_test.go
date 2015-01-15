@@ -3,15 +3,15 @@ package notify
 import "testing"
 
 func TestNotifyExample(t *testing.T) {
-	n := NewNotifyTest(t, "testdata/gopath.txt")
+	n := NewNotifyTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
 	ch := NewChans(3)
 
 	// Watch-points can be set explicitely via Watch/Stop calls...
 	n.Watch("src/github.com/rjeczalik/fs", ch[0], Write)
-	n.Watch("src/github.com/rjeczalik/which", ch[0], Write)
-	n.Watch("src/github.com/rjeczalik/which/...", ch[1], Create)
+	n.Watch("src/github.com/pblaszczyk/qttu", ch[0], Write)
+	n.Watch("src/github.com/pblaszczyk/qttu/...", ch[1], Create)
 	n.Watch("src/github.com/rjeczalik/fs/cmd/...", ch[2], Delete)
 
 	cases := []NCase{
@@ -20,7 +20,7 @@ func TestNotifyExample(t *testing.T) {
 			Receiver: Chans{ch[0]},
 		},
 		{
-			Event:    write(n.W(), "src/github.com/rjeczalik/which/README.md", []byte("XD")),
+			Event:    write(n.W(), "src/github.com/pblaszczyk/qttu/README.md", []byte("XD")),
 			Receiver: Chans{ch[0]},
 		},
 		{
@@ -28,11 +28,11 @@ func TestNotifyExample(t *testing.T) {
 			Receiver: nil,
 		},
 		{
-			Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swp"),
+			Event:    create(n.W(), "src/github.com/pblaszczyk/qttu/src/.main.cc.swp"),
 			Receiver: Chans{ch[1]},
 		},
 		{
-			Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swo"),
+			Event:    create(n.W(), "src/github.com/pblaszczyk/qttu/src/.main.cc.swo"),
 			Receiver: Chans{ch[1]},
 		},
 		{
@@ -64,11 +64,11 @@ func TestNotifyExample(t *testing.T) {
 			Receiver: nil,
 		},
 		{
-			Event:    write(n.W(), "src/github.com/rjeczalik/which/README.md", []byte("XD")),
+			Event:    write(n.W(), "src/github.com/pblaszczyk/qttu/README.md", []byte("XD")),
 			Receiver: nil,
 		},
 		{
-			Event:    create(n.W(), "src/github.com/rjeczalik/which/.which.go.swr"),
+			Event:    create(n.W(), "src/github.com/pblaszczyk/qttu/src/.main.cc.swr"),
 			Receiver: nil,
 		},
 		{
