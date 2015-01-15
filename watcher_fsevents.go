@@ -135,6 +135,7 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	events := atomic.LoadUint32(&w.events)
 	isrec := (atomic.LoadInt32(&w.isrec) == 1)
 	for i := range ev {
+		dbg.Printf("[FSEVENTS] created Event(%v)@%s", Event(ev[i].Flags), ev[i].Path)
 		if ev[i].Flags&failure != 0 {
 			// TODO(rjeczalik): missing error handling
 			panic("unhandled error: " + Event(ev[i].Flags).String())

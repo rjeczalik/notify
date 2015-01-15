@@ -700,49 +700,63 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 }
 
 // ExpectTreeEvents TODO(rjeczalik)
-func (n *N) ExpectTreeEvents(cases []TCase) {
+func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
-		ch := n.collect(cas.Receiver)
-		cas.Event.P = filepath.Join(n.w.root, filepath.FromSlash(cas.Event.P))
-		n.c <- &cas.Event
-		select {
-		case collected := <-ch:
-			for _, got := range collected {
-				if err := EqualEventInfo(&cas.Event, got); err != nil {
-					n.w.Fatalf("%s (i=%d)", err, i)
+		switch cas.Receiver {
+		case nil:
+			n.ExpectDry(all)
+		default:
+			ch := n.collect(cas.Receiver)
+			cas.Event.P = filepath.Join(n.w.root, filepath.FromSlash(cas.Event.P))
+			n.c <- &cas.Event
+			select {
+			case collected := <-ch:
+				for _, got := range collected {
+					if err := EqualEventInfo(&cas.Event, got); err != nil {
+						n.w.Fatalf("%s (i=%d)", err, i)
+					}
 				}
+			case <-time.After(n.timeout()):
+				n.w.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
 			}
-		case <-time.After(n.timeout()):
-			n.w.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
+
 		}
 	}
+	n.ExpectDry(all)
 }
 
 // ExpectNotifyEvents TODO(rjeczalik)
-func (n *N) ExpectNotifyEvents(cases []NCase) {
+func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 	for i, cas := range cases {
-		ch := n.collect(cas.Receiver)
-		cas.Event.Action()
-		Sync()
-		select {
-		case collected := <-ch:
-		Compare:
-			for j, ei := range collected {
-				dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d, j=%d)", ei.Path(),
-					ei.Event(), ei.Sys(), i, j)
-				for _, want := range cas.Event.Events {
-					if err := EqualEventInfo(want, ei); err != nil {
-						dbg.Print(err, j)
-						continue
+		switch cas.Receiver {
+		case nil:
+			n.ExpectDry(all)
+		default:
+			ch := n.collect(cas.Receiver)
+			cas.Event.Action()
+			Sync()
+			select {
+			case collected := <-ch:
+			Compare:
+				for j, ei := range collected {
+					dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d, j=%d)", ei.Path(),
+						ei.Event(), ei.Sys(), i, j)
+					for _, want := range cas.Event.Events {
+						if err := EqualEventInfo(want, ei); err != nil {
+							dbg.Print(err, j)
+							continue
+						}
+						continue Compare
 					}
-					continue Compare
+					n.w.Fatalf("ExpectNotifyEvents received an event which does not"+
+						" match any of the expected ones (i=%d): want one of %v; got %v", i,
+						cas.Event.Events, ei)
 				}
-				n.w.Fatalf("ExpectNotifyEvents received an event which does not"+
-					" match any of the expected ones (i=%d): %v", i, ei)
+			case <-time.After(n.timeout()):
+				n.w.Fatalf("ExpectNotifyEvents did not receive any of the expected events [%v] "+
+					"after %v (i=%d)", cas.Event, n.timeout(), i)
 			}
-		case <-time.After(n.timeout()):
-			n.w.Fatalf("ExpectNotifyEvents did not receive any of the expected events [%v] "+
-				"after %v (i=%d)", cas.Event, n.timeout(), i)
 		}
 	}
+	n.ExpectDry(all)
 }
