@@ -683,7 +683,11 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 				n.t.Fatal("unexpected chan close")
 			}
 			ch := cases[j].Chan.Interface().(chan EventInfo)
-			unique[ch] = v.Interface().(EventInfo)
+			got := v.Interface().(EventInfo)
+			if ei, ok := unique[ch]; ok {
+				n.t.Fatalf("duplicated event %v (previous=%v) received on collect", got, ei)
+			}
+			unique[ch] = got
 			cases[j], cases = cases[i-1], cases[:i-1]
 		}
 		collected := make([]EventInfo, 0, len(ch))
