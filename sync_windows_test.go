@@ -16,9 +16,10 @@ var none = uintptr(1<<(unsafe.Sizeof(uintptr(0))*8) - 1)
 
 // TODO
 func Sync() {
-	// TODO : ppknap
-	//r, _, err := procSetSystemFileCacheSize.Call(none, none, 0)
-	//if r == 0 {
-	//	panic(err)
-	//}
+	r, _, err := procSetSystemFileCacheSize.Call(none, none, 0)
+	if r == 0 {
+		// TODO(pknap): does not work without admin privilages, but I'm going
+		// to hack it.
+		dbg.Print("SetSystemFileCacheSize error:", err)
+	}
 }
