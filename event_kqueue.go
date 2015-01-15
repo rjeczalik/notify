@@ -23,7 +23,7 @@ const (
 	// have been set with an actual filesystem watch. This is to allow for
 	// optimizing recursive watchpoint count - a single path can be watched
 	// by at most 1 recursive filesystem watch.
-	Invactive
+	Inactive
 )
 
 const (
