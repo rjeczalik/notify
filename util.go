@@ -1,6 +1,10 @@
 package notify
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 const sep = string(os.PathSeparator)
 
@@ -11,6 +15,37 @@ func nonil(err ...error) error {
 		}
 	}
 	return nil
+}
+
+// canonical resolves any symlink in the given path and returns it in a clean form.
+// It expects the path to be absolute. It fails to resolve circular symlinks by
+// maintaining a simple iteration limit.
+//
+// TODO(rjeczalik): replace with realpath?
+func canonical(p string) (string, error) {
+	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
+		if depth > 128 {
+			return "", &os.PathError{Op: "canonical", Path: p, Err: errDepth}
+		}
+		if j := strings.IndexRune(p[i:], '/'); j == -1 {
+			i = len(p)
+		} else {
+			i = i + j
+		}
+		fi, err := os.Lstat(p[:i])
+		if err != nil {
+			return "", err
+		}
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+			s, err := os.Readlink(p[:i])
+			if err != nil {
+				return "", err
+			}
+			p = "/" + s + p[i:]
+			i = 1 // no guarantee s is canonical, start all over
+		}
+	}
+	return filepath.Clean(p), nil
 }
 
 // Joinevents TODO
