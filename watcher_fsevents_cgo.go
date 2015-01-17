@@ -23,7 +23,7 @@ var nilstream C.FSEventStreamRef
 
 // Default arguments for FSEventStreamCreate function. Make them configurable?
 var (
-	latency C.CFTimeInterval           = 1
+	latency C.CFTimeInterval           = 0
 	flags   C.FSEventStreamCreateFlags = C.kFSEventStreamCreateFlagFileEvents
 	now     C.FSEventStreamEventId     = 1<<64 - 1
 )

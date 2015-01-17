@@ -16,23 +16,11 @@ func TestNotifyExample(t *testing.T) {
 
 	cases := []NCase{
 		{
-			Event:    create(n.W(), "src/github.com/rjeczalik/fs/fs.go"),
-			Receiver: nil,
-		},
-		{
-			Event:    create(n.W(), "src/github.com/pblaszczyk/qttu/LICENSE"),
-			Receiver: Chans{ch[1]},
-		},
-		{
-			Event:    create(n.W(), "src/github.com/rjeczalik/fs/cmd/gotree/go.go"),
-			Receiver: nil,
-		},
-		{
 			Event:    write(n.W(), "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 			Receiver: Chans{ch[0]},
 		},
 		{
-			Event:    write(n.W(), "src/github.com/pblaszczyk/qttu/LICENSE", []byte("XD")),
+			Event:    write(n.W(), "src/github.com/pblaszczyk/qttu/README.md", []byte("XD")),
 			Receiver: Chans{ch[0]},
 		},
 		{
