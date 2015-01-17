@@ -57,7 +57,7 @@ func testCanonical(t *testing.T, cases []caseCanonical) {
 func TestCanonical(t *testing.T) {
 	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatal("os.Getwd()=%v", err)
+		t.Fatalf("os.Getwd()=%v", err)
 	}
 	wdsym, err := symlink(wd, "")
 	if err != nil {
