@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -126,6 +127,14 @@ func TestDebug(t *testing.T) {
 	fmt.Println(root)
 }
 
+func caller() string {
+	_, file, line, ok := runtime.Caller(3)
+	if !ok {
+		return "<unknown>"
+	}
+	return filepath.Base(file) + ":" + strconv.Itoa(line)
+}
+
 // WCase TODO
 type WCase struct {
 	Action func()
@@ -213,7 +222,7 @@ func (w *W) Fatal(v interface{}) {
 	if dbg {
 		w.printdebug()
 	}
-	w.t.Fatal(v)
+	w.t.Fatalf("[called from %s] %v", caller(), v)
 }
 
 // Fatalf TODO
@@ -221,7 +230,7 @@ func (w *W) Fatalf(format string, v ...interface{}) {
 	if dbg {
 		w.printdebug()
 	}
-	w.t.Fatalf(format, v...)
+	w.t.Fatalf("[called from %s] %s", caller(), fmt.Sprintf(format, v...))
 }
 
 // Debug TODO
@@ -642,7 +651,7 @@ func (n *N) Call(calls ...Call) {
 // ExpectDry TODO(rjeczalik)
 func (n *N) ExpectDry(ch Chans) {
 	if ei := ch.Drain(); len(ei) != 0 {
-		n.t.Errorf("unexpected dangling events: %v", ei)
+		n.w.Fatalf("unexpected dangling events: %v", ei)
 	}
 }
 

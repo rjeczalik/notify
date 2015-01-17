@@ -70,12 +70,12 @@ func TestWatcherShadowedWriteCreate(t *testing.T) {
 	defer w.Close()
 
 	cases := [...]WCase{
-		create(w, "src/github.com/rjeczalik/fs/fs.go"),
-		write(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
-		write(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
-		remove(w, "src/github.com/rjeczalik/fs/fs.go"),
-		create(w, "src/github.com/rjeczalik/fs/fs.go"),
-		write(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		create(w, "src/github.com/rjeczalik/fs/.fs.go.swp"),
+		write(w, "src/github.com/rjeczalik/fs/.fs.go.swp", []byte("XD")),
+		write(w, "src/github.com/rjeczalik/fs/.fs.go.swp", []byte("XD")),
+		remove(w, "src/github.com/rjeczalik/fs/.fs.go.swp"),
+		create(w, "src/github.com/rjeczalik/fs/.fs.go.swp"),
+		write(w, "src/github.com/rjeczalik/fs/.fs.go.swp", []byte("XD")),
 	}
 
 	w.ExpectAny(cases[:])
