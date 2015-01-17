@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,8 @@ func nonil(err ...error) error {
 	}
 	return nil
 }
+
+var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
 
 // canonical resolves any symlink in the given path and returns it in a clean form.
 // It expects the path to be absolute. It fails to resolve circular symlinks by

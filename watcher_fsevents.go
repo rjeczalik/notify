@@ -18,7 +18,6 @@ var (
 	errAlreadyWatched  = errors.New("path is already watched")
 	errNotWatched      = errors.New("path is not being watched")
 	errInvalidEventSet = errors.New("invalid event set provided")
-	errDepth           = errors.New("exceeded allowed iteration count (circular symlink?)")
 )
 
 // FSEvent represents single file event.
