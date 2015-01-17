@@ -26,6 +26,10 @@ var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)"
 //
 // TODO(rjeczalik): replace with realpath?
 func canonical(p string) (string, error) {
+	p, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
 	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
 		if depth > 128 {
 			return "", &os.PathError{Op: "canonical", Path: p, Err: errDepth}
