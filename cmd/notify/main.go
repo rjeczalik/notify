@@ -44,9 +44,16 @@ func main() {
 	if len(os.Args) == 1 {
 		die(usage)
 	}
-	ch := make(chan notify.EventInfo, 10)
-	notify.Watch(os.Args[1], ch, parse(os.Args[2:])...)
-	for ei := range ch {
-		fmt.Printf("[%v] Event: %v\n", time.Now().Format(tformat), ei)
+	for _, path := range strings.Split(os.Args[1], string(os.PathListSeparator)) {
+		ch := make(chan notify.EventInfo, 10)
+		if err := notify.Watch(path, ch, parse(os.Args[2:])...); err != nil {
+			die(err)
+		}
+		go func(path string) {
+			for ei := range ch {
+				fmt.Printf("[%v] [%s] Event: %v\n", time.Now().Format(tformat), path, ei)
+			}
+		}(path)
 	}
+	select {}
 }

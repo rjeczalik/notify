@@ -24,40 +24,59 @@ func TestSplitflags(t *testing.T) {
 	}
 }
 
-func TestFlagdiff(t *testing.T) {
+func TestWatchStrip(t *testing.T) {
 	const (
 		create = uint32(FSEventsCreated)
 		remove = uint32(FSEventsRemoved)
 		rename = uint32(FSEventsRenamed)
 		write  = uint32(FSEventsModified)
 		inode  = uint32(FSEventsInodeMetaMod)
+		owner  = uint32(FSEventsChangeOwner)
 	)
-	fd := make(flagdiff)
-	cases := [...]struct {
+	cases := [...][]struct {
+		path string
 		flag uint32
 		diff uint32
 	}{
-		{create | remove, create | remove},
-		{create | remove | write, write},
-		{create | remove, create | remove},
-		{create | remove | write, write},
-		{write, write},
-		{create | remove | write, create | remove},
-		{write, write},
-		{write, write},
-		{remove, remove},
-		{create | write, create | write},
-		{create | write, write},
-		{write, write},
-		{remove, remove},
-		{create | remove, create},
-		{write, write},
-		{create | remove, create | remove},
-		{create | remove | write, write},
+		// 1.
+		{
+			{"file", create | write, create | write},
+			{"file", create | write | inode, write | inode},
+		},
+		// 2.
+		{
+			{"file", create, create},
+			{"file", create | remove, remove},
+			{"file", create | remove, create},
+		},
+		// 3.
+		{
+			{"file", create | write, create | write},
+			{"file", create | write | owner, write | owner},
+		},
+		// 4.
+		{
+			{"file", create | write, create | write},
+			{"file", write | inode, write | inode},
+			{"file", remove | write | inode, remove},
+		},
+		{
+			{"file", remove | write | inode, remove},
+		},
 	}
+Test:
 	for i, cas := range cases {
-		if diff := fd.diff("", cas.flag); diff != cas.diff {
-			t.Errorf("want diff=%v; got %v (i=%d)", Event(cas.diff), Event(diff), i)
+		if len(cas) == 0 {
+			t.Log("skipped")
+			continue
+		}
+		w := &watch{prev: make(map[string]uint32)}
+		for j, cas := range cas {
+			if diff := w.strip(cas.path, cas.flag); diff != cas.diff {
+				t.Errorf("want diff=%v; got %v (i=%d, j=%d)", Event(cas.diff),
+					Event(diff), i, j)
+				continue Test
+			}
 		}
 	}
 }

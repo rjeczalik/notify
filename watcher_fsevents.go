@@ -37,62 +37,106 @@ func splitflags(set uint32) (e []uint32) {
 	return
 }
 
-// flagdiff stores last event flags per path in order to filter out old flags
-// for new events, which appratenly FSEvents likes to retain. It's a disgusting
-// hack, it should be researched how to get rid of it.
-type flagdiff map[string]uint32
-
-// diff filters out redundant (old) flags from the given set. It does so by using
-// half-ass heuristics invented during manual testing. They're most likely broken
-// and/or not covering all the use-cases. They should be rewritten or at least fully
-// tested to ensure proper accuracy.
-func (fd flagdiff) diff(name string, set uint32) uint32 {
-	old, ok := fd[name]
-	fd[name] = set & filter
-	if !ok || set&old != old {
-		return set
-	}
-	switch old = set &^ old; {
-	case old == set:
-		delete(fd, name)
-	// For the following series of events:
-	//
-	//   ~ $ touch /tmp/XD
-	//   ~ $ echo XD > /tmp/XD
-	//   ~ $ echo XD > /tmp/XD
-	//   ~ $ rm /tmp/XD
-	//   ~ $ touch /tmp/XD
-	//
-	// FSEvents yields:
-	//
-	//   1) /tmp/XD Create
-	//   2) /tmp/XD Create|Write
-	//   3) /tmp/XD Create|Write
-	//   4) /tmp/XD Create|Delete|Write
-	//   5) /tmp/XD Create|Delete|Write
-	//
-	// This case is to ensure Create from 5) is not missed.
-	case old&FSEventsRemoved != 0:
-		fd[name] &^= FSEventsCreated
-	// For the before-mentioned series of events this case is to ensure Write
-	// from 3) is not missed.
-	case old&filter == 0:
-		return set & (FSEventsModified | FSEventsInodeMetaMod)
-	}
-	return old
-}
+const (
+	cdm = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed)
+	cd  = uint32(FSEventsCreated | FSEventsRemoved)
+	dm  = uint32(FSEventsRemoved | FSEventsRenamed)
+	cm  = uint32(FSEventsCreated | FSEventsRenamed)
+)
 
 // watch represents a filesystem watchpoint. It is a higher level abstraction
 // over FSEvents' stream, which implements filtering of file events based
 // on path and event set. It emulates non-recursive watch-point by filtering out
 // events which paths are more than 1 level deeper than the watched path.
 type watch struct {
-	fd     flagdiff // TODO(rjeczalik): find nicer hack
-	c      chan<- EventInfo
-	stream *Stream
-	path   string
-	events uint32
-	isrec  int32
+	// prev stores last event set  per path in order to filter out old flags
+	// for new events, which appratenly FSEvents likes to retain. It's a disgusting
+	// hack, it should be researched how to get rid of it.
+	prev    map[string]uint32
+	c       chan<- EventInfo
+	stream  *Stream
+	path    string
+	events  uint32
+	isrec   int32
+	flushed bool
+}
+
+// Example format:
+//
+//   ~ $ (trigger command) # (event set) -> (effective event set)
+//
+// Heuristics:
+//
+// 1. Create event is removed when it was present in previous event set.
+// Example:
+//
+//   ~ $ echo > file # Create|Write -> Create|Write
+//   ~ $ echo > file # Create|Write|InodeMetaMod -> Write|InodeMetaMod
+//
+// 2. Delete event is removed if it was present in previouse event set.
+// Example:
+//
+//   ~ $ touch file # Create -> Create
+//   ~ $ rm file    # Create|Delete -> Delete
+//   ~ $ touch file # Create|Delete -> Create
+//
+// x. TODO(rjeczalik): handling Move events is ambigous.
+//
+// Move event is removed if it was present in previous event set.
+// Examples:
+//
+//   ~ $ echo > file   # Create|Write -> Create|Write
+//   ~ $ mv file file2 # Create|Write|Move -> Move
+//                     # Move -> Move
+//   ~ $ echo > file2  # Move|Write|InodeMetaMod -> Write|InodeMetaMod
+//
+//
+//   ~ $ echo > file   # Create|Write -> Create|Write
+//   ~ $ mv file file2 # Create|Write|Move -> Move
+//                     # Move -> Move
+//   ~ $ echo > file   # Create|Write|Move -> Create|Write
+//
+//
+// 3. Write event is removed if not followed by InodeMetaMod on existing
+// file. Example:
+//
+//   ~ $ echo > file   # Create|Write -> Create|Write
+//   ~ $ chmod +x file # Create|Write|ChangeOwner -> ChangeOwner
+//
+// 4. Write&InodeMetaMod is removed when effective event set contain Delete event.
+// Example:
+//
+//   ~ $ echo > file # Write|InodeMetaMod -> Write|InodeMetaMod
+//   ~ $ rm file     # Delete|Write|InodeMetaMod -> Delete
+//
+func (w *watch) strip(base string, set uint32) uint32 {
+	const (
+		write = FSEventsModified | FSEventsInodeMetaMod
+		both  = FSEventsCreated | FSEventsRemoved
+	)
+	switch w.prev[base] {
+	case FSEventsCreated:
+		set &^= FSEventsCreated
+		if set&FSEventsRemoved != 0 {
+			w.prev[base] = FSEventsRemoved
+			set &^= write
+		}
+	case FSEventsRemoved:
+		set &^= FSEventsRemoved
+		if set&FSEventsCreated != 0 {
+			w.prev[base] = FSEventsCreated
+		}
+	default:
+		switch set & both {
+		case FSEventsCreated:
+			w.prev[base] = FSEventsCreated
+		case FSEventsRemoved:
+			w.prev[base] = FSEventsRemoved
+			set &^= write
+		}
+	}
+	dbg.Printf("split()=%v\n", Event(set))
+	return set
 }
 
 // Dispatch is a stream function which forwards given file events for the watched
@@ -101,7 +145,15 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	events := atomic.LoadUint32(&w.events)
 	isrec := (atomic.LoadInt32(&w.isrec) == 1)
 	for i := range ev {
-		dbg.Printf("[FSEVENTS] created Event(%v)@%s", Event(ev[i].Flags), ev[i].Path)
+		dbg.Printf("%v (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
+			ev[i].Path, i, ev[i].ID, len(ev))
+		if ev[i].Flags&FSEventsHistoryDone != 0 {
+			w.flushed = true
+			continue
+		}
+		if !w.flushed {
+			continue
+		}
 		if ev[i].Flags&failure != 0 {
 			// TODO(rjeczalik): missing error handling
 			panic("unhandled error: " + Event(ev[i].Flags).String())
@@ -120,11 +172,12 @@ func (w *watch) Dispatch(ev []FSEvent) {
 			}
 		}
 		// TODO(rjeczalik): get diff only from filtered events?
-		e := w.fd.diff(string(base), ev[i].Flags) & events
+		e := w.strip(string(base), ev[i].Flags) & events
 		if e == 0 {
 			continue
 		}
 		for _, e := range splitflags(e) {
+			dbg.Printf("%d: single event: %v", ev[i].ID, Event(e))
 			w.c <- &event{
 				fse:   ev[i],
 				event: Event(e),
@@ -155,11 +208,11 @@ func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
 		return errAlreadyWatched
 	}
 	w := &watch{
+		prev:   make(map[string]uint32),
 		c:      fse.c,
 		path:   path,
 		events: uint32(event),
 		isrec:  isrec,
-		fd:     make(flagdiff),
 	}
 	w.stream = NewStream(path, w.Dispatch)
 	if err = w.stream.Start(); err != nil {

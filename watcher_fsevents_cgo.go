@@ -16,6 +16,8 @@ import (
 	"errors"
 	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -24,8 +26,9 @@ var nilstream C.FSEventStreamRef
 // Default arguments for FSEventStreamCreate function. Make them configurable?
 var (
 	latency C.CFTimeInterval           = 0
-	flags   C.FSEventStreamCreateFlags = C.kFSEventStreamCreateFlagFileEvents
-	now     C.FSEventStreamEventId     = 1<<64 - 1
+	flags   C.FSEventStreamCreateFlags = C.kFSEventStreamCreateFlagFileEvents |
+		C.kFSEventStreamCreateFlagNoDefer
+	almostNow = uint64(C.FSEventsGetCurrentEventId())
 )
 
 var runloop C.CFRunLoopRef // global runloop which all streams are registered with
@@ -60,6 +63,7 @@ func init() {
 
 //export gosource
 func gosource(unsafe.Pointer) {
+	time.Sleep(time.Second)
 	wg.Done()
 }
 
@@ -113,9 +117,9 @@ func (s *Stream) Start() error {
 	wg.Wait()
 	p := C.CFStringCreateWithCStringNoCopy(nil, C.CString(s.path), C.kCFStringEncodingUTF8, nil)
 	path := C.CFArrayCreate(nil, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
-	// TODO(rjeczalik): kFSEventStreamCreateFlagWatchRoot + update canonical(s.path)?
+	since := atomic.SwapUint64(&almostNow, uint64(C.FSEventsGetCurrentEventId()))
 	ref := C.FSEventStreamCreate(nil, (C.FSEventStreamCallback)(C.gostream),
-		&s.ctx, path, now, latency, flags)
+		&s.ctx, path, C.FSEventStreamEventId(since), latency, flags)
 	if ref == nilstream {
 		return errCreate
 	}

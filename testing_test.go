@@ -85,11 +85,7 @@ func tmptree(root, list string) (string, error) {
 	}
 	defer f.Close()
 	if root == "" {
-		pwd, err := os.Getwd()
-		if err != nil {
-			return "", err
-		}
-		if root, err = ioutil.TempDir(filepath.Join(pwd, "testdata"), filepath.Base(list)); err != nil {
+		if root, err = ioutil.TempDir("testdata", filepath.Base(list)); err != nil {
 			return "", err
 		}
 	}
@@ -103,28 +99,6 @@ func tmptree(root, list string) (string, error) {
 		return "", err
 	}
 	return root, nil
-}
-
-func TestDebug(t *testing.T) {
-	var root string
-	var args bool
-	for _, arg := range os.Args {
-		switch {
-		case root != "":
-			t.Skip("too many arguments")
-		case args:
-			root = arg
-		case arg == "--":
-			args = true
-		}
-	}
-	if root == "" {
-		t.Skip()
-	}
-	if _, err := tmptree(root, filepath.Join("testdata", "vfs.txt")); err != nil {
-		t.Fatalf(`want tmptree(%q, "testdata/vfs.txt")=nil; got %v`, root, err)
-	}
-	fmt.Println(root)
 }
 
 func caller() string {
@@ -160,9 +134,8 @@ type W struct {
 	// Timeout TODO
 	Timeout time.Duration
 
-	t     *testing.T
-	root  string
-	debug []string // NOTE for debugging only
+	t    *testing.T
+	root string
 }
 
 func newWatcherTest(t *testing.T, tree string) *W {
@@ -207,35 +180,14 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 	return w
 }
 
-func (w *W) printdebug() {
-	fmt.Println("[D] [WATCHER_TEST] to reproduce manually:")
-	fmt.Printf("go test -run TestDebug -- %s\n", w.root)
-	fmt.Println("cd", w.root)
-	for _, debug := range w.debug {
-		fmt.Println(debug)
-	}
-	fmt.Println()
-}
-
 // Fatal TODO
 func (w *W) Fatal(v interface{}) {
-	if dbg {
-		w.printdebug()
-	}
-	w.t.Fatalf("[called from %s] %v", caller(), v)
+	w.t.Fatalf("%s: %v", caller(), v)
 }
 
 // Fatalf TODO
 func (w *W) Fatalf(format string, v ...interface{}) {
-	if dbg {
-		w.printdebug()
-	}
-	w.t.Fatalf("[called from %s] %s", caller(), fmt.Sprintf(format, v...))
-}
-
-// Debug TODO
-func (w *W) Debug(command string) {
-	w.debug = append(w.debug, command)
+	w.t.Fatalf("%s: %s", caller(), fmt.Sprintf(format, v...))
 }
 
 func (w *W) initwatcher(buffer int) {
@@ -321,9 +273,9 @@ func create(w *W, path string) WCase {
 				w.Fatalf("tmpcreate(%q, %q)=%v", w.root, path, err)
 			}
 			if isdir {
-				w.Debug(fmt.Sprintf("mkdir %s", path))
+				dbg.Printf("[FS] os.Mkdir(%q)\n", path)
 			} else {
-				w.Debug(fmt.Sprintf("touch %s", path))
+				dbg.Printf("[FS] os.Create(%q)\n", path)
 			}
 		},
 		Events: []EventInfo{
@@ -339,7 +291,7 @@ func remove(w *W, path string) WCase {
 			if err := os.RemoveAll(filepath.Join(w.root, filepath.FromSlash(path))); err != nil {
 				w.Fatal(err)
 			}
-			w.Debug(fmt.Sprintf("rm -rf %s", path))
+			dbg.Printf("[FS] os.Remove(%q)\n", path)
 		},
 		Events: []EventInfo{
 			&Call{P: path, E: Delete},
@@ -356,7 +308,7 @@ func rename(w *W, oldpath, newpath string) WCase {
 			if err != nil {
 				w.Fatal(err)
 			}
-			w.Debug(fmt.Sprintf("mv %s %s", oldpath, newpath))
+			dbg.Printf("[FS] os.Rename(%q, %q)\n", oldpath, newpath)
 		},
 		Events: []EventInfo{
 			&Call{P: newpath, E: Move},
@@ -379,7 +331,7 @@ func write(w *W, path string, p []byte) WCase {
 			if err := nonil(f.Sync(), f.Close()); err != nil {
 				w.Fatalf("Sync(%q)/Close(%q)=%v", path, path, err)
 			}
-			w.Debug(fmt.Sprintf("echo %q > %s", p, path))
+			dbg.Printf("[FS] Write(%q)\n", path)
 		},
 		Events: []EventInfo{
 			&Call{P: path, E: Write},
