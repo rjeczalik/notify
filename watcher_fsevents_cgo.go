@@ -23,12 +23,12 @@ import (
 
 var nilstream C.FSEventStreamRef
 
-// Default arguments for FSEventStreamCreate function. Make them configurable?
+// Default arguments for FSEventStreamCreate function.
 var (
 	latency C.CFTimeInterval           = 0
 	flags   C.FSEventStreamCreateFlags = C.kFSEventStreamCreateFlagFileEvents |
 		C.kFSEventStreamCreateFlagNoDefer
-	almostNow = uint64(C.FSEventsGetCurrentEventId())
+	since = uint64(C.FSEventsGetCurrentEventId())
 )
 
 var runloop C.CFRunLoopRef // global runloop which all streams are registered with
@@ -77,11 +77,19 @@ func gostream(_, ctx unsafe.Pointer, n C.size_t, paths, flags, ids uintptr) {
 	if n == 0 {
 		return
 	}
-	ev := make([]FSEvent, int(n))
+	ev := make([]FSEvent, 0, int(n))
 	for i := uintptr(0); i < uintptr(n); i++ {
-		ev[i].Path = C.GoString(*(**C.char)(unsafe.Pointer(paths + i*offchar)))
-		ev[i].Flags = *(*uint32)(unsafe.Pointer((flags + i*offflag)))
-		ev[i].ID = *(*uint64)(unsafe.Pointer(ids + i*offid))
+		switch flags := *(*uint32)(unsafe.Pointer((flags + i*offflag))); {
+		case flags&uint32(FSEventsEventIdsWrapped) != 0:
+			atomic.StoreUint64(&since, uint64(C.FSEventsGetCurrentEventId()))
+		default:
+			ev = append(ev, FSEvent{
+				Path:  C.GoString(*(**C.char)(unsafe.Pointer(paths + i*offchar))),
+				Flags: flags,
+				ID:    *(*uint64)(unsafe.Pointer(ids + i*offid)),
+			})
+		}
+
 	}
 	(*(*StreamFunc)(ctx))(ev)
 }
@@ -117,9 +125,8 @@ func (s *Stream) Start() error {
 	wg.Wait()
 	p := C.CFStringCreateWithCStringNoCopy(nil, C.CString(s.path), C.kCFStringEncodingUTF8, nil)
 	path := C.CFArrayCreate(nil, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
-	since := atomic.SwapUint64(&almostNow, uint64(C.FSEventsGetCurrentEventId()))
 	ref := C.FSEventStreamCreate(nil, (C.FSEventStreamCallback)(C.gostream),
-		&s.ctx, path, C.FSEventStreamEventId(since), latency, flags)
+		&s.ctx, path, C.FSEventStreamEventId(atomic.LoadUint64(&since)), latency, flags)
 	if ref == nilstream {
 		return errCreate
 	}

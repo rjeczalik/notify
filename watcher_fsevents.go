@@ -80,23 +80,6 @@ type watch struct {
 //   ~ $ rm file    # Create|Delete -> Delete
 //   ~ $ touch file # Create|Delete -> Create
 //
-// x. TODO(rjeczalik): handling Move events is ambigous.
-//
-// Move event is removed if it was present in previous event set.
-// Examples:
-//
-//   ~ $ echo > file   # Create|Write -> Create|Write
-//   ~ $ mv file file2 # Create|Write|Move -> Move
-//                     # Move -> Move
-//   ~ $ echo > file2  # Move|Write|InodeMetaMod -> Write|InodeMetaMod
-//
-//
-//   ~ $ echo > file   # Create|Write -> Create|Write
-//   ~ $ mv file file2 # Create|Write|Move -> Move
-//                     # Move -> Move
-//   ~ $ echo > file   # Create|Write|Move -> Create|Write
-//
-//
 // 3. Write event is removed if not followed by InodeMetaMod on existing
 // file. Example:
 //
