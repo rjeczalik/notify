@@ -1,5 +1,4 @@
-// Package notify implements watching filesystem for events in a os.Signal style.
+// Package notify implements access to filesystem events.
+//
+// TODO(rjeczalik)
 package notify
-
-// TODO(rjeczalik): Before release make every type not being a part of the API
-// unexported.

@@ -10,6 +10,8 @@ import (
 	"github.com/rjeczalik/fs/memfs"
 )
 
+// TODO(rjeczalik): remove
+
 func count(fs fs.Filesystem) (n int) {
 	fs.Walk(sep, func(_ string, _ os.FileInfo, err error) error {
 		if err != nil {
@@ -159,21 +161,21 @@ var MFS = NewFS(memfs.Must(memfs.UnmarshalTab([]byte(".\n\tgithub.com\n\t\trj" +
 	"ch.go\n\t\t\t\twhich_elf.go\n\t\t\t\twhich_macho.go\n\t\t\t\twhich_pe.go" +
 	"\n\t\t\t\twhich_test.go\n"))))
 
-var MT = Node{
+var MT = node{
 	Name: "",
-	Child: map[string]Node{
+	Child: map[string]node{
 		"github.com": {
 			Name: "/github.com",
-			Child: map[string]Node{
+			Child: map[string]node{
 				"rjeczalik": {
 					Name: "/github.com/rjeczalik",
-					Child: map[string]Node{
+					Child: map[string]node{
 						"fakerpc": {
 							Name: "/github.com/rjeczalik/fakerpc",
-							Child: map[string]Node{
+							Child: map[string]node{
 								"cmd": {
 									Name: "/github.com/rjeczalik/fakerpc/cmd",
-									Child: map[string]Node{
+									Child: map[string]node{
 										"fakerpc": {
 											Name: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
 										},
@@ -186,13 +188,13 @@ var MT = Node{
 						},
 						"fs": {
 							Name: "/github.com/rjeczalik/fs",
-							Child: map[string]Node{
+							Child: map[string]node{
 								"memfs": {
 									Name: "/github.com/rjeczalik/fs/memfs",
 								},
 								"cmd": {
 									Name: "/github.com/rjeczalik/fs/cmd",
-									Child: map[string]Node{
+									Child: map[string]node{
 										"gotree": {
 											Name: "/github.com/rjeczalik/fs/cmd/gotree",
 										},
@@ -208,10 +210,10 @@ var MT = Node{
 						},
 						"which": {
 							Name: "/github.com/rjeczalik/which",
-							Child: map[string]Node{
+							Child: map[string]node{
 								"cmd": {
 									Name: "/github.com/rjeczalik/which/cmd",
-									Child: map[string]Node{
+									Child: map[string]node{
 										"gowhich": {
 											Name: "/github.com/rjeczalik/which/cmd/gowhich",
 										},
@@ -222,10 +224,10 @@ var MT = Node{
 								},
 								"testdata": {
 									Name: "/github.com/rjeczalik/which/testdata",
-									Child: map[string]Node{
+									Child: map[string]node{
 										"cmd": {
 											Name: "/github.com/rjeczalik/which/testdata/cmd",
-											Child: map[string]Node{
+											Child: map[string]node{
 												"echo": {
 													Name: "/github.com/rjeczalik/which/testdata/cmd/echo",
 												},

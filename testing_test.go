@@ -126,7 +126,7 @@ func (cas WCase) String() string {
 // W TODO
 type W struct {
 	// Watcher TODO
-	Watcher Watcher
+	Watcher watcher
 
 	// C TODO
 	C <-chan EventInfo
@@ -157,7 +157,7 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 	if len(events) == 0 {
 		events = []Event{Create, Delete, Write, Move}
 	}
-	if rw, ok := w.watcher().(RecursiveWatcher); ok {
+	if rw, ok := w.watcher().(recursiveWatcher); ok {
 		if err := rw.RecursiveWatch(w.root, joinevents(events)); err != nil {
 			t.Fatalf("RecursiveWatch(%q, All)=%v", w.root, err)
 		}
@@ -192,11 +192,11 @@ func (w *W) Fatalf(format string, v ...interface{}) {
 
 func (w *W) initwatcher(buffer int) {
 	c := make(chan EventInfo, buffer)
-	w.Watcher = NewWatcher(c)
+	w.Watcher = newWatcher(c)
 	w.C = c
 }
 
-func (w *W) watcher() Watcher {
+func (w *W) watcher() watcher {
 	if w.Watcher == nil {
 		w.initwatcher(512)
 	}
@@ -380,9 +380,9 @@ const (
 type Chans []chan EventInfo
 
 // Foreach TODO
-func (c Chans) Foreach(fn func(chan<- EventInfo, Node)) {
+func (c Chans) Foreach(fn func(chan<- EventInfo, node)) {
 	for i, ch := range c {
-		fn(ch, Node{Name: strconv.Itoa(i)})
+		fn(ch, node{Name: strconv.Itoa(i)})
 	}
 }
 
@@ -504,7 +504,7 @@ type N struct {
 	// Notifier TODO(rjeczalik)
 	//
 	// TODO(rjeczalik): unexport
-	Notifier Notifier
+	notifier notifier
 
 	// Timeout TODO(rjeczalik)
 	Timeout time.Duration
@@ -522,29 +522,29 @@ func newN(t *testing.T, tree string) *N {
 	}
 }
 
-func newTreeN(t *testing.T, tree string, fn func(spy *Spy) Watcher) *N {
+func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
 	n := newN(t, tree)
 	n.spy = &Spy{}
 	c := make(chan EventInfo, 512)
 	n.w.Watcher = fn(n.spy)
 	n.w.C = c
 	n.c = c
-	n.Notifier = NewNotifier(n.w.watcher(), n.w.c())
+	n.notifier = newNotifier(n.w.watcher(), n.w.c())
 	return n
 }
 
 // NewNotifyTest TODO(rjeczalik)
 func NewNotifyTest(t *testing.T, tree string) *N {
 	n := newN(t, tree)
-	n.Notifier = NewNotifier(n.w.watcher(), n.w.c())
+	n.notifier = newNotifier(n.w.watcher(), n.w.c())
 	return n
 }
 
 // NewTreeTest TODO(rjeczalik)
 func NewTreeTest(t *testing.T, tree string) *N {
-	fn := func(spy *Spy) Watcher {
+	fn := func(spy *Spy) watcher {
 		return struct {
-			Watcher
+			watcher
 		}{spy}
 	}
 	return newTreeN(t, tree, fn)
@@ -552,7 +552,7 @@ func NewTreeTest(t *testing.T, tree string) *N {
 
 // NewRecursiveTreeTest TODO(rjeczalik)
 func NewRecursiveTreeTest(t *testing.T, tree string) *N {
-	fn := func(spy *Spy) Watcher { return spy }
+	fn := func(spy *Spy) watcher { return spy }
 	return newTreeN(t, tree, fn)
 }
 
@@ -576,14 +576,14 @@ func (n *N) Close() error {
 // Watch TODO(rjeczalik)
 func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
 	path = filepath.Join(n.w.root, path)
-	if err := n.Notifier.Watch(path, c, events...); err != nil {
+	if err := n.notifier.Watch(path, c, events...); err != nil {
 		n.t.Errorf("Watch(%s, %p, %v)=%v", path, c, events, err)
 	}
 }
 
 // Stop TODO(rjeczalik)
 func (n *N) Stop(c chan<- EventInfo) {
-	n.Notifier.Stop(c)
+	n.notifier.Stop(c)
 }
 
 // Call TODO(rjeczalik)

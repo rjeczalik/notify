@@ -24,8 +24,8 @@ var estr = map[Event]string{
 	//    got [notify.Delete notify.Delete|notify.Create] (i=1)
 	//
 	// Yup, here the diff have Recursive event inside. Go figure.
-	Recursive: "internal.Recursive",
-	Inactive:  "internal.Invactive",
+	recursive: "internal.Recursive",
+	inactive:  "internal.Invactive",
 }
 
 // String implements fmt.Stringer interface.
@@ -41,12 +41,12 @@ func (e Event) String() string {
 	return strings.Join(s, "|")
 }
 
-// EventInfo TODO
+// EventInfo TODO(rjeczalik)
 type EventInfo interface {
-	Event() Event
-	Path() string // always clean and absolute
-	String() string
-	Sys() interface{}
+	Event() Event     // single event of the file
+	Path() string     // real path of the file
+	String() string   // #57
+	Sys() interface{} // underlying data source (can return nil)
 }
 
 // String implements EventInfo interface.
@@ -60,7 +60,7 @@ func (e *event) String() string {
 // value is ignored by the notify runtime.
 //
 // TODO(rjeczalik): Unexported || Part of EventInfo?
-func Kind(e Event) Event {
+func kind(e Event) Event {
 	switch e {
 	case Create, Delete:
 		return e

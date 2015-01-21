@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func call(wp Watchpoint, fn interface{}, args []interface{}) EventDiff {
+func call(wp watchpoint, fn interface{}, args []interface{}) eventDiff {
 	vals := []reflect.Value{reflect.ValueOf(wp)}
 	for _, arg := range args {
 		vals = append(vals, reflect.ValueOf(arg))
@@ -15,7 +15,7 @@ func call(wp Watchpoint, fn interface{}, args []interface{}) EventDiff {
 	if n := len(res); n != 1 {
 		panic(fmt.Sprintf("unexpected len(res)=%d", n))
 	}
-	diff, ok := res[0].Interface().(EventDiff)
+	diff, ok := res[0].Interface().(eventDiff)
 	if !ok {
 		panic(fmt.Sprintf("want typeof(diff)=EventDiff; got %T", res[0].Interface()))
 	}
@@ -24,119 +24,119 @@ func call(wp Watchpoint, fn interface{}, args []interface{}) EventDiff {
 
 func TestWatchpoint(t *testing.T) {
 	ch := NewChans(5)
-	all := All | Recursive
+	all := All | recursive
 	cases := [...]struct {
 		fn    interface{}
 		args  []interface{}
-		diff  EventDiff
+		diff  eventDiff
 		total Event
 	}{{ // i=0
-		Watchpoint.Add,
+		watchpoint.Add,
 		[]interface{}{ch[0], Delete},
-		EventDiff{0, Delete},
+		eventDiff{0, Delete},
 		Delete,
 	}, { // i=1
-		Watchpoint.Add,
-		[]interface{}{ch[1], Create | Delete | Recursive},
-		EventDiff{Delete, Delete | Create},
-		Create | Delete | Recursive,
+		watchpoint.Add,
+		[]interface{}{ch[1], Create | Delete | recursive},
+		eventDiff{Delete, Delete | Create},
+		Create | Delete | recursive,
 	}, { // i=2
-		Watchpoint.Add,
+		watchpoint.Add,
 		[]interface{}{ch[2], Create | Move},
-		EventDiff{Create | Delete, Create | Delete | Move},
-		Create | Delete | Move | Recursive,
+		eventDiff{Create | Delete, Create | Delete | Move},
+		Create | Delete | Move | recursive,
 	}, { // i=3
-		Watchpoint.Add,
-		[]interface{}{ch[0], Write | Recursive},
-		EventDiff{Create | Delete | Move, Create | Delete | Move | Write},
-		Create | Delete | Move | Write | Recursive,
+		watchpoint.Add,
+		[]interface{}{ch[0], Write | recursive},
+		eventDiff{Create | Delete | Move, Create | Delete | Move | Write},
+		Create | Delete | Move | Write | recursive,
 	}, { // i=4
-		Watchpoint.Add,
-		[]interface{}{ch[2], Delete | Recursive},
-		None,
-		Create | Delete | Move | Write | Recursive,
+		watchpoint.Add,
+		[]interface{}{ch[2], Delete | recursive},
+		none,
+		Create | Delete | Move | Write | recursive,
 	}, { // i=5
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[0], all},
-		EventDiff{Create | Delete | Move | Write, Create | Delete | Move},
-		Create | Delete | Move | Recursive,
+		eventDiff{Create | Delete | Move | Write, Create | Delete | Move},
+		Create | Delete | Move | recursive,
 	}, { // i=6
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[2], all},
-		EventDiff{Create | Delete | Move, Create | Delete},
-		Create | Delete | Recursive,
+		eventDiff{Create | Delete | Move, Create | Delete},
+		Create | Delete | recursive,
 	}, { // i=7
-		Watchpoint.Add,
+		watchpoint.Add,
 		[]interface{}{ch[3], Create | Delete},
-		None,
-		Create | Delete | Recursive,
+		none,
+		Create | Delete | recursive,
 	}, { // i=8
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[1], all},
-		None,
+		none,
 		Create | Delete,
 	}, { // i=9
-		Watchpoint.Add,
-		[]interface{}{ch[3], Recursive | Write},
-		EventDiff{Create | Delete, Create | Delete | Write},
-		Create | Delete | Write | Recursive,
+		watchpoint.Add,
+		[]interface{}{ch[3], recursive | Write},
+		eventDiff{Create | Delete, Create | Delete | Write},
+		Create | Delete | Write | recursive,
 	}, { // i=10
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[3], Create},
-		EventDiff{Create | Delete | Write, Delete | Write},
-		Delete | Write | Recursive,
+		eventDiff{Create | Delete | Write, Delete | Write},
+		Delete | Write | recursive,
 	}, { // i=11
-		Watchpoint.Add,
+		watchpoint.Add,
 		[]interface{}{ch[3], Create | Move},
-		EventDiff{Delete | Write, Create | Delete | Move | Write},
-		Create | Delete | Move | Write | Recursive,
+		eventDiff{Delete | Write, Create | Delete | Move | Write},
+		Create | Delete | Move | Write | recursive,
 	}, { // i=12
-		Watchpoint.Add,
+		watchpoint.Add,
 		[]interface{}{ch[2], Delete | Write},
-		None,
-		Create | Delete | Move | Write | Recursive,
+		none,
+		Create | Delete | Move | Write | recursive,
 	}, { // i=13
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[3], Create | Delete | Write},
-		EventDiff{Create | Delete | Move | Write, Delete | Move | Write},
-		Delete | Move | Write | Recursive,
+		eventDiff{Create | Delete | Move | Write, Delete | Move | Write},
+		Delete | Move | Write | recursive,
 	}, { // i=14
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[2], Delete},
-		EventDiff{Delete | Move | Write, Move | Write},
-		Move | Write | Recursive,
+		eventDiff{Delete | Move | Write, Move | Write},
+		Move | Write | recursive,
 	}, { // i=15
-		Watchpoint.Del,
-		[]interface{}{ch[3], Move | Recursive},
-		EventDiff{Move | Write, Write},
+		watchpoint.Del,
+		[]interface{}{ch[3], Move | recursive},
+		eventDiff{Move | Write, Write},
 		Write,
 	}, { // i=16
-		Watchpoint.AddRecursive,
+		watchpoint.AddRecursive,
 		[]interface{}{Create | Delete},
-		EventDiff{Write, Create | Delete | Write},
-		Create | Delete | Write | Recursive,
+		eventDiff{Write, Create | Delete | Write},
+		Create | Delete | Write | recursive,
 	}, { // i=17
-		Watchpoint.AddRecursive,
+		watchpoint.AddRecursive,
 		[]interface{}{Move},
-		EventDiff{Create | Delete | Write, Create | Delete | Move | Write},
-		Create | Delete | Move | Write | Recursive,
+		eventDiff{Create | Delete | Write, Create | Delete | Move | Write},
+		Create | Delete | Move | Write | recursive,
 	}, { // i=18
-		Watchpoint.DelRecursive,
+		watchpoint.DelRecursive,
 		[]interface{}{Create | Delete | Write},
-		EventDiff{Create | Delete | Move | Write, Move | Write},
-		Move | Write | Recursive,
+		eventDiff{Create | Delete | Move | Write, Move | Write},
+		Move | Write | recursive,
 	}, { // i=19
-		Watchpoint.DelRecursive,
+		watchpoint.DelRecursive,
 		[]interface{}{Move},
-		EventDiff{Move | Write, Write},
+		eventDiff{Move | Write, Write},
 		Write,
 	}, { // i=20
-		Watchpoint.Del,
+		watchpoint.Del,
 		[]interface{}{ch[2], Write},
-		EventDiff{Write, 0},
+		eventDiff{Write, 0},
 		0,
 	}}
-	wp := Watchpoint{}
+	wp := watchpoint{}
 	for i, cas := range cases {
 		if diff := call(wp, cas.fn, cas.args); diff != cas.diff {
 			t.Errorf("want diff=%v; got %v (i=%d)", cas.diff, diff, i)

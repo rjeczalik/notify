@@ -14,13 +14,13 @@ const (
 	// Internal events TOOD(rjeczalik): unexport
 	//
 	// Recursive is used to distinguish recursive eventsets from non-recursive ones.
-	Recursive
+	recursive
 
 	// Inactive is used to bookkeep child watchpoints in the parent ones, which
 	// have been set with an actual filesystem watch. This is to allow for
 	// optimizing recursive watchpoint count - a single path can be watched
 	// by at most 1 recursive filesystem watch.
-	Inactive
+	inactive
 )
 
 // Inotify events.

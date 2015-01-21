@@ -2,14 +2,6 @@ package notify
 
 // TODO(rjeczalik): Rework inline doc.
 
-// NewWatcher gives new watcher, which is a layer on top of system-specific
-// filesystem event notification functionalities.
-//
-// The newWatcher function must be implemented by each supported platform.
-func NewWatcher(c chan<- EventInfo) Watcher {
-	return newWatcher(c)
-}
-
 // Watcher is a temporary interface for wrapping inotify, ReadDirChangesW,
 // FSEvents, kqueue and poller implementations.
 //
@@ -20,7 +12,7 @@ func NewWatcher(c chan<- EventInfo) Watcher {
 //
 // It's used for development purposes, the finished packaged will switch between
 // those using build tags.
-type Watcher interface {
+type watcher interface {
 	// Watch requests a watcher creation for the given path and given event set.
 	Watch(path string, event Event) error
 
@@ -46,7 +38,7 @@ type Watcher interface {
 
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support
 // recursive watching over directories.
-type RecursiveWatcher interface {
+type recursiveWatcher interface {
 	// RecursiveWatch TODO
 	RecursiveWatch(path string, event Event) error
 

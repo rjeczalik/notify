@@ -3,10 +3,10 @@ package notify
 // EventDiff describes a change to an event set - EventDiff[0] is an old state,
 // while EventDiff[1] is a new state. If event set has not changed (old == new),
 // functions typically return the None value.
-type EventDiff [2]Event
+type eventDiff [2]Event
 
 // Event TODO
-func (diff EventDiff) Event() Event {
+func (diff eventDiff) Event() Event {
 	return diff[1] &^ diff[0]
 }
 
@@ -17,10 +17,10 @@ func (diff EventDiff) Event() Event {
 //
 // The rec key holds an event set for a watchpoints created by RecursiveWatch
 // for a Watcher implementation which is not natively recursive.
-type Watchpoint map[chan<- EventInfo]Event
+type watchpoint map[chan<- EventInfo]Event
 
 // None is an empty event diff, think null object.
-var None EventDiff
+var none eventDiff
 
 // rec is just a placeholder
 var rec = func() (ch chan<- EventInfo) {
@@ -30,13 +30,13 @@ var rec = func() (ch chan<- EventInfo) {
 }()
 
 // Diff TODO
-func (wp Watchpoint) Diff(e Event) EventDiff {
-	e &^= Recursive
+func (wp watchpoint) Diff(e Event) eventDiff {
+	e &^= recursive
 	if wp[nil]&e == e {
-		return None
+		return none
 	}
-	total := wp[nil] &^ Recursive
-	return EventDiff{total, total | e}
+	total := wp[nil] &^ recursive
+	return eventDiff{total, total | e}
 }
 
 // Add TODO
@@ -48,16 +48,16 @@ func (wp Watchpoint) Diff(e Event) EventDiff {
 // elsewhere. In this case diff should be None. Not sure it is possible to
 // achieve using existing data (wp[rec]&e==e) or another internal event is
 // needed. To be researched.
-func (wp Watchpoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
+func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] |= e
 	diff[0] = wp[nil]
 	diff[1] = diff[0] | e
 	wp[nil] = diff[1]
 	// Strip diff from internal events.
-	diff[0] &^= Recursive
-	diff[1] &^= Recursive
+	diff[0] &^= recursive
+	diff[1] &^= recursive
 	if diff[0] == diff[1] {
-		return None
+		return none
 	}
 	return
 }
@@ -69,7 +69,7 @@ func (wp Watchpoint) Add(c chan<- EventInfo, e Event) (diff EventDiff) {
 // elsewhere. In this case diff should be None. Not sure it is possible to
 // achieve using existing data (wp[rec]&e==e) or another internal event is
 // needed. To be researched.
-func (wp Watchpoint) Del(c chan<- EventInfo, e Event) (diff EventDiff) {
+func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] &^= e
 	if wp[c] == 0 {
 		delete(wp, c)
@@ -82,19 +82,19 @@ func (wp Watchpoint) Del(c chan<- EventInfo, e Event) (diff EventDiff) {
 	}
 	wp[nil] = diff[1]
 	// Strip diff from internal events.
-	diff[0] &^= Recursive
-	diff[1] &^= Recursive
+	diff[0] &^= recursive
+	diff[1] &^= recursive
 	if diff[0] == diff[1] {
-		return None
+		return none
 	}
 	return
 }
 
 // Dispatch TODO
-func (wp Watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
+func (wp watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
 	event := ei.Event()
 	if recursiveonly {
-		event |= Recursive
+		event |= recursive
 	}
 	if wp[nil]&event != event {
 		return
@@ -111,26 +111,26 @@ func (wp Watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
 }
 
 // AddRecursive TODO
-func (wp Watchpoint) AddRecursive(e Event) EventDiff {
-	return wp.Add(rec, e|Recursive)
+func (wp watchpoint) AddRecursive(e Event) eventDiff {
+	return wp.Add(rec, e|recursive)
 }
 
 // DelRecursive TODO
-func (wp Watchpoint) DelRecursive(e Event) EventDiff {
+func (wp watchpoint) DelRecursive(e Event) eventDiff {
 	// If this delete would remove all events from rec event set, ensure Recursive
 	// is also gone.
-	if wp[rec] == e|Recursive {
-		e |= Recursive
+	if wp[rec] == e|recursive {
+		e |= recursive
 	}
 	return wp.Del(rec, e)
 }
 
 // Recursive TODO
-func (wp Watchpoint) Recursive() Event {
+func (wp watchpoint) recursive() Event {
 	return wp[rec]
 }
 
 // IsRecursive TODO
-func (wp Watchpoint) IsRecursive() bool {
-	return wp[nil]&Recursive == Recursive
+func (wp watchpoint) IsRecursive() bool {
+	return wp[nil]&recursive == recursive
 }

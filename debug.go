@@ -24,9 +24,9 @@ func stacktrace(max int) []string {
 	return stack
 }
 
-type Debug bool
+type debug bool
 
-func (d Debug) Print(v ...interface{}) {
+func (d debug) Print(v ...interface{}) {
 	if d {
 		fmt.Printf("[D] ")
 		fmt.Print(v...)
@@ -34,7 +34,7 @@ func (d Debug) Print(v ...interface{}) {
 	}
 }
 
-func (d Debug) Printf(format string, v ...interface{}) {
+func (d debug) Printf(format string, v ...interface{}) {
 	if d {
 		fmt.Printf("[D] ")
 		fmt.Printf(format, v...)
@@ -42,7 +42,7 @@ func (d Debug) Printf(format string, v ...interface{}) {
 	}
 }
 
-var dbg = func() Debug {
+var dbg = func() debug {
 	if os.Getenv("DEBUG") != "" {
 		return true
 	}

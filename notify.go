@@ -2,31 +2,29 @@ package notify
 
 import "sync"
 
-// TODO(rjeczalik): unexport types
-
-type Notifier interface {
+type notifier interface {
 	Watch(string, chan<- EventInfo, ...Event) error
 	Stop(chan<- EventInfo)
 }
 
-func NewNotifier(w Watcher, c <-chan EventInfo) Notifier {
-	if rw, ok := w.(RecursiveWatcher); ok {
+func newNotifier(w watcher, c <-chan EventInfo) notifier {
+	if rw, ok := w.(recursiveWatcher); ok {
 		// return NewRecursiveTree(rw, c)
 		_ = rw // TODO
-		return NewTree(w, c)
+		return newTree(w, c)
 	}
-	return NewTree(w, c)
+	return newTree(w, c)
 }
 
 var once sync.Once
 var m sync.Mutex
-var g Notifier
+var g notifier
 
-func tree() Notifier {
+func tree() notifier {
 	once.Do(func() {
 		if g == nil {
 			c := make(chan EventInfo, 128)
-			g = NewNotifier(NewWatcher(c), c)
+			g = newNotifier(newWatcher(c), c)
 		}
 	})
 	return g

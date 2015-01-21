@@ -42,7 +42,7 @@ var kqueueActions = test.Actions{
 	},*/
 }
 
-func ExpectKqueueEvents(t *testing.T, wr notify.Watcher, e notify.Event,
+func ExpectKqueueEvents(t *testing.T, wr notify.watcher, e notify.Event,
 	ei map[notify.EventInfo][]notify.Event) {
 	w := test.W(t, kqueueActions)
 	defer w.Close()

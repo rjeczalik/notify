@@ -1,14 +1,15 @@
 package notify
 
-// RecursiveTree TODO(rjeczalik)
-type RecursiveTree struct {
+// TODO(rjeczalik)
+
+type recursiveTree struct {
 	root Root
-	w    RecursiveWatcher
+	w    recursiveWatcher
 	cnd  ChanNodesMap
 }
 
-func NewRecursiveTree(w RecursiveWatcher, c <-chan EventInfo) *RecursiveTree {
-	t := &RecursiveTree{
+func newRecursiveTree(w recursiveWatcher, c <-chan EventInfo) *recursiveTree {
+	t := &recursiveTree{
 		root: Root{nd: newnode("")},
 		cnd:  make(ChanNodesMap),
 		w:    w,
@@ -17,14 +18,13 @@ func NewRecursiveTree(w RecursiveWatcher, c <-chan EventInfo) *RecursiveTree {
 	return t
 }
 
-func (t *RecursiveTree) dispatch(c <-chan EventInfo) {
-	// TODO
+func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 }
 
-func (t *RecursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) error {
+func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) error {
 	return nil
 }
 
-func (t *RecursiveTree) Stop(c chan<- EventInfo) {
+func (t *recursiveTree) Stop(c chan<- EventInfo) {
 
 }

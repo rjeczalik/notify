@@ -91,15 +91,15 @@ func gostream(_, ctx unsafe.Pointer, n C.size_t, paths, flags, ids uintptr) {
 		}
 
 	}
-	(*(*StreamFunc)(ctx))(ev)
+	(*(*streamFunc)(ctx))(ev)
 }
 
 // StreamFunc is a callback called when stream receives file events.
-type StreamFunc func([]FSEvent)
+type streamFunc func([]FSEvent)
 
 // Stream represents single watch-point which listens for events scheduled by
 // the global runloop.
-type Stream struct {
+type stream struct {
 	path string
 	ref  C.FSEventStreamRef
 	ctx  C.FSEventStreamContext
@@ -107,8 +107,8 @@ type Stream struct {
 
 // NewStream creates a stream for given path, listening for file events and
 // calling fn upon receving any.
-func NewStream(path string, fn StreamFunc) *Stream {
-	return &Stream{
+func newStream(path string, fn streamFunc) *stream {
+	return &stream{
 		path: path,
 		ctx: C.FSEventStreamContext{
 			info: unsafe.Pointer(&fn),
@@ -118,7 +118,7 @@ func NewStream(path string, fn StreamFunc) *Stream {
 
 // Start creates a FSEventStream for the given path and schedules it with
 // global runloop. It's a nop if the stream was already started.
-func (s *Stream) Start() error {
+func (s *stream) Start() error {
 	if s.ref != nilstream {
 		return nil
 	}
@@ -141,7 +141,7 @@ func (s *Stream) Start() error {
 }
 
 // Stop stops underlying FSEventStream and unregisters it from global runloop.
-func (s *Stream) Stop() {
+func (s *stream) Stop() {
 	if s.ref == nilstream {
 		return
 	}

@@ -4,6 +4,6 @@
 package notify
 
 // NewWatcher stub.
-func newWatcher() Watcher {
+func newWatcher() watcher {
 	return nil
 }

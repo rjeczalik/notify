@@ -54,7 +54,7 @@ type watch struct {
 	// hack, it should be researched how to get rid of it.
 	prev    map[string]uint32
 	c       chan<- EventInfo
-	stream  *Stream
+	stream  *stream
 	path    string
 	events  uint32
 	isrec   int32
@@ -176,7 +176,7 @@ type fsevents struct {
 	c       chan<- EventInfo
 }
 
-func newWatcher(c chan<- EventInfo) Watcher {
+func newWatcher(c chan<- EventInfo) watcher {
 	return &fsevents{
 		watches: make(map[string]*watch),
 		c:       c,
@@ -197,7 +197,7 @@ func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
 		events: uint32(event),
 		isrec:  isrec,
 	}
-	w.stream = NewStream(path, w.Dispatch)
+	w.stream = newStream(path, w.Dispatch)
 	if err = w.stream.Start(); err != nil {
 		return
 	}

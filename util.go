@@ -67,22 +67,31 @@ func joinevents(events []Event) (e Event) {
 	return
 }
 
-func Split(s string) (string, string) {
-	if i := LastIndexSep(s); i != -1 {
+func split(s string) (string, string) {
+	if i := lastIndexSep(s); i != -1 {
 		return s[:i], s[i+1:]
 	}
 	return "", s
 }
 
-func Base(s string) string {
-	if i := LastIndexSep(s); i != -1 {
+func base(s string) string {
+	if i := lastIndexSep(s); i != -1 {
 		return s[i+1:]
 	}
 	return s
 }
 
+// TODO(rjeczalik): split unix + windows
+func indexbase(root, name string) int {
+	if n, m := len(root), len(name); m >= n && name[:n] == root &&
+		(n == m || name[n] == os.PathSeparator) {
+		return min(n+1, m)
+	}
+	return -1
+}
+
 // IndexSep TODO
-func IndexSep(s string) int {
+func indexSep(s string) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == os.PathSeparator {
 			return i
@@ -92,7 +101,7 @@ func IndexSep(s string) int {
 }
 
 // LastIndexSep TODO
-func LastIndexSep(s string) int {
+func lastIndexSep(s string) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == os.PathSeparator {
 			return i

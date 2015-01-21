@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// TODO(rjeczalik): remove
+
 const buffer = 16
 
 // TreeType TODO
@@ -101,7 +103,7 @@ func NativeEventCases(cases []EventCase) []EventCase {
 // MockedTree TODO
 type MockedTree struct {
 	Spy                      // implements Watcher, RecursiveWatcher or RecursiveRewatcher
-	BigTree *BigTree         // actual tree being tested
+	bigTree *bigTree         // actual tree being tested
 	N       int              // call start offset
 	C       chan<- EventInfo // event dispatch channel
 }
@@ -110,9 +112,9 @@ type MockedTree struct {
 func (mt *MockedTree) Invoke(call Call) error {
 	switch call.F {
 	case FuncWatch:
-		return mt.BigTree.Watch(call.P, call.C, call.E)
+		return mt.bigTree.Watch(call.P, call.C, call.E)
 	case FuncStop:
-		mt.BigTree.Stop(call.C)
+		mt.bigTree.Stop(call.C)
 		return nil
 	}
 	panic("(*TreeFixture).invoke: invalid Tree call: " + call.F)
@@ -132,8 +134,8 @@ func NewTreeFixture() (tf TreeFixture) {
 		c := make(chan EventInfo, 128)
 		mt := &MockedTree{C: c}
 		tf[typ] = mt
-		mt.BigTree = NewTree(SpyWatcher(typ, mt), c)
-		mt.BigTree.FS = MFS
+		mt.bigTree = newTree(SpyWatcher(typ, mt), c)
+		mt.bigTree.FS = MFS
 	}
 	return
 }
@@ -242,16 +244,16 @@ func (tf TreeFixture) TestEvents(t *testing.T, cases []EventCase) {
 }
 
 // SpyWatcher TODO
-func SpyWatcher(typ TreeType, tree *MockedTree) Watcher {
+func SpyWatcher(typ TreeType, tree *MockedTree) watcher {
 	switch typ {
 	case TreeFakeRecursive:
 		return struct {
-			Watcher
+			watcher
 		}{tree}
 	case TreeNativeRecursive:
 		return struct {
-			Watcher
-			RecursiveWatcher
+			watcher
+			recursiveWatcher
 		}{tree, tree}
 	}
 	panic(fmt.Sprintf("notify/test: unsupported runtime type: %d (%s)", typ, typ))

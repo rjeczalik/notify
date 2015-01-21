@@ -14,12 +14,12 @@ const (
 	//
 	// Recursive is used to distinguish recursive eventsets
 	// from non-recursive ones.
-	Recursive = EV_STUB_RECURSIVE
+	recursive = EV_STUB_RECURSIVE
 	// Inactive is used to bookkeep child watchpoints in the parent ones, which
 	// have been set with an actual filesystem watch. This is to allow for
 	// optimizing recursive watchpoint count - a single path can be watched
 	// by at most 1 recursive filesystem watch.
-	Inactive = EV_STUB_INACTIVE
+	inactive = EV_STUB_INACTIVE
 )
 
 // Events TODO

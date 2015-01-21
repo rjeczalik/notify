@@ -71,7 +71,7 @@ func TestTreeSplit(t *testing.T) {
 		{"/home/(╯°□°）╯︵ ┻━┻", "/home", "(╯°□°）╯︵ ┻━┻"},
 	}
 	for i, cas := range cases {
-		dir, base := Split(filepath.FromSlash(cas.path))
+		dir, base := split(filepath.FromSlash(cas.path))
 		if want := filepath.FromSlash(cas.dir); dir != want {
 			t.Errorf("want dir=%s; got %s (i=%d)", want, dir, i)
 		}
@@ -94,7 +94,7 @@ func TestTreeBase(t *testing.T) {
 		{"/home/(╯°□°）╯︵ ┻━┻", "(╯°□°）╯︵ ┻━┻"},
 	}
 	for i, cas := range cases {
-		if base := Base(filepath.FromSlash(cas.path)); base != cas.base {
+		if base := base(filepath.FromSlash(cas.path)); base != cas.base {
 			t.Errorf("want base=%s; got %s (i=%d)", cas.base, base, i)
 		}
 	}
@@ -113,7 +113,7 @@ func TestTreeIndexSep(t *testing.T) {
 		{"(╯°□°）╯︵ ┻━┻/Downloads", 30},
 	}
 	for i, cas := range cases {
-		if n := IndexSep(filepath.FromSlash(cas.path)); n != cas.n {
+		if n := indexSep(filepath.FromSlash(cas.path)); n != cas.n {
 			t.Errorf("want n=%d; got %d (i=%d)", cas.n, n, i)
 		}
 	}
@@ -132,7 +132,7 @@ func TestTreeLastIndexSep(t *testing.T) {
 		{"/home/(╯°□°）╯︵ ┻━┻", 5},
 	}
 	for i, cas := range cases {
-		if n := LastIndexSep(filepath.FromSlash(cas.path)); n != cas.n {
+		if n := lastIndexSep(filepath.FromSlash(cas.path)); n != cas.n {
 			t.Errorf("want n=%d; got %d (i=%d)", cas.n, n, i)
 		}
 	}

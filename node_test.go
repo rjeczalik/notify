@@ -5,22 +5,18 @@ import (
 	"testing"
 )
 
-func TestNodeAdd(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
-}
-
 func TestTreeNodeSet(t *testing.T) {
 	cases := [...]struct {
-		nd  []Node
+		nd  []node
 		nds NodeSet
 	}{{
-		[]Node{{Name: "g"}, {Name: "t"}, {Name: "u"}, {Name: "a"}, {Name: "b"}},
+		[]node{{Name: "g"}, {Name: "t"}, {Name: "u"}, {Name: "a"}, {Name: "b"}},
 		NodeSet{{Name: "a"}, {Name: "b"}, {Name: "g"}, {Name: "t"}, {Name: "u"}},
 	}, {
-		[]Node{{Name: "aA"}, {Name: "aA"}, {Name: "aa"}, {Name: "AA"}},
+		[]node{{Name: "aA"}, {Name: "aA"}, {Name: "aa"}, {Name: "AA"}},
 		NodeSet{{Name: "AA"}, {Name: "aA"}, {Name: "aa"}},
 	}, {
-		[]Node{{Name: "b"}, {Name: "b"}, {Name: "a"}, {Name: "Y"}, {Name: ""}, {Name: "a"}},
+		[]node{{Name: "b"}, {Name: "b"}, {Name: "a"}, {Name: "Y"}, {Name: ""}, {Name: "a"}},
 		NodeSet{{Name: ""}, {Name: "Y"}, {Name: "a"}, {Name: "b"}},
 	}}
 Test:

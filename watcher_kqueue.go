@@ -14,7 +14,7 @@ import (
 // TODO: Take into account currently monitored files with those read from dir.
 
 // newWatcher returns `kqueue` Watcher implementation.
-func newWatcher(c chan<- EventInfo) Watcher {
+func newWatcher(c chan<- EventInfo) watcher {
 	k := &kqueue{
 		idLkp:  make(map[int]*watched, 0),
 		pthLkp: make(map[string]*watched, 0),

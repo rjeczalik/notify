@@ -11,11 +11,11 @@ import (
 )
 
 func TestTreeLookPath(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	t.skip("TODO(rjeczalik)")
 }
 
 func TestTreeLook(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	t.skip("TODO(rjeczalik)")
 }
 
 func p(p string) string {
@@ -25,20 +25,20 @@ func p(p string) string {
 func TestTreeDel(t *testing.T) {
 	t.Parallel()
 	cases := [...]struct {
-		before Node
+		before node
 		p      string
-		after  Node
+		after  node
 	}{{
-		Node{Child: map[string]Node{
+		node{Child: map[string]node{
 			"a": {
 				Name: p("/a"),
-				Child: map[string]Node{
+				Child: map[string]node{
 					"b": {
 						Name: p("/a/b"),
-						Child: map[string]Node{
+						Child: map[string]node{
 							"c": {
 								Name: p("/a/b/c"),
-								Child: map[string]Node{
+								Child: map[string]node{
 									"d": {
 										Name: p("/a/b/c/d"),
 									},
@@ -53,10 +53,10 @@ func TestTreeDel(t *testing.T) {
 			},
 		}},
 		"/a/b/c/d",
-		Node{Child: map[string]Node{
+		node{Child: map[string]node{
 			"a": {
 				Name: p("/a"),
-				Child: map[string]Node{
+				Child: map[string]node{
 					"x": {
 						Name: p("/a/x"),
 					},
@@ -64,13 +64,13 @@ func TestTreeDel(t *testing.T) {
 			},
 		}},
 	}, {
-		Node{Child: map[string]Node{
+		node{Child: map[string]node{
 			"a": {
 				Name: p("/a"),
-				Child: map[string]Node{
+				Child: map[string]node{
 					"b": {
 						Name: p("/a/b"),
-						Child: map[string]Node{
+						Child: map[string]node{
 							"c": {
 								Name: p("/a/b/c"),
 							},
@@ -80,25 +80,25 @@ func TestTreeDel(t *testing.T) {
 			},
 		}},
 		"/a/b/c",
-		Node{Child: map[string]Node{}},
+		node{Child: map[string]node{}},
 	}}
 	for i, cas := range cases {
-		if (&BigTree{Root: cas.before}).Del(cas.p); !reflect.DeepEqual(cas.before, cas.after) {
+		if (&bigTree{Root: cas.before}).Del(cas.p); !reflect.DeepEqual(cas.before, cas.after) {
 			t.Errorf("want tree=%v; got %v (i=%d)", cas.after, cas.before, i)
 		}
 	}
 }
 
 func TestTreeWalkPath(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	t.skip("TODO(rjeczalik)")
 }
 
 func TestTreeWalkDir(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	t.skip("TODO(rjeczalik)")
 }
 
 func TestTreeWalk(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	t.skip("TODO(rjeczalik)")
 }
 
 func TestTreeWatch(t *testing.T) {
@@ -1119,5 +1119,5 @@ func TestTreeRecursiveWatch(t *testing.T) {
 }
 
 func TestTreeRecursiveUnwatch(t *testing.T) {
-	t.Skip("TODO(rjeczalik)")
+	t.skip("TODO(rjeczalik)")
 }
