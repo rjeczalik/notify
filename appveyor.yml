@@ -13,7 +13,7 @@ install:
  - set TEST_NOTIFY_TIMEOUT=5s
  - cd %APPVEYOR_BUILD_FOLDER%
  - go version
- - go get code.google.com/p/go.tools/cmd/vet
+ - go get golang.org/x/tools/cmd/vet
  - go get -v -t ./...
 
 build_script:
