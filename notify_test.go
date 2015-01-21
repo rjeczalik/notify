@@ -10,8 +10,8 @@ func TestNotifyExample(t *testing.T) {
 
 	// Watch-points can be set explicitely via Watch/Stop calls...
 	n.Watch("src/github.com/rjeczalik/fs", ch[0], Write)
+	n.Watch("src/github.com/pblaszczyk/qttu/...", ch[1], Create) // BUG(rjeczalik): fix tree
 	n.Watch("src/github.com/pblaszczyk/qttu", ch[0], Write)
-	n.Watch("src/github.com/pblaszczyk/qttu/...", ch[1], Create)
 	n.Watch("src/github.com/rjeczalik/fs/cmd/...", ch[2], Delete)
 
 	cases := []NCase{

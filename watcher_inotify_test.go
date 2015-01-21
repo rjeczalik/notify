@@ -3,7 +3,6 @@
 package notify
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,6 @@ func iopen(w *W, path string) WCase {
 			if err := f.Close(); err != nil {
 				w.Fatalf("Close(%q)=%v", path, err)
 			}
-			w.Debug(fmt.Sprintf("open %q", path))
 		},
 		Events: []EventInfo{
 			&Call{P: path, E: IN_ACCESS},
@@ -42,7 +40,6 @@ func iread(w *W, path string, p []byte) WCase {
 			if err := f.Close(); err != nil {
 				w.Fatalf("Close(%q)=%v", path, err)
 			}
-			w.Debug(fmt.Sprintf("read %q", path))
 		},
 		Events: []EventInfo{
 			&Call{P: path, E: IN_ACCESS},
