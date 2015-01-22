@@ -356,6 +356,8 @@ Test:
 				}
 				continue Test
 			}
+			w.Fatalf("ExpectAny received an event which does not match any of "+
+				"the expected ones (i=%d): want one of %v; got %v", i, cas.Events, ei)
 		case <-time.After(w.timeout()):
 			w.Fatalf("timed out after %v waiting for one of %v (i=%d)", w.timeout(),
 				cas.Events, i)
