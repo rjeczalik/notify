@@ -5,7 +5,6 @@ package notify
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -33,8 +32,8 @@ type watched struct {
 	mask     uint32
 }
 
-// watcher implements Watcher interface.
-type watcher struct {
+// inotify implements Watcher interface.
+type inotify struct {
 	sync.RWMutex
 	m      map[int32]*watched
 	fd     int32
@@ -46,9 +45,9 @@ type watcher struct {
 	c      chan<- EventInfo
 }
 
-// NewWatcher creates new non-recursive watcher backed by inotify.
-func newWatcher(c chan<- EventInfo) (w *watcher) {
-	w = &watcher{
+// NewWatcher creates new non-recursive inotify backed by inotify.
+func newWatcher(c chan<- EventInfo) *inotify {
+	i := &inotify{
 		m:      make(map[int32]*watched),
 		fd:     invalidDescriptor,
 		pipefd: []int{invalidDescriptor, invalidDescriptor},
@@ -56,48 +55,48 @@ func newWatcher(c chan<- EventInfo) (w *watcher) {
 		epes:   make([]syscall.EpollEvent, 0, 2),
 		c:      c,
 	}
-	runtime.SetFinalizer(w, func(w *watcher) {
-		w.epollclose()
-		if w.fd != invalidDescriptor {
-			syscall.Close(int(w.fd))
+	runtime.SetFinalizer(i, func(i *inotify) {
+		i.epollclose()
+		if i.fd != invalidDescriptor {
+			syscall.Close(int(i.fd))
 		}
 	})
-	return
+	return i
 }
 
 // Watch implements notify.Watcher interface.
-func (w *watcher) Watch(pathname string, e Event) error {
-	return w.watch(pathname, e)
+func (i *inotify) Watch(pathname string, e Event) error {
+	return i.watch(pathname, e)
 }
 
 // Rewatch implements notify.Watcher interface.
-func (w *watcher) Rewatch(pathname string, _, newevent Event) error {
-	return w.watch(pathname, newevent)
+func (i *inotify) Rewatch(pathname string, _, newevent Event) error {
+	return i.watch(pathname, newevent)
 }
 
 // TODO : pknap
-func (w *watcher) watch(pathname string, e Event) (err error) {
+func (i *inotify) watch(pathname string, e Event) (err error) {
 	// Adding new filters with IN_MASK_ADD mask is not supported.
 	e &^= Event(syscall.IN_MASK_ADD)
 	if e&^(All|Event(syscall.IN_ALL_EVENTS)) != 0 {
 		return errors.New("notify: unknown event")
 	}
-	if err = w.lazyinit(); err != nil {
+	if err = i.lazyinit(); err != nil {
 		return
 	}
-	iwd, err := syscall.InotifyAddWatch(int(w.fd), pathname, encode(e))
+	iwd, err := syscall.InotifyAddWatch(int(i.fd), pathname, encode(e))
 	if err != nil {
 		return
 	}
-	w.RLock()
-	wd := w.m[int32(iwd)]
-	w.RUnlock()
+	i.RLock()
+	wd := i.m[int32(iwd)]
+	i.RUnlock()
 	if wd == nil {
-		w.Lock()
-		if w.m[int32(iwd)] == nil {
-			w.m[int32(iwd)] = &watched{pathname: pathname, mask: uint32(e)}
+		i.Lock()
+		if i.m[int32(iwd)] == nil {
+			i.m[int32(iwd)] = &watched{pathname: pathname, mask: uint32(e)}
 		}
-		w.Unlock()
+		i.Unlock()
 	} else {
 		atomic.StoreUint32(&wd.mask, uint32(e))
 	}
@@ -105,25 +104,25 @@ func (w *watcher) watch(pathname string, e Event) (err error) {
 }
 
 // TODO : pknap
-func (w *watcher) lazyinit() error {
-	if atomic.LoadInt32(&w.fd) == invalidDescriptor {
-		w.Lock()
-		defer w.Unlock()
-		if atomic.LoadInt32(&w.fd) == invalidDescriptor {
+func (i *inotify) lazyinit() error {
+	if atomic.LoadInt32(&i.fd) == invalidDescriptor {
+		i.Lock()
+		defer i.Unlock()
+		if atomic.LoadInt32(&i.fd) == invalidDescriptor {
 			fd, err := syscall.InotifyInit()
 			if err != nil {
 				return err
 			}
-			atomic.StoreInt32(&w.fd, int32(fd))
-			if err = w.epollinit(); err != nil {
-				w.epollclose()
+			atomic.StoreInt32(&i.fd, int32(fd))
+			if err = i.epollinit(); err != nil {
+				i.epollclose()
 				return err
 			}
 			esch := make(chan []*event)
-			go w.loop(esch)
-			w.wg.Add(consumersCount)
-			for i := 0; i < consumersCount; i++ {
-				go w.send(esch)
+			go i.loop(esch)
+			i.wg.Add(consumersCount)
+			for n := 0; n < consumersCount; n++ {
+				go i.send(esch)
 			}
 		}
 	}
@@ -131,39 +130,39 @@ func (w *watcher) lazyinit() error {
 }
 
 // TODO : pknap
-func (w *watcher) epollinit() (err error) {
-	if w.epfd, err = syscall.EpollCreate(2); err != nil {
+func (i *inotify) epollinit() (err error) {
+	if i.epfd, err = syscall.EpollCreate(2); err != nil {
 		return
 	}
-	if err = syscall.Pipe(w.pipefd); err != nil {
+	if err = syscall.Pipe(i.pipefd); err != nil {
 		return
 	}
-	w.epes = []syscall.EpollEvent{
-		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(w.fd), Pad: 0},
-		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(w.pipefd[0]), Pad: 0},
+	i.epes = []syscall.EpollEvent{
+		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(i.fd), Pad: 0},
+		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(i.pipefd[0]), Pad: 0},
 	}
 	if err = syscall.EpollCtl(
-		w.epfd, syscall.EPOLL_CTL_ADD, int(w.fd), &w.epes[0]); err != nil {
+		i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd), &i.epes[0]); err != nil {
 		return
 	}
 	return syscall.EpollCtl(
-		w.epfd, syscall.EPOLL_CTL_ADD, w.pipefd[0], &w.epes[1])
+		i.epfd, syscall.EPOLL_CTL_ADD, i.pipefd[0], &i.epes[1])
 }
 
 // TODO : pknap
-func (w *watcher) epollclose() (err error) {
-	if w.epfd != invalidDescriptor {
-		if err = syscall.Close(w.epfd); err == nil {
-			w.epfd = invalidDescriptor
+func (i *inotify) epollclose() (err error) {
+	if i.epfd != invalidDescriptor {
+		if err = syscall.Close(i.epfd); err == nil {
+			i.epfd = invalidDescriptor
 		}
 	}
-	for i, fd := range w.pipefd {
+	for n, fd := range i.pipefd {
 		if fd != invalidDescriptor {
 			switch e := syscall.Close(fd); {
 			case e != nil && err == nil:
 				err = e
 			case e == nil:
-				w.pipefd[i] = invalidDescriptor
+				i.pipefd[n] = invalidDescriptor
 			}
 		}
 	}
@@ -171,27 +170,25 @@ func (w *watcher) epollclose() (err error) {
 }
 
 // TODO : pknap
-func (w *watcher) loop(esch chan<- []*event) {
+func (i *inotify) loop(esch chan<- []*event) {
 	epes := make([]syscall.EpollEvent, 1)
-	fd := atomic.LoadInt32(&w.fd)
+	fd := atomic.LoadInt32(&i.fd)
 	for {
-		if _, err := syscall.EpollWait(w.epfd, epes, -1); err != nil {
+		if _, err := syscall.EpollWait(i.epfd, epes, -1); err != nil {
 			// Panic? error?
 		}
 		switch epes[0].Fd {
 		case fd:
-			fmt.Println("Send events")
-			esch <- w.read()
-		case int32(w.pipefd[0]):
-			fmt.Println("break the loop")
-			w.Lock()
-			defer w.Unlock()
+			esch <- i.read()
+		case int32(i.pipefd[0]):
+			i.Lock()
+			defer i.Unlock()
 			if err := syscall.Close(int(fd)); err != nil {
 				// Panic? error?
 			} else {
-				atomic.StoreInt32(&w.fd, invalidDescriptor)
+				atomic.StoreInt32(&i.fd, invalidDescriptor)
 			}
-			w.epollclose()
+			i.epollclose()
 			close(esch)
 			return
 		}
@@ -199,25 +196,23 @@ func (w *watcher) loop(esch chan<- []*event) {
 }
 
 // TODO(ppknap) : doc.
-func (w *watcher) read() (es []*event) {
-	n, err := syscall.Read(int(w.fd), w.buffer[:])
-	fmt.Println("read :", n, " err ", err, "   ")
+func (i *inotify) read() (es []*event) {
+	n, err := syscall.Read(int(i.fd), i.buffer[:])
 	switch {
 	case err != nil || n < 0:
 		// TODO(rjeczalik): Panic, error?
-		fmt.Println("Error:( ", err)
-		return
+		panic(err)
 	case n < syscall.SizeofInotifyEvent:
 		return
 	}
 	var sys *syscall.InotifyEvent
 	nmin := n - syscall.SizeofInotifyEvent
 	for pos, pathname := 0, ""; pos <= nmin; {
-		sys = (*syscall.InotifyEvent)(unsafe.Pointer(&w.buffer[pos]))
+		sys = (*syscall.InotifyEvent)(unsafe.Pointer(&i.buffer[pos]))
 		pos += syscall.SizeofInotifyEvent
 		if pathname = ""; sys.Len > 0 {
 			endpos := pos + int(sys.Len)
-			pathname = string(bytes.TrimRight(w.buffer[pos:endpos], "\x00"))
+			pathname = string(bytes.TrimRight(i.buffer[pos:endpos], "\x00"))
 			pos = endpos
 		}
 		es = append(es, &event{sys: syscall.InotifyEvent{
@@ -230,29 +225,28 @@ func (w *watcher) read() (es []*event) {
 }
 
 // TODO(ppknap) : doc.
-func (w *watcher) send(esch <-chan []*event) {
+func (i *inotify) send(esch <-chan []*event) {
 	for es := range esch {
-		for _, e := range w.strip(es) {
+		for _, e := range i.strip(es) {
 			if e != nil {
-				w.c <- e
+				i.c <- e
 			}
 		}
 	}
-	fmt.Println("Done")
-	w.wg.Done()
+	i.wg.Done()
 }
 
 // TODO(ppknap) : doc.
-func (w *watcher) strip(es []*event) []*event {
-	w.RLock()
-	for i, e := range es {
+func (i *inotify) strip(es []*event) []*event {
+	i.RLock()
+	for n, e := range es {
 		if e.sys.Mask&(syscall.IN_IGNORED|syscall.IN_Q_OVERFLOW) != 0 {
-			es[i] = nil
+			es[n] = nil
 			continue
 		}
-		wd, ok := w.m[e.sys.Wd]
+		wd, ok := i.m[e.sys.Wd]
 		if !ok || e.sys.Mask&encode(Event(wd.mask)) == 0 {
-			es[i] = nil
+			es[n] = nil
 			continue
 		}
 		e.impl.mask = wd.mask
@@ -262,7 +256,7 @@ func (w *watcher) strip(es []*event) []*event {
 			e.impl.pathname = filepath.Join(wd.pathname, e.impl.pathname)
 		}
 	}
-	w.RUnlock()
+	i.RUnlock()
 	return es
 }
 
@@ -284,48 +278,48 @@ func encode(e Event) uint32 {
 }
 
 // Unwatch implements notify.Watcher interface.
-func (w *watcher) Unwatch(pathname string) (err error) {
+func (i *inotify) Unwatch(pathname string) (err error) {
 	iwd := int32(-1)
-	w.RLock()
-	for iwdkey, wd := range w.m {
+	i.RLock()
+	for iwdkey, wd := range i.m {
 		if wd.pathname == pathname {
 			iwd = iwdkey
 			break
 		}
 	}
-	w.RUnlock()
+	i.RUnlock()
 	if iwd < 0 {
 		return errors.New("notify: file/dir " + pathname + " is unwatched")
 	}
 	if _, err = syscall.InotifyRmWatch(
-		int(atomic.LoadInt32(&w.fd)), uint32(iwd)); err != nil {
+		int(atomic.LoadInt32(&i.fd)), uint32(iwd)); err != nil {
 		return
 	}
-	w.Lock()
-	delete(w.m, iwd)
-	w.Unlock()
+	i.Lock()
+	delete(i.m, iwd)
+	i.Unlock()
 	return nil
 }
 
-func (w *watcher) Close() (err error) {
-	w.Lock()
-	if fd := atomic.LoadInt32(&w.fd); fd == invalidDescriptor {
-		w.Unlock()
+func (i *inotify) Close() (err error) {
+	i.Lock()
+	if fd := atomic.LoadInt32(&i.fd); fd == invalidDescriptor {
+		i.Unlock()
 		return nil
 	}
-	for iwdkey, _ := range w.m {
+	for iwdkey, _ := range i.m {
 		if _, e := syscall.InotifyRmWatch(
-			int(w.fd), uint32(iwdkey)); e != nil && err == nil {
+			int(i.fd), uint32(iwdkey)); e != nil && err == nil {
 			err = e
 		}
-		delete(w.m, iwdkey)
+		delete(i.m, iwdkey)
 	}
 	if _, e := syscall.Write(
-		w.pipefd[1], []byte{0x00}); e != nil && err == nil {
+		i.pipefd[1], []byte{0x00}); e != nil && err == nil {
 		err = e
 	}
-	w.Unlock()
-	w.wg.Wait()
+	i.Unlock()
+	i.wg.Wait()
 	return
 }
 
