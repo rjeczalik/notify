@@ -1,7 +1,7 @@
 notify [![Build Status](https://img.shields.io/travis/rjeczalik/notify/wip.svg)](https://travis-ci.org/rjeczalik/notify "linux_amd64") [![Build Status](https://img.shields.io/travis/rjeczalik/notify/osx.svg)](https://travis-ci.org/rjeczalik/notify "darwin_amd64") [![Build status](https://img.shields.io/appveyor/ci/rjeczalik/notify-246.svg)](https://ci.appveyor.com/project/rjeczalik/notify-246 "windows_amd64") [![Coverage Status](https://img.shields.io/coveralls/rjeczalik/notify/wip.svg)](https://coveralls.io/r/rjeczalik/notify?branch=wip)
 ======
 
-Filesystem event notification library on steroids.
+Filesystem event notification library on steroids. (under active development)
 
 *Installation*
 
