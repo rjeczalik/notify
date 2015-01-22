@@ -12,7 +12,7 @@ import (
 
 var modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 var procSetSystemFileCacheSize = modkernel32.NewProc("SetSystemFileCacheSize")
-var none = uintptr(1<<(unsafe.Sizeof(uintptr(0))*8) - 1)
+var zero = uintptr(1<<(unsafe.Sizeof(uintptr(0))*8) - 1)
 
 // TODO
 func Sync() {
