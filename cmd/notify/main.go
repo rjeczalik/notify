@@ -44,7 +44,7 @@ func main() {
 	if len(os.Args) == 1 {
 		die(usage)
 	}
-	for _, path := range strings.split(os.Args[1], string(os.PathListSeparator)) {
+	for _, path := range strings.Split(os.Args[1], string(os.PathListSeparator)) {
 		ch := make(chan notify.EventInfo, 10)
 		if err := notify.Watch(path, ch, parse(os.Args[2:])...); err != nil {
 			die(err)
