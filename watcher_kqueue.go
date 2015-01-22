@@ -19,7 +19,7 @@ func newWatcher(c chan<- EventInfo) watcher {
 		idLkp:  make(map[int]*watched, 0),
 		pthLkp: make(map[string]*watched, 0),
 		c:      c,
-		s:      make(chan struct{}),
+		s:      make(chan struct{}, 1),
 	}
 	if err := k.init(); err != nil {
 		// TODO: Does it really has to be this way?
@@ -37,17 +37,14 @@ type KqEvent struct {
 
 // Close closes all still open file descriptors and kqueue.
 func (k *kqueue) Close() error {
-	k.Lock()
-	if k.s != nil {
-		close(k.s)
-		k.s = nil
-	}
-	for _, w := range k.idLkp {
-		syscall.Close(w.fd)
-	}
+	k.s <- struct{}{}
 	if k.fd != nil {
 		syscall.Close(*k.fd)
 		k.fd = nil
+	}
+	k.Lock()
+	for _, w := range k.idLkp {
+		syscall.Close(w.fd)
 	}
 	k.idLkp, k.pthLkp = nil, nil
 	k.Unlock()
@@ -114,12 +111,12 @@ func (k *kqueue) monitor() {
 		k.sendEvents(evn)
 		evn = make([]event, 0)
 		var kevn [1]syscall.Kevent_t
+		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
 		select {
 		case <-k.s:
 			return
 		default:
 		}
-		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "kqueue: failed to read events: %q\n", err)
 			continue
