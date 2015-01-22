@@ -38,11 +38,10 @@ type KqEvent struct {
 // Close closes all still open file descriptors and kqueue.
 func (k *kqueue) Close() error {
 	k.s <- struct{}{}
+	k.Lock()
 	if k.fd != nil {
 		syscall.Close(*k.fd)
-		k.fd = nil
 	}
-	k.Lock()
 	for _, w := range k.idLkp {
 		syscall.Close(w.fd)
 	}
