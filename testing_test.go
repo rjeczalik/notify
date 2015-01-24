@@ -17,18 +17,27 @@ import (
 
 // NOTE(rjeczalik): some useful environment variables:
 //
-//   - DEBUG gives some extra information about generated events
-//   - TEST_NOTIFY_TIMEOUT allows for changing default wait time for watcher's
+//   - NOTIFY_DEBUG gives some extra information about generated events
+//   - NOTIFY_TIMEOUT allows for changing default wait time for watcher's
 //     events
+//   - NOTIFY_TMP allows for changing location of temporary directory trees
+//     created for test purpose
 //
 
 func timeout() time.Duration {
-	if s := os.Getenv("TEST_NOTIFY_TIMEOUT"); s != "" {
+	if s := os.Getenv("NOTIFY_TIMEOUT"); s != "" {
 		if t, err := time.ParseDuration(s); err == nil {
 			return t
 		}
 	}
 	return 2 * time.Second
+}
+
+func vfs() (string, string) {
+	if s := os.Getenv("NOTIFY_TMP"); s != "" {
+		return filepath.Split(s)
+	}
+	return "testdata", ""
 }
 
 func isDir(path string) bool {
@@ -85,7 +94,7 @@ func tmptree(root, list string) (string, error) {
 	}
 	defer f.Close()
 	if root == "" {
-		if root, err = ioutil.TempDir("testdata", filepath.Base(list)); err != nil {
+		if root, err = ioutil.TempDir(vfs()); err != nil {
 			return "", err
 		}
 	}

@@ -128,8 +128,6 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	events := atomic.LoadUint32(&w.events)
 	isrec := (atomic.LoadInt32(&w.isrec) == 1)
 	for i := range ev {
-		dbg.Printf("%v (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
-			ev[i].Path, i, ev[i].ID, len(ev))
 		if ev[i].Flags&FSEventsHistoryDone != 0 {
 			w.flushed = true
 			continue
@@ -137,6 +135,8 @@ func (w *watch) Dispatch(ev []FSEvent) {
 		if !w.flushed {
 			continue
 		}
+		dbg.Printf("%v (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
+			ev[i].Path, i, ev[i].ID, len(ev))
 		if ev[i].Flags&failure != 0 {
 			// TODO(rjeczalik): missing error handling
 			panic("unhandled error: " + Event(ev[i].Flags).String())

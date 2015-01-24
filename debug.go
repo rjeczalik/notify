@@ -43,7 +43,7 @@ func (d debug) Printf(format string, v ...interface{}) {
 }
 
 var dbg = func() debug {
-	if os.Getenv("DEBUG") != "" {
+	if os.Getenv("NOTIFY_DEBUG") != "" {
 		return true
 	}
 	return false
