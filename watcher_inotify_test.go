@@ -44,6 +44,7 @@ func iread(w *W, path string, p []byte) WCase {
 		Events: []EventInfo{
 			&Call{P: path, E: IN_ACCESS},
 			&Call{P: path, E: IN_OPEN},
+			&Call{P: path, E: IN_MODIFY},
 			&Call{P: path, E: IN_CLOSE_NOWRITE},
 		},
 	}
