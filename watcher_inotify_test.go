@@ -61,17 +61,39 @@ func iwrite(w *W, path string, p []byte) WCase {
 	return cas
 }
 
+func irename(w *W, path string) WCase {
+	const ext = ".notify"
+	return WCase{
+		Action: func() {
+			file := filepath.Join(w.root, path)
+			if err := os.Rename(file, file+ext); err != nil {
+				w.Fatalf("Rename(%q, %q)=%v", path, path+ext, err)
+			}
+		},
+		Events: []EventInfo{
+			&Call{P: path, E: IN_MOVED_FROM},
+			&Call{P: path + ext, E: IN_MOVED_TO},
+			&Call{P: path, E: IN_OPEN},
+			&Call{P: path, E: IN_ACCESS},
+			&Call{P: path, E: IN_ACCESS},
+			&Call{P: path, E: IN_CREATE},
+		},
+	}
+}
+
 var events = []Event{
-	Create,
-	Delete,
-	Write,
-	Move,
-	IN_OPEN,
-	IN_MODIFY,
-	IN_CLOSE_WRITE,
-	IN_OPEN,
 	IN_ACCESS,
+	IN_MODIFY,
+	IN_ATTRIB,
+	IN_CLOSE_WRITE,
 	IN_CLOSE_NOWRITE,
+	IN_OPEN,
+	IN_MOVED_FROM,
+	IN_MOVED_TO,
+	IN_CREATE,
+	IN_DELETE,
+	IN_DELETE_SELF,
+	IN_MOVE_SELF,
 }
 
 func TestWatcherInotify(t *testing.T) {
@@ -82,6 +104,7 @@ func TestWatcherInotify(t *testing.T) {
 		iopen(w, "src/github.com/rjeczalik/fs/fs.go"),
 		iwrite(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 		iread(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		irename(w, "src/github.com/rjeczalik/fs/LICENSE"),
 	}
 
 	w.ExpectAny(cases[:])

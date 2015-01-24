@@ -54,13 +54,13 @@ var osestr = map[Event]string{
 	IN_MOVE_SELF:     "notify.IN_MOVE_SELF",
 }
 
-// Inotify behavior events.
+// Inotify behavior events are not **currently** supported by notify package.
 const (
-	IN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW)
-	IN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK)
-	IN_MASK_ADD    = Event(syscall.IN_MASK_ADD)
-	IN_ONESHOT     = Event(syscall.IN_ONESHOT)
-	IN_ONLYDIR     = Event(syscall.IN_ONLYDIR)
+	iN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW)
+	iN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK)
+	iN_MASK_ADD    = Event(syscall.IN_MASK_ADD)
+	iN_ONESHOT     = Event(syscall.IN_ONESHOT)
+	iN_ONLYDIR     = Event(syscall.IN_ONLYDIR)
 )
 
 var ekind = map[Event]Event{

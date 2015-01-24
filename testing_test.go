@@ -139,7 +139,6 @@ type W struct {
 }
 
 func newWatcherTest(t *testing.T, tree string) *W {
-	t.Parallel()
 	root, err := tmptree("", filepath.FromSlash(tree))
 	if err != nil {
 		t.Fatalf(`tmptree("", %q)=%v`, tree, err)
@@ -177,7 +176,20 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 			t.Fatalf("Walk(%q, fn)=%v", w.root, err)
 		}
 	}
+	w.Drain()
 	return w
+}
+
+// Drain : TODO
+func (w *W) Drain() {
+	runtime.Gosched()
+	for {
+		select {
+		case <-w.C:
+		default:
+			return
+		}
+	}
 }
 
 // Fatal TODO
@@ -354,6 +366,7 @@ Test:
 					dbg.Print(err, j)
 					continue
 				}
+				w.Drain()
 				continue Test
 			}
 			w.Fatalf("ExpectAny received an event which does not match any of "+
@@ -362,6 +375,7 @@ Test:
 			w.Fatalf("timed out after %v waiting for one of %v (i=%d)", w.timeout(),
 				cas.Events, i)
 		}
+		w.Drain()
 	}
 }
 
