@@ -3,7 +3,6 @@
 package notify
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -149,7 +148,7 @@ func (k *kqueue) monitor() {
 					if err := k.walk(w.p, func(fi os.FileInfo) error {
 						p := filepath.Join(w.p, fi.Name())
 						if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
-							if err != errNoNewWatch {
+							if err != errAlreadyWatched {
 								// TODO: pass error via chan because state of monitoring is
 								// invalid.
 								panic(err)
@@ -217,7 +216,7 @@ func (k *kqueue) init() error {
 
 func (k *kqueue) watch(p string, e Event, fi os.FileInfo) error {
 	if err := k.singlewatch(p, e, true, fi); err != nil {
-		if err != errNoNewWatch {
+		if err != errAlreadyWatched {
 			return nil
 		}
 	}
@@ -225,7 +224,7 @@ func (k *kqueue) watch(p string, e Event, fi os.FileInfo) error {
 		err := k.walk(p, func(fi os.FileInfo) (err error) {
 			if err = k.singlewatch(filepath.Join(p, fi.Name()), e, false,
 				fi); err != nil {
-				if err != errNoNewWatch {
+				if err != errAlreadyWatched {
 					return
 				}
 			}
@@ -237,9 +236,6 @@ func (k *kqueue) watch(p string, e Event, fi os.FileInfo) error {
 	}
 	return nil
 }
-
-var errNoNewWatch = errors.New("kqueue: file already watched")
-var errNotWatched = errors.New("kqueue: cannot unwatch not watched file")
 
 // watch starts to watch given `p` file/directory.
 func (k *kqueue) singlewatch(p string, e Event, direct bool,
@@ -267,7 +263,7 @@ func (k *kqueue) singlewatch(p string, e Event, direct bool,
 		k.idLkp[w.fd], k.pthLkp[w.p] = w, w
 		return nil
 	}
-	return errNoNewWatch
+	return errAlreadyWatched
 }
 
 // unwatch stops watching `p` file/directory.
