@@ -87,6 +87,7 @@ type watch struct {
 //   ~ $ rm file     # Remove|Write|InodeMetaMod -> Remove
 //
 func (w *watch) strip(base string, set uint32) uint32 {
+	return set
 	const (
 		write = FSEventsModified | FSEventsInodeMetaMod
 		both  = FSEventsCreated | FSEventsRemoved
@@ -112,7 +113,7 @@ func (w *watch) strip(base string, set uint32) uint32 {
 			set &^= write
 		}
 	}
-	dbg.Printf("split()=%v\n", Event(set))
+	dbg.Printf("strip()=%v\n", Event(set))
 	return set
 }
 

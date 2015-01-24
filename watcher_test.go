@@ -15,16 +15,27 @@ func TestWatcher(t *testing.T) {
 	defer w.Close()
 
 	cases := [...]WCase{
+		// i=0
 		create(w, "src/github.com/ppknap/link/include/coost/.link.hpp.swp"),
+		// i=1
 		create(w, "src/github.com/rjeczalik/fs/fs_test.go"),
+		// i=2
 		create(w, "src/github.com/rjeczalik/fs/binfs/"),
+		// i=3
 		create(w, "src/github.com/rjeczalik/fs/binfs.go"),
+		// i=4
 		create(w, "src/github.com/rjeczalik/fs/binfs_test.go"),
+		// i=5
 		remove(w, "src/github.com/rjeczalik/fs/binfs/"),
+		// i=6
 		create(w, "src/github.com/rjeczalik/fs/binfs/"),
+		// i=7
 		create(w, "src/github.com/rjeczalik/fs/virfs"),
+		// i=8
 		remove(w, "src/github.com/rjeczalik/fs/virfs"),
+		// i=9
 		create(w, "file"),
+		// i=10
 		create(w, "dir/"),
 	}
 

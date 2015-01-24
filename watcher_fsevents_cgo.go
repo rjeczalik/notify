@@ -10,7 +10,8 @@ package notify
 //
 // typedef void (*CFRunLoopPerformCallBack)(void*);
 //
-// void gosource(void *);
+// void gowait(void *);
+// void gosched(void *);
 // void gostream(void*, void*, size_t, uintptr_t, uintptr_t, uintptr_t);
 //
 // #cgo LDFLAGS: -framework CoreServices
@@ -19,6 +20,7 @@ import "C"
 import (
 	"errors"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,12 +39,16 @@ var (
 var runloop C.CFRunLoopRef // global runloop which all streams are registered with
 var wg sync.WaitGroup      // used to wait until the runloop starts
 
-// source is used for synchronization purposes - it signals when runloop has
+// wait is used for synchronization purposes - it signals when runloop has
 // started and is ready via the wg. It also serves purpose of a dummy source,
 // thanks to it the runloop does not return as it also has at least one source
 // registered.
-var source = C.CFRunLoopSourceCreate(nil, 0, &C.CFRunLoopSourceContext{
-	perform: (C.CFRunLoopPerformCallBack)(C.gosource),
+var wait = C.CFRunLoopSourceCreate(nil, 0, &C.CFRunLoopSourceContext{
+	perform: (C.CFRunLoopPerformCallBack)(C.gowait),
+})
+
+var sched = C.CFRunLoopSourceCreate(nil, 0, &C.CFRunLoopSourceContext{
+	perform: (C.CFRunLoopPerformCallBack)(C.gosched),
 })
 
 // Errors returned when FSEvents functions fail.
@@ -54,20 +60,44 @@ var (
 // initializes the global runloop and ensures any created stream awaits its
 // readiness.
 func init() {
-	wg.Add(1)
-	go func() {
-		runloop = C.CFRunLoopGetCurrent()
-		C.CFRunLoopAddSource(runloop, source, C.kCFRunLoopDefaultMode)
-		C.CFRunLoopRun()
-		panic("runloop has just unexpectedly stopped")
-	}()
-	C.CFRunLoopSourceSignal(source)
+	dispatch = C.dispatch_get_global_queue(C.DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
+	/*	wg.Add(1)
+		go func() {
+			runloop = C.CFRunLoopGetCurrent()
+			// C.CFRunLoopAddSource(runloop, wait, C.kCFRunLoopDefaultMode)
+			C.CFRunLoopAddSource(runloop, sched, C.kCFRunLoopDefaultMode)
+			C.CFRunLoopRun()
+			panic("runloop has just unexpectedly stopped")
+		}()
+		// C.CFRunLoopSourceSignal(wait)
+		C.CFRunLoopSourceSignal(sched)
+		go func() {
+			for _ = range time.Tick(10 * time.Millisecond) {
+				//		fmt.Println("signal sched")
+				C.CFRunLoopSourceSignal(sched)
+				C.CFRunLoopWakeUp(runloop)
+			}
+		}()*/
 }
 
-//export gosource
-func gosource(unsafe.Pointer) {
+//export gowait
+func gowait(unsafe.Pointer) {
 	time.Sleep(time.Second)
 	wg.Done()
+}
+
+var onc sync.Once
+
+func vait() {
+	time.Sleep(time.Second)
+	wg.Done()
+}
+
+//export gosched
+func gosched(unsafe.Pointer) {
+	onc.Do(vait)
+	runtime.Gosched()
+	print(".")
 }
 
 //export gostream
@@ -133,12 +163,13 @@ func (s *stream) Start() error {
 	if ref == nilstream {
 		return errCreate
 	}
-	C.FSEventStreamScheduleWithRunLoop(ref, runloop, C.kCFRunLoopDefaultMode)
+	// C.FSEventStreamScheduleWithRunLoop(ref, runloop, C.kCFRunLoopDefaultMode)
+	C.FSEventStreamSetDispatchQueue(ref, dispatch)
 	if C.FSEventStreamStart(ref) == C.Boolean(0) {
 		C.FSEventStreamInvalidate(ref)
 		return errStart
 	}
-	C.CFRunLoopWakeUp(runloop)
+	// C.CFRunLoopWakeUp(runloop)
 	s.ref = ref
 	return nil
 }
@@ -151,6 +182,6 @@ func (s *stream) Stop() {
 	wg.Wait()
 	C.FSEventStreamStop(s.ref)
 	C.FSEventStreamInvalidate(s.ref)
-	C.CFRunLoopWakeUp(runloop)
+	// C.CFRunLoopWakeUp(runloop)
 	s.ref = nilstream
 }
