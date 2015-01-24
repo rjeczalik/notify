@@ -14,12 +14,6 @@ const (
 		FSEventsModified | FSEventsInodeMetaMod)
 )
 
-var (
-	errAlreadyWatched  = errors.New("path is already watched")
-	errNotWatched      = errors.New("path is not being watched")
-	errInvalidEventSet = errors.New("invalid event set provided")
-)
-
 // FSEvent represents single file event.
 type FSEvent struct {
 	Path  string

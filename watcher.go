@@ -1,6 +1,14 @@
 package notify
 
+import "errors"
+
 // TODO(rjeczalik): Rework inline doc.
+
+var (
+	errAlreadyWatched  = errors.New("path is already watched")
+	errNotWatched      = errors.New("path is not being watched")
+	errInvalidEventSet = errors.New("invalid event set provided")
+)
 
 // Watcher is a temporary interface for wrapping inotify, ReadDirChangesW,
 // FSEvents, kqueue and poller implementations.
