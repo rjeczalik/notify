@@ -25,11 +25,11 @@ const consumersCount = 2
 
 const invalidDescriptor = -1
 
-// watched is a pair of file pathname and inotify mask used as a value in
+// watched is a pair of file path and inotify mask used as a value in
 // watched files map.
 type watched struct {
-	pathname string
-	mask     uint32
+	path string
+	mask uint32
 }
 
 // inotify implements Watcher interface.
@@ -65,17 +65,17 @@ func newWatcher(c chan<- EventInfo) *inotify {
 }
 
 // Watch implements notify.Watcher interface.
-func (i *inotify) Watch(pathname string, e Event) error {
-	return i.watch(pathname, e)
+func (i *inotify) Watch(path string, e Event) error {
+	return i.watch(path, e)
 }
 
 // Rewatch implements notify.Watcher interface.
-func (i *inotify) Rewatch(pathname string, _, newevent Event) error {
-	return i.watch(pathname, newevent)
+func (i *inotify) Rewatch(path string, _, newevent Event) error {
+	return i.watch(path, newevent)
 }
 
 // TODO : pknap
-func (i *inotify) watch(pathname string, e Event) (err error) {
+func (i *inotify) watch(path string, e Event) (err error) {
 	// Adding new filters with IN_MASK_ADD mask is not supported.
 	e &^= Event(syscall.IN_MASK_ADD)
 	if e&^(All|Event(syscall.IN_ALL_EVENTS)) != 0 {
@@ -84,7 +84,7 @@ func (i *inotify) watch(pathname string, e Event) (err error) {
 	if err = i.lazyinit(); err != nil {
 		return
 	}
-	iwd, err := syscall.InotifyAddWatch(int(i.fd), pathname, encode(e))
+	iwd, err := syscall.InotifyAddWatch(int(i.fd), path, encode(e))
 	if err != nil {
 		return
 	}
@@ -94,11 +94,13 @@ func (i *inotify) watch(pathname string, e Event) (err error) {
 	if wd == nil {
 		i.Lock()
 		if i.m[int32(iwd)] == nil {
-			i.m[int32(iwd)] = &watched{pathname: pathname, mask: uint32(e)}
+			i.m[int32(iwd)] = &watched{path: path, mask: uint32(e)}
 		}
 		i.Unlock()
 	} else {
-		atomic.StoreUint32(&wd.mask, uint32(e))
+		i.Lock()
+		wd.mask = uint32(e)
+		i.Unlock()
 	}
 	return nil
 }
@@ -141,12 +143,12 @@ func (i *inotify) epollinit() (err error) {
 		{Events: syscall.EPOLLIN, Fd: int32(i.fd), Pad: 0},
 		{Events: syscall.EPOLLIN, Fd: int32(i.pipefd[0]), Pad: 0},
 	}
-	if err = syscall.EpollCtl(
-		i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd), &i.epes[0]); err != nil {
+	if err = syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd),
+		&i.epes[0]); err != nil {
 		return
 	}
-	return syscall.EpollCtl(
-		i.epfd, syscall.EPOLL_CTL_ADD, i.pipefd[0], &i.epes[1])
+	return syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, i.pipefd[0],
+		&i.epes[1])
 }
 
 // TODO : pknap
@@ -174,8 +176,8 @@ func (i *inotify) loop(esch chan<- []*event) {
 	epes := make([]syscall.EpollEvent, 1)
 	fd := atomic.LoadInt32(&i.fd)
 	for {
-		if _, err := syscall.EpollWait(
-			i.epfd, epes, -1); err != nil && err != syscall.EINTR {
+		if _, err := syscall.EpollWait(i.epfd, epes, -1); err != nil &&
+			err != syscall.EINTR {
 			// Panic? error?
 			panic(err)
 		}
@@ -210,19 +212,19 @@ func (i *inotify) read() (es []*event) {
 	}
 	var sys *syscall.InotifyEvent
 	nmin := n - syscall.SizeofInotifyEvent
-	for pos, pathname := 0, ""; pos <= nmin; {
+	for pos, path := 0, ""; pos <= nmin; {
 		sys = (*syscall.InotifyEvent)(unsafe.Pointer(&i.buffer[pos]))
 		pos += syscall.SizeofInotifyEvent
-		if pathname = ""; sys.Len > 0 {
+		if path = ""; sys.Len > 0 {
 			endpos := pos + int(sys.Len)
-			pathname = string(bytes.TrimRight(i.buffer[pos:endpos], "\x00"))
+			path = string(bytes.TrimRight(i.buffer[pos:endpos], "\x00"))
 			pos = endpos
 		}
 		es = append(es, &event{sys: syscall.InotifyEvent{
 			Wd:     sys.Wd,
 			Mask:   sys.Mask,
 			Cookie: sys.Cookie,
-		}, impl: watched{pathname: pathname}})
+		}, path: path})
 	}
 	return
 }
@@ -241,25 +243,30 @@ func (i *inotify) send(esch <-chan []*event) {
 
 // TODO(ppknap) : doc.
 func (i *inotify) strip(es []*event) []*event {
+	var multi []*event
 	i.RLock()
-	for n, e := range es {
+	for idx, e := range es {
 		if e.sys.Mask&(syscall.IN_IGNORED|syscall.IN_Q_OVERFLOW) != 0 {
-			es[n] = nil
+			es[idx] = nil
 			continue
 		}
 		wd, ok := i.m[e.sys.Wd]
 		if !ok || e.sys.Mask&encode(Event(wd.mask)) == 0 {
-			es[n] = nil
+			es[idx] = nil
 			continue
 		}
-		e.impl.mask = wd.mask
-		if e.impl.pathname == "" {
-			e.impl.pathname = wd.pathname
+		if e.path == "" {
+			e.path = wd.path
 		} else {
-			e.impl.pathname = filepath.Join(wd.pathname, e.impl.pathname)
+			e.path = filepath.Join(wd.path, e.path)
+		}
+		multi = append(multi, decode(e, Event(wd.mask))...)
+		if e.event == 0 {
+			es[idx] = nil
 		}
 	}
 	i.RUnlock()
+	es = append(es, multi...)
 	return es
 }
 
@@ -280,22 +287,49 @@ func encode(e Event) uint32 {
 	return uint32(e)
 }
 
+// TODO(ppknap) : doc.
+func decode(e *event, mask Event) (multi []*event) {
+	if syse := uint32(mask) & e.sys.Mask; syse != 0 {
+		multi = append(multi, &event{sys: syscall.InotifyEvent{
+			Wd:     e.sys.Wd,
+			Mask:   e.sys.Mask,
+			Cookie: e.sys.Cookie,
+		}, event: Event(syse), path: e.path})
+	}
+	imask := encode(mask)
+	switch {
+	case mask&Create != 0 &&
+		imask&uint32(InCreate|InMovedTo)&e.sys.Mask != 0:
+		e.event = Create
+	case mask&Delete != 0 &&
+		imask&uint32(InDelete|InDeleteSelf)&e.sys.Mask != 0:
+		e.event = Delete
+	case mask&Write != 0 &&
+		imask&uint32(InModify)&e.sys.Mask != 0:
+		e.event = Write
+	case mask&Move != 0 &&
+		imask&uint32(InMovedFrom|InMoveSelf)&e.sys.Mask != 0:
+		e.event = Move
+	}
+	return
+}
+
 // Unwatch implements notify.Watcher interface.
-func (i *inotify) Unwatch(pathname string) (err error) {
+func (i *inotify) Unwatch(path string) (err error) {
 	iwd := int32(-1)
 	i.RLock()
 	for iwdkey, wd := range i.m {
-		if wd.pathname == pathname {
+		if wd.path == path {
 			iwd = iwdkey
 			break
 		}
 	}
 	i.RUnlock()
 	if iwd < 0 {
-		return errors.New("notify: file/dir " + pathname + " is unwatched")
+		return errors.New("notify: file/dir " + path + " is unwatched")
 	}
-	if _, err = syscall.InotifyRmWatch(
-		int(atomic.LoadInt32(&i.fd)), uint32(iwd)); err != nil {
+	if _, err = syscall.InotifyRmWatch(int(atomic.LoadInt32(&i.fd)),
+		uint32(iwd)); err != nil {
 		return
 	}
 	i.Lock()
@@ -311,35 +345,17 @@ func (i *inotify) Close() (err error) {
 		return nil
 	}
 	for iwdkey := range i.m {
-		if _, e := syscall.InotifyRmWatch(
-			int(i.fd), uint32(iwdkey)); e != nil && err == nil {
+		if _, e := syscall.InotifyRmWatch(int(i.fd),
+			uint32(iwdkey)); e != nil && err == nil {
 			err = e
 		}
 		delete(i.m, iwdkey)
 	}
-	if _, e := syscall.Write(
-		i.pipefd[1], []byte{0x00}); e != nil && err == nil {
+	if _, e := syscall.Write(i.pipefd[1], []byte{0x00}); e != nil &&
+		err == nil {
 		err = e
 	}
 	i.Unlock()
 	i.wg.Wait()
 	return
-}
-
-// TODO(ppknap) : doc.
-func decode(mask, syse uint32) Event {
-	imask := encode(Event(mask))
-	switch {
-	case mask&syse != 0:
-		return Event(syse)
-	case imask&uint32(InCreate|InMovedTo)&syse != 0:
-		return Create
-	case imask&uint32(InDelete|InDeleteSelf)&syse != 0:
-		return Delete
-	case imask&uint32(InModify)&syse != 0:
-		return Write
-	case imask&uint32(InMovedFrom|InMoveSelf)&syse != 0:
-		return Move
-	}
-	panic("notify: cannot decode internal mask")
 }

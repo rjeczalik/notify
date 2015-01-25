@@ -5,7 +5,6 @@ package notify
 import "testing"
 
 func TestNotifySystemAndGlobalMix(t *testing.T) {
-	t.Skip("TODO(ppknap)")
 	n := NewNotifyTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
@@ -16,7 +15,7 @@ func TestNotifySystemAndGlobalMix(t *testing.T) {
 
 	cases := []NCase{
 		{
-			Event:    create(n.W(), "src/github.com/rjeczalik/fs/.main.cc.swr"),
+			Event:    icreate(n.W(), "src/github.com/rjeczalik/fs/.main.cc.swr"),
 			Receiver: Chans{ch[0], ch[1]},
 		},
 	}

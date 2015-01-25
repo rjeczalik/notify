@@ -65,10 +65,11 @@ var ekind = map[Event]Event{
 
 // TODO(ppknap) : doc.
 type event struct {
-	sys  syscall.InotifyEvent
-	impl watched
+	sys   syscall.InotifyEvent
+	path  string
+	event Event
 }
 
-func (e *event) Event() Event     { return decode(e.impl.mask, e.sys.Mask) }
-func (e *event) Path() string     { return e.impl.pathname }
+func (e *event) Event() Event     { return e.event }
+func (e *event) Path() string     { return e.path }
 func (e *event) Sys() interface{} { return e.sys }

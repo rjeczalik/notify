@@ -8,6 +8,15 @@ import (
 	"testing"
 )
 
+func icreate(w *W, path string) WCase {
+	cas := create(w, path)
+	path = cas.Events[0].Path()
+	cas.Events = append(cas.Events,
+		&Call{P: path, E: InCreate},
+	)
+	return cas
+}
+
 func iopen(w *W, path string) WCase {
 	return WCase{
 		Action: func() {
