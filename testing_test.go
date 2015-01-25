@@ -191,6 +191,8 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 
 // Drain : TODO
 func (w *W) Drain() {
+	// TODO Create tree using separate process.
+	time.Sleep(50 * time.Millisecond)
 	runtime.Gosched()
 	for {
 		select {
