@@ -35,7 +35,7 @@ func (wp watchpoint) Diff(e Event) eventDiff {
 	if wp[nil]&e == e {
 		return none
 	}
-	total := wp[nil] &^ recursive
+	total := wp[nil] &^ internal
 	return eventDiff{total, total | e}
 }
 
@@ -54,8 +54,8 @@ func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 	diff[1] = diff[0] | e
 	wp[nil] = diff[1]
 	// Strip diff from internal events.
-	diff[0] &^= recursive
-	diff[1] &^= recursive
+	diff[0] &^= internal
+	diff[1] &^= internal
 	if diff[0] == diff[1] {
 		return none
 	}
@@ -82,8 +82,8 @@ func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	}
 	wp[nil] = diff[1]
 	// Strip diff from internal events.
-	diff[0] &^= recursive
-	diff[1] &^= recursive
+	diff[0] &^= internal
+	diff[1] &^= internal
 	if diff[0] == diff[1] {
 		return none
 	}
@@ -100,7 +100,7 @@ func (wp watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
 		return
 	}
 	for ch, e := range wp {
-		if ch != nil && ch != rec && e&event == event {
+		if ch != nil && ch != rec && e&inactive == 0 && e&event == event {
 			select {
 			case ch <- ei:
 			default:
@@ -128,6 +128,11 @@ func (wp watchpoint) DelRecursive(e Event) eventDiff {
 // Recursive TODO
 func (wp watchpoint) recursive() Event {
 	return wp[rec]
+}
+
+// Total TODO
+func (wp watchpoint) Total() Event {
+	return wp[nil] &^ internal
 }
 
 // IsRecursive TODO

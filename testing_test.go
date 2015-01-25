@@ -267,13 +267,13 @@ func EqualEventInfo(want, got EventInfo) error {
 // EqualCall TODO(rjeczalik)
 func EqualCall(want, got Call) error {
 	if got.E != want.E {
-		return fmt.Errorf("want E=%v; got %v", want.E, got.E)
+		return fmt.Errorf("want E=%v; got %v (P=%q)", want.E, got.E, want.P)
 	}
 	if got.NE != want.NE {
-		return fmt.Errorf("want NE=%v; got %v", want.NE, got.NE)
+		return fmt.Errorf("want NE=%v; got %v (P=%q)", want.NE, got.NE, want.P)
 	}
 	if want.C != got.C {
-		return fmt.Errorf("want C=%p; got %p", want.C, got.C)
+		return fmt.Errorf("want C=%p; got %p (P=%q)", want.C, got.C, want.P)
 	}
 	if want := filepath.FromSlash(want.P); !strings.HasSuffix(got.P, want) {
 		return fmt.Errorf("want P=%s; got %s", want, got.P)
@@ -282,7 +282,7 @@ func EqualCall(want, got Call) error {
 		return fmt.Errorf("want NP=%s; got %s", want, got.NP)
 	}
 	if want.F != got.F {
-		return fmt.Errorf("want F=%v; got %v", want.F, got.F)
+		return fmt.Errorf("want F=%v; got %v (P=%q)", want.F, got.F, want.P)
 	}
 	return nil
 }
@@ -479,31 +479,37 @@ type Spy []Call
 func (s Spy) Close() (_ error) { return }
 
 func (s *Spy) Watch(p string, e Event) (_ error) {
+	dbg.Printf("%s: (*Spy).Watch(%q, %v)", caller(), p, e)
 	*s = append(*s, Call{F: FuncWatch, P: p, E: e})
 	return
 }
 
 func (s *Spy) Unwatch(p string) (_ error) {
+	dbg.Printf("%s: (*Spy).(%q)", caller(), p)
 	*s = append(*s, Call{F: FuncUnwatch, P: p})
 	return
 }
 
 func (s *Spy) Rewatch(p string, olde, newe Event) (_ error) {
+	dbg.Printf("%s: (*Spy).Rewatch(%q, %v, %v)", caller(), p, olde, newe)
 	*s = append(*s, Call{F: FuncRewatch, P: p, E: olde, NE: newe})
 	return
 }
 
 func (s *Spy) RecursiveWatch(p string, e Event) (_ error) {
+	dbg.Printf("%s: (*Spy).RecursiveWatch(%q, %v)", caller(), p, e)
 	*s = append(*s, Call{F: FuncRecursiveWatch, P: p, E: e})
 	return
 }
 
 func (s *Spy) RecursiveUnwatch(p string) (_ error) {
+	dbg.Printf("%s: (*Spy).RecursiveUnwatch(%q)", caller(), p)
 	*s = append(*s, Call{F: FuncRecursiveUnwatch, P: p})
 	return
 }
 
 func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe Event) (_ error) {
+	dbg.Printf("%s: (*Spy).RecursiveRewatch(%q, %q, %v, %v)", caller(), oldp, newp, olde, newe)
 	*s = append(*s, Call{F: FuncRecursiveRewatch, P: oldp, NP: newp, E: olde, NE: newe})
 	return
 }
@@ -549,6 +555,14 @@ func newN(t *testing.T, tree string) *N {
 	}
 }
 
+// TODO(rjeczalik): rm
+func tmpHackTillReady(w watcher, c <-chan EventInfo) notifier {
+	if spy, ok := w.(*Spy); ok {
+		return newRecursiveTree(spy, c)
+	}
+	return newNotifier(w, c)
+}
+
 func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
 	n := newN(t, tree)
 	n.spy = &Spy{}
@@ -556,7 +570,7 @@ func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
 	n.w.Watcher = fn(n.spy)
 	n.w.C = c
 	n.c = c
-	n.notifier = newNotifier(n.w.watcher(), n.w.c())
+	n.notifier = tmpHackTillReady(n.w.watcher(), n.w.c())
 	return n
 }
 
@@ -650,7 +664,7 @@ func (n *N) ExpectRecordedCalls(cases []RCase) {
 		}
 		for k := range cas.Record {
 			if err := EqualCall(cas.Record[k], record[k]); err != nil {
-				n.t.Fatal(err, i)
+				n.t.Fatalf("%s: %v (i=%d)", caller(), err, i)
 			}
 		}
 	}

@@ -285,6 +285,7 @@ func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, neweven
 		return nil
 	default:
 		// TODO(rjeczalik): rewatch newpath only if exists?
+		// TODO(rjeczalik): migrate w.prev to new watch?
 		if _, ok := fse.watches[newpath]; ok {
 			return errAlreadyWatched
 		}
@@ -301,6 +302,6 @@ func (fse *fsevents) Close() error {
 	for _, w := range fse.watches {
 		w.stream.Stop()
 	}
-	fse.watches = make(map[string]*watch)
+	fse.watches = nil
 	return nil
 }

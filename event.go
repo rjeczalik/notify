@@ -8,6 +8,8 @@ type Event uint32
 // All TODO
 const All = Create | Delete | Write | Move
 
+const internal = recursive | inactive
+
 var estr = map[Event]string{
 	Create: "notify.Create",
 	Delete: "notify.Delete",

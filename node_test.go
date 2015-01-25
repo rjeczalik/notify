@@ -8,20 +8,20 @@ import (
 func TestTreeNodeSet(t *testing.T) {
 	cases := [...]struct {
 		nd  []node
-		nds NodeSet
+		nds nodeSet
 	}{{
 		[]node{{Name: "g"}, {Name: "t"}, {Name: "u"}, {Name: "a"}, {Name: "b"}},
-		NodeSet{{Name: "a"}, {Name: "b"}, {Name: "g"}, {Name: "t"}, {Name: "u"}},
+		nodeSet{{Name: "a"}, {Name: "b"}, {Name: "g"}, {Name: "t"}, {Name: "u"}},
 	}, {
 		[]node{{Name: "aA"}, {Name: "aA"}, {Name: "aa"}, {Name: "AA"}},
-		NodeSet{{Name: "AA"}, {Name: "aA"}, {Name: "aa"}},
+		nodeSet{{Name: "AA"}, {Name: "aA"}, {Name: "aa"}},
 	}, {
 		[]node{{Name: "b"}, {Name: "b"}, {Name: "a"}, {Name: "Y"}, {Name: ""}, {Name: "a"}},
-		NodeSet{{Name: ""}, {Name: "Y"}, {Name: "a"}, {Name: "b"}},
+		nodeSet{{Name: ""}, {Name: "Y"}, {Name: "a"}, {Name: "b"}},
 	}}
 Test:
 	for i, cas := range cases {
-		nds := NodeSet{}
+		nds := nodeSet{}
 		for _, nd := range cas.nd {
 			nds.Add(nd)
 		}
@@ -49,18 +49,18 @@ func TestTreeChanNodesMap(t *testing.T) {
 	ch := NewChans(10)
 	cases := [...]struct {
 		ch  Chans
-		cnd ChanNodesMap
+		cnd chanNodesMap
 	}{{
 		Chans{ch[0]},
-		ChanNodesMap{ch[0]: {{Name: "0"}}},
+		chanNodesMap{ch[0]: {{Name: "0"}}},
 	}, {
 		Chans{ch[0], ch[0], ch[0]},
-		ChanNodesMap{
+		chanNodesMap{
 			ch[0]: {{Name: "0"}, {Name: "1"}, {Name: "2"}},
 		},
 	}, {
 		Chans{ch[0], ch[3], ch[2], ch[1]},
-		ChanNodesMap{
+		chanNodesMap{
 			ch[0]: {{Name: "0"}},
 			ch[1]: {{Name: "3"}},
 			ch[2]: {{Name: "2"}},
@@ -68,7 +68,7 @@ func TestTreeChanNodesMap(t *testing.T) {
 		},
 	}, {
 		Chans{ch[0], ch[0], ch[2], ch[1], ch[3], ch[3], ch[2], ch[2], ch[4], ch[0]},
-		ChanNodesMap{
+		chanNodesMap{
 			ch[0]: {{Name: "0"}, {Name: "1"}, {Name: "9"}},
 			ch[1]: {{Name: "3"}},
 			ch[2]: {{Name: "2"}, {Name: "6"}, {Name: "7"}},
@@ -77,7 +77,7 @@ func TestTreeChanNodesMap(t *testing.T) {
 		},
 	}}
 	for i, cas := range cases {
-		cnd := make(ChanNodesMap)
+		cnd := make(chanNodesMap)
 		cas.ch.Foreach(cnd.Add)
 		if !reflect.DeepEqual(cnd, cas.cnd) {
 			t.Errorf("want cnd=%v; got %v (i=%d)", cas.cnd, cnd, i)

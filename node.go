@@ -224,12 +224,12 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 }
 
 // Root TODO
-type Root struct {
+type root struct {
 	nd node
 }
 
 // TODO(rjeczalik): split unix + windows
-func (r Root) addroot(name string) node {
+func (r root) addroot(name string) node {
 	if vol := filepath.VolumeName(name); vol != "" {
 		root, ok := r.nd.Child[vol]
 		if !ok {
@@ -241,7 +241,7 @@ func (r Root) addroot(name string) node {
 }
 
 // TODO(rjeczalik): split unix + windows
-func (r Root) root(name string) (node, error) {
+func (r root) root(name string) (node, error) {
 	if vol := filepath.VolumeName(name); vol != "" {
 		nd, ok := r.nd.Child[vol]
 		if !ok {
@@ -253,17 +253,17 @@ func (r Root) root(name string) (node, error) {
 }
 
 // Add TODO
-func (r Root) Add(name string) node {
+func (r root) Add(name string) node {
 	return r.addroot(name).Add(name)
 }
 
 // WalkDir TODO
-func (r Root) AddDir(dir string, fn walkFunc) error {
+func (r root) AddDir(dir string, fn walkFunc) error {
 	return r.addroot(dir).AddDir(dir, fn)
 }
 
 // Del TODO
-func (r Root) Del(name string) error {
+func (r root) Del(name string) error {
 	nd, err := r.root(name)
 	if err != nil {
 		return err
@@ -272,7 +272,7 @@ func (r Root) Del(name string) error {
 }
 
 // Get TODO
-func (r Root) Get(name string) (node, error) {
+func (r root) Get(name string) (node, error) {
 	nd, err := r.root(name)
 	if err != nil {
 		return node{}, err
@@ -281,7 +281,7 @@ func (r Root) Get(name string) (node, error) {
 }
 
 // Walk TODO
-func (r Root) Walk(name string, fn walkFunc) error {
+func (r root) Walk(name string, fn walkFunc) error {
 	nd, err := r.root(name)
 	if err != nil {
 		return err
@@ -293,7 +293,7 @@ func (r Root) Walk(name string, fn walkFunc) error {
 }
 
 // Root TODO
-func (r Root) WalkPath(name string, fn walkPathFunc) error {
+func (r root) WalkPath(name string, fn walkPathFunc) error {
 	nd, err := r.root(name)
 	if err != nil {
 		return err
@@ -302,24 +302,24 @@ func (r Root) WalkPath(name string, fn walkPathFunc) error {
 }
 
 // NodeSet TODO
-type NodeSet []node
+type nodeSet []node
 
-func (p NodeSet) Len() int           { return len(p) }
-func (p NodeSet) Less(i, j int) bool { return p[i].Name < p[j].Name }
-func (p NodeSet) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p nodeSet) Len() int           { return len(p) }
+func (p nodeSet) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p nodeSet) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (p NodeSet) Search(nd node) int {
+func (p nodeSet) Search(nd node) int {
 	return sort.Search(len(p), func(i int) bool { return p[i].Name >= nd.Name })
 }
 
-func (p *NodeSet) Names() (s []string) {
+func (p *nodeSet) Names() (s []string) {
 	for i := range *p {
 		s = append(s, (*p)[i].Name)
 	}
 	return
 }
 
-func (p *NodeSet) Add(nd node) {
+func (p *nodeSet) Add(nd node) {
 	switch i := p.Search(nd); {
 	case i == len(*p):
 		*p = append(*p, nd)
@@ -331,7 +331,7 @@ func (p *NodeSet) Add(nd node) {
 	}
 }
 
-func (p *NodeSet) Del(nd node) {
+func (p *nodeSet) Del(nd node) {
 	if i, n := p.Search(nd), len(*p); i != n && (*p)[i].Name == nd.Name {
 		copy((*p)[i:], (*p)[i+1:])
 		*p = (*p)[:n-1]
@@ -339,17 +339,17 @@ func (p *NodeSet) Del(nd node) {
 }
 
 // ChanNodesMap TODO
-type ChanNodesMap map[chan<- EventInfo]*NodeSet
+type chanNodesMap map[chan<- EventInfo]*nodeSet
 
-func (m ChanNodesMap) Add(c chan<- EventInfo, nd node) {
+func (m chanNodesMap) Add(c chan<- EventInfo, nd node) {
 	if nds, ok := m[c]; ok {
 		nds.Add(nd)
 	} else {
-		m[c] = &NodeSet{nd}
+		m[c] = &nodeSet{nd}
 	}
 }
 
-func (m ChanNodesMap) Del(c chan<- EventInfo, nd node) {
+func (m chanNodesMap) Del(c chan<- EventInfo, nd node) {
 	if nds, ok := m[c]; ok {
 		if nds.Del(nd); len(*nds) == 0 {
 			delete(m, c)

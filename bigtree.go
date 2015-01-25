@@ -40,7 +40,7 @@ type bigTree struct {
 	FS   fs.Filesystem
 	Root node
 
-	cnd   ChanNodesMap
+	cnd   chanNodesMap
 	stop  chan struct{}
 	impl  impl
 	isrec bool
@@ -100,7 +100,7 @@ func (t *bigTree) loopdispatch(c <-chan EventInfo) {
 func newTree(w watcher, c <-chan EventInfo) *bigTree {
 	t := &bigTree{
 		Root: node{Child: make(map[string]node), Watch: make(watchpoint)},
-		cnd:  make(ChanNodesMap),
+		cnd:  make(chanNodesMap),
 		stop: make(chan struct{}),
 	}
 	t.setimpl(w)
@@ -454,7 +454,7 @@ func (t *bigTree) mergewatchrec(p string, c chan<- EventInfo, e Event) error {
 	// there is a chance there exist one or more recursive watchpoints in the
 	// subtree starting at p - we would need to rewatch those as one watch can
 	// compensate for several smaller ones.
-	var nds NodeSet
+	var nds nodeSet
 	var erec = e
 	switch err {
 	case nil:
