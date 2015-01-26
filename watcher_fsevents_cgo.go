@@ -25,7 +25,7 @@ var nilstream C.FSEventStreamRef
 
 // Default arguments for FSEventStreamCreate function.
 var (
-	latency C.CFTimeInterval           = 0
+	latency C.CFTimeInterval
 	flags   C.FSEventStreamCreateFlags = C.kFSEventStreamCreateFlagFileEvents |
 		C.kFSEventStreamCreateFlagNoDefer
 	since = uint64(C.FSEventsGetCurrentEventId())

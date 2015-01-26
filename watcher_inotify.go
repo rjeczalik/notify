@@ -138,8 +138,8 @@ func (i *inotify) epollinit() (err error) {
 		return
 	}
 	i.epes = []syscall.EpollEvent{
-		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(i.fd), Pad: 0},
-		syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(i.pipefd[0]), Pad: 0},
+		{Events: syscall.EPOLLIN, Fd: int32(i.fd), Pad: 0},
+		{Events: syscall.EPOLLIN, Fd: int32(i.pipefd[0]), Pad: 0},
 	}
 	if err = syscall.EpollCtl(
 		i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd), &i.epes[0]); err != nil {
@@ -307,7 +307,7 @@ func (i *inotify) Close() (err error) {
 		i.Unlock()
 		return nil
 	}
-	for iwdkey, _ := range i.m {
+	for iwdkey := range i.m {
 		if _, e := syscall.InotifyRmWatch(
 			int(i.fd), uint32(iwdkey)); e != nil && err == nil {
 			err = e

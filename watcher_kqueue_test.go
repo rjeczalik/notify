@@ -56,11 +56,11 @@ func ExpectKqueueEvents(t *testing.T, wr notify.watcher, e notify.Event,
 func TestKqueue(t *testing.T) {
 	ei := map[notify.EventInfo][]notify.Event{
 		test.EI("github.com/rjeczalik/fs/fs.go",
-			notify.NOTE_ATTRIB): []notify.Event{notify.NOTE_ATTRIB},
+			notify.NOTE_ATTRIB): {notify.NOTE_ATTRIB},
 		test.EI("github.com/rjeczalik/fs/fs.go",
-			notify.NOTE_EXTEND): []notify.Event{notify.NOTE_EXTEND | notify.NOTE_WRITE},
+			notify.NOTE_EXTEND): {notify.NOTE_EXTEND | notify.NOTE_WRITE},
 		test.EI("github.com/rjeczalik/fs/fs.go",
-			notify.NOTE_LINK): []notify.Event{notify.NOTE_LINK},
+			notify.NOTE_LINK): {notify.NOTE_LINK},
 	}
 	ExpectKqueueEvents(t, notify.NewWatcher(), notify.NOTE_DELETE|
 		notify.NOTE_WRITE|notify.NOTE_EXTEND|notify.NOTE_ATTRIB|notify.NOTE_LINK|
