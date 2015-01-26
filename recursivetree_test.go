@@ -6,7 +6,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(3)
+	ch := NewChans(1)
 
 	calls := [...]RCase{
 		// i=0
@@ -30,7 +30,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/rjeczalik/fs/cmd/...",
-				C: ch[2],
+				C: ch[0],
 				E: Delete,
 			},
 			Record: []Call{
@@ -46,7 +46,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/rjeczalik/fs",
-				C: ch[1],
+				C: ch[0],
 				E: Move,
 			},
 			Record: []Call{
@@ -70,7 +70,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/ppknap/link/README.md",
-				C: ch[1],
+				C: ch[0],
 				E: Create,
 			},
 			Record: []Call{
@@ -102,7 +102,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/ppknap/link/include",
-				C: ch[1],
+				C: ch[0],
 				E: Write,
 			},
 			Record: []Call{
@@ -120,7 +120,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/ppknap/link/test/Jamfile.jam",
-				C: ch[2],
+				C: ch[0],
 				E: Move,
 			},
 			Record: []Call{
@@ -148,11 +148,12 @@ func TestRecursiveTreeWatch(t *testing.T) {
 				},
 			},
 		},
+		// i=8
 		{
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/ppknap/...",
-				C: ch[1],
+				C: ch[0],
 				E: Create,
 			},
 			Record: []Call{
@@ -172,6 +173,105 @@ func TestRecursiveTreeWatch(t *testing.T) {
 				{
 					F: FuncUnwatch,
 					P: "src/github.com/ppknap/link/test/Jamfile.jam",
+				},
+			},
+		},
+		// i=9
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs/README.md",
+				C: ch[0],
+				E: Move,
+			},
+			Record: nil,
+		},
+		// i=10
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs/cmd/gotree",
+				C: ch[0],
+				E: Create | Delete,
+			},
+			Record: nil,
+		},
+		// i=11
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/pblaszczyk/qttu/src/main.cc",
+				C: ch[0],
+				E: Create,
+			},
+			Record: []Call{
+				{
+					F: FuncWatch,
+					P: "src/github.com/pblaszczyk/qttu/src/main.cc",
+					E: Create,
+				},
+			},
+		},
+		// i=12
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/pblaszczyk/qttu/src/main.cc",
+				C: ch[0],
+				E: Delete,
+			},
+			Record: []Call{
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/pblaszczyk/qttu/src/main.cc",
+					E:  Create,
+					NE: Create | Delete,
+				},
+			},
+		},
+		// i=13
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/pblaszczyk/qttu/src/main.cc",
+				C: ch[0],
+				E: Create | Delete,
+			},
+			Record: nil,
+		},
+		// i=14
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/pblaszczyk/qttu/src",
+				C: ch[0],
+				E: Create,
+			},
+			Record: []Call{
+				{
+					F:  FuncRecursiveRewatch,
+					P:  "src/github.com/pblaszczyk/qttu/src/main.cc",
+					NP: "src/github.com/pblaszczyk/qttu/src",
+					E:  Create | Delete,
+					NE: Create | Delete,
+				},
+			},
+		},
+		// i=15
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/pblaszczyk/qttu",
+				C: ch[0],
+				E: Write,
+			},
+			Record: []Call{
+				{
+					F:  FuncRecursiveRewatch,
+					P:  "src/github.com/pblaszczyk/qttu/src",
+					NP: "src/github.com/pblaszczyk/qttu",
+					E:  Create | Delete,
+					NE: Create | Delete | Write,
 				},
 			},
 		},

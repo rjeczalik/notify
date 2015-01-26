@@ -78,7 +78,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	// Look for parent watch which already covers the given path.
 	parent := node{}
 	err = t.root.WalkPath(path, func(nd node, _ bool) error {
-		if nd.Watch[nil] != 0 {
+		if nd.Watch.Total() != 0 {
 			parent = nd
 			return skip
 		}
@@ -91,6 +91,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		// return t.resetwatchpoint(parent, parent, c, eventset|inactive)
 		switch diff := parent.Watch.Add(c, eventset|inactive); {
 		case diff == none:
+			return nil
 		case diff[0] == 0:
 			panic("dangling watchpoint: " + parent.Name)
 		default:
@@ -113,7 +114,6 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 			t.cnd.Add(c, cur)    // rm
 			t.cnd.Add(c, parent) // rm
 			return nil
-
 		}
 	}
 	// case 2: cur is new parent
@@ -182,26 +182,18 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		return err
 	}
 	// case 3: cur is new, alone node
-	diff := cur.Watch.Add(c, eventset)
-	switch {
-	case diff == none:
-	case diff[0] == 0:
+	if diff := cur.Watch.Add(c, eventset); diff[0] == 0 {
 		if isrec {
 			err = t.w.RecursiveWatch(cur.Name, diff[1])
 		} else {
 			err = t.w.Watch(cur.Name, diff[1])
 		}
-	default:
-		if cur.Watch.IsRecursive() {
-			err = t.w.RecursiveRewatch(cur.Name, cur.Name, diff[0], diff[1])
-		} else {
-			err = t.w.Rewatch(cur.Name, diff[0], diff[1])
+		if err != nil {
+			cur.Watch.Del(c, diff.Event())
+			return err
 		}
 	}
-	if err != nil {
-		cur.Watch.Del(c, diff.Event())
-	}
-	return err
+	return nil
 }
 
 func (t *recursiveTree) Stop(c chan<- EventInfo) {

@@ -206,7 +206,11 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 	}
 	ok := false
 	for j := indexSep(name[i:]); j != -1; j = indexSep(name[i:]) {
-		if err := fn(nd, false); err != nil && err != skip {
+		switch err := fn(nd, false); err {
+		case nil:
+		case skip:
+			return nil
+		default:
 			return err
 		}
 		if nd, ok = nd.Child[name[i:i+j]]; !ok {
@@ -214,13 +218,22 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 		}
 		i += j + 1
 	}
+	switch err := fn(nd, false); err {
+	case nil:
+	case skip:
+		return nil
+	default:
+		return err
+	}
 	if nd, ok = nd.Child[name[i:]]; !ok {
 		return errnotexist(name)
 	}
-	if err := fn(nd, true); err != nil && err != skip {
+	switch err := fn(nd, true); err {
+	case nil, skip:
+		return nil
+	default:
 		return err
 	}
-	return nil
 }
 
 // Root TODO

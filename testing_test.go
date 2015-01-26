@@ -366,6 +366,7 @@ func write(w *W, path string, p []byte) WCase {
 func (w *W) ExpectAny(cases []WCase) {
 Test:
 	for i, cas := range cases {
+		dbg.Printf("ExpectAny: i=%d\n", i)
 		cas.Action()
 		Sync()
 		select {
@@ -652,6 +653,7 @@ func (n *N) ExpectDry(ch Chans) {
 func (n *N) ExpectRecordedCalls(cases []RCase) {
 	j := 0
 	for i, cas := range cases {
+		dbg.Printf("ExpectRecordedCalls: i=%d\n", i)
 		n.Call(cas.Call)
 		record := (*n.spy)[j:]
 		if len(cas.Record) == 0 && len(record) == 0 {
@@ -659,8 +661,8 @@ func (n *N) ExpectRecordedCalls(cases []RCase) {
 		}
 		j = len(*n.spy)
 		if len(record) != len(cas.Record) {
-			n.t.Fatalf("want len(record)=%d; got %d (i=%d)", len(cas.Record),
-				len(record), i)
+			n.t.Fatalf("%s: want len(record)=%d; got %d [%+v] (i=%d)", caller(),
+				len(cas.Record), len(record), record, i)
 		}
 		for k := range cas.Record {
 			if err := EqualCall(cas.Record[k], record[k]); err != nil {
@@ -704,6 +706,7 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 // ExpectTreeEvents TODO(rjeczalik)
 func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
+		dbg.Printf("ExpectTreeEvents: i=%d\n", i)
 		switch cas.Receiver {
 		case nil:
 			n.ExpectDry(all)
@@ -730,6 +733,7 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 // ExpectNotifyEvents TODO(rjeczalik)
 func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 	for i, cas := range cases {
+		dbg.Printf("ExpectNotifyEvents: i=%d\n", i)
 		switch cas.Receiver {
 		case nil:
 			n.ExpectDry(all)
