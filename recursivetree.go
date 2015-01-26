@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// must panics if err is non-nil.
 func must(err error) {
 	if err != nil {
 		panic(err)
@@ -14,15 +15,17 @@ func must(err error) {
 // recursiveTree TODO(rjeczalik)
 type recursiveTree struct {
 	root root
-	// TODO(rjeczalik): merge watcher + recursiveWatcher after bigTree gets rm
+	// TODO(rjeczalik): merge watcher + recursiveWatcher after #5 and #6
 	w interface {
 		watcher
 		recursiveWatcher
 	}
-	cnd chanNodesMap
+	c   chan EventInfo
+	cnd chanNodesMap // TODO(rjeczalik): replace with subtree scanning
 }
 
-func newRecursiveTree(w recursiveWatcher, c <-chan EventInfo) *recursiveTree {
+// newRecursiveTree TODO(rjeczalik)
+func newRecursiveTree(w recursiveWatcher, c chan EventInfo) *recursiveTree {
 	t := &recursiveTree{
 		root: root{nd: newnode("")},
 		cnd:  make(chanNodesMap),
@@ -30,15 +33,36 @@ func newRecursiveTree(w recursiveWatcher, c <-chan EventInfo) *recursiveTree {
 			watcher
 			recursiveWatcher
 		}{w.(watcher), w},
+		c: c,
 	}
 	go t.dispatch(c)
 	return t
 }
 
+// dispatch TODO(rjeczalik)
 func (t *recursiveTree) dispatch(c <-chan EventInfo) {
-	// TODO
+	nd, ok := node{}, false
+	for ei := range c {
+		dir, base := split(ei.Path())
+		fn := func(it node, isbase bool) error {
+			if isbase {
+				nd = it
+			} else {
+				it.Watch.Dispatch(ei, true) // notify recursively nodes on the path
+			}
+			return nil
+		}
+		if err := t.root.WalkPath(dir, fn); err != nil {
+			continue
+		}
+		nd.Watch.Dispatch(ei, false) // notify parent watchpoint
+		if nd, ok = nd.Child[base]; ok {
+			nd.Watch.Dispatch(ei, false) // notify leaf watchpoint
+		}
+	}
 }
 
+// cleanpath TODO(rjeczalik): move to util.go
 func cleanpath(path string) (realpath string, isrec bool, err error) {
 	if strings.HasSuffix(path, "...") {
 		isrec = true
@@ -54,9 +78,6 @@ func cleanpath(path string) (realpath string, isrec bool, err error) {
 }
 
 // Watch TODO(rjeczalik)
-//
-// Watch does not support symlinks as it does not care. If user cares, p should
-// be passed to os.Readlink first.
 func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) error {
 	if c == nil {
 		panic("notify: Watch using nil channel")
@@ -196,7 +217,15 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	return nil
 }
 
+// Stop TODO(rjeczalik)
 func (t *recursiveTree) Stop(c chan<- EventInfo) {
 	// TODO
 
+}
+
+// Close TODO(rjeczalik)
+func (t *recursiveTree) Close() error {
+	err := t.w.Close()
+	close(t.c)
+	return err
 }

@@ -134,14 +134,9 @@ func (cas WCase) String() string {
 
 // W TODO
 type W struct {
-	// Watcher TODO
-	Watcher watcher
-
-	// C TODO
-	C <-chan EventInfo
-
-	// Timeout TODO
-	Timeout time.Duration
+	Watcher watcher        // TODO
+	C       chan EventInfo // TODO
+	Timeout time.Duration  // TODO
 
 	t    *testing.T
 	root string
@@ -226,7 +221,7 @@ func (w *W) watcher() watcher {
 	return w.Watcher
 }
 
-func (w *W) c() <-chan EventInfo {
+func (w *W) c() chan EventInfo {
 	if w.C == nil {
 		w.initwatcher(512)
 	}
@@ -243,8 +238,7 @@ func (w *W) timeout() time.Duration {
 // Close TODO
 func (w *W) Close() error {
 	defer os.RemoveAll(w.root)
-	// TODO(rjeczalik): make Close part of Watcher interface
-	if err := w.watcher().(io.Closer).Close(); err != nil {
+	if err := w.watcher().Close(); err != nil {
 		w.Fatalf("w.Watcher.Close()=%v", err)
 	}
 	return nil
@@ -557,7 +551,7 @@ func newN(t *testing.T, tree string) *N {
 }
 
 // TODO(rjeczalik): rm
-func tmpHackTillReady(w watcher, c <-chan EventInfo) notifier {
+func tmpHackTillReady(w watcher, c chan EventInfo) notifier {
 	if spy, ok := w.(*Spy); ok {
 		return newRecursiveTree(spy, c)
 	}
@@ -612,6 +606,9 @@ func (n *N) W() *W {
 
 // Close TODO
 func (n *N) Close() error {
+	if cl, ok := n.notifier.(io.Closer); ok {
+		return cl.Close()
+	}
 	return n.w.Close()
 }
 

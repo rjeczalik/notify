@@ -16,17 +16,19 @@ func newNotifier(w watcher, c <-chan EventInfo) notifier {
 	return newTree(w, c)
 }
 
+func initg() {
+	if g == nil {
+		c := make(chan EventInfo, 128)
+		g = newNotifier(newWatcher(c), c)
+	}
+}
+
 var once sync.Once
 var m sync.Mutex
 var g notifier
 
 func tree() notifier {
-	once.Do(func() {
-		if g == nil {
-			c := make(chan EventInfo, 128)
-			g = newNotifier(newWatcher(c), c)
-		}
-	})
+	once.Do(initg)
 	return g
 }
 
