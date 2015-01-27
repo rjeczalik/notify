@@ -6,11 +6,11 @@ clone_folder: c:\projects\src\github.com\rjeczalik\notify
 
 environment:
  GOPATH: c:\projects
- DEBUG: XD
+ NOTIFY_DEBUG: XD
+ NOTIFY_TIMEOUT: 5s
 
 install:
  - set PATH=%GOPATH%\bin;%PATH%
- - set TEST_NOTIFY_TIMEOUT=5s
  - cd %APPVEYOR_BUILD_FOLDER%
  - go version
  - go get golang.org/x/tools/cmd/vet

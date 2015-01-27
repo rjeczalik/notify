@@ -12,7 +12,7 @@ func must(err error) {
 	}
 }
 
-// recursiveTree TODO(rjeczalik)
+// recursiveTree TODO(rjeczalik): lock root
 type recursiveTree struct {
 	root root
 	// TODO(rjeczalik): merge watcher + recursiveWatcher after #5 and #6
@@ -43,6 +43,7 @@ func newRecursiveTree(w recursiveWatcher, c chan EventInfo) *recursiveTree {
 func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 	nd, ok := node{}, false
 	for ei := range c {
+		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
 		dir, base := split(ei.Path())
 		fn := func(it node, isbase bool) error {
 			if isbase {
@@ -53,6 +54,7 @@ func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 			return nil
 		}
 		if err := t.root.WalkPath(dir, fn); err != nil {
+			dbg.Print("dispatch did not reach leaf:", err)
 			continue
 		}
 		nd.Watch.Dispatch(ei, false) // notify parent watchpoint

@@ -11,9 +11,7 @@ env:
     secure: JfdLa3hcnvIwT13kbH2fr4c+4V9H4yO4GZsqDckODmxILlEtKcCLM5eCi09D21uTuaMUfZDIFNPN4mpDhbeEoM6Aoro4Ht+mX0vlpFUOS5bRqhP0l59PKEXqKFfh2IIlqEOmQ9XU6XvqWezTirN1OFUPMIMO9qSM/HuKhbX5wJQ=
 
 install:
-- export GOBIN=$HOME/bin
-- export PATH=$GOBIN:$PATH
-- export DEBUG=XD
+- export GOBIN=$HOME/bin PATH=$HOME/bin:$PATH NOTIFY_DEBUG=XD
 - go get golang.org/x/tools/cmd/vet golang.org/x/tools/cmd/cover github.com/mattn/goveralls github.com/modocache/gover
 - go get -t -v ./...
 - go install -a -race std

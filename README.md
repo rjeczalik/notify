@@ -32,7 +32,6 @@ func main() {
 	if err := notify.Watch("./...", c, notify.All); err != nil {
 		log.Fatal(err)
 	}
-
 	defer notify.Stop(c)
 
 	for ei := range c {
@@ -58,7 +57,6 @@ func main() {
 	if err := notify.Watch(".", c, notify.Create); err != nil {
 		log.Fatal(err)
 	}
-
 	defer notify.Stop(c)
 
 	for ei := range c {
@@ -89,7 +87,6 @@ func main() {
 	if err := notify.Watch(".", c, notify.Create, notify.Write); err != nil {
 		log.Fatal(err)
 	}
-
 	defer notify.Stop(c)
 
 	for ei := range c {
@@ -121,13 +118,11 @@ func main() {
 	if err := notify.Watch(".", create, notify.Create); err != nil {
 		log.Fatal(err)
 	}
-
 	defer notify.Stop(create)
 
 	if err := notify.Watch(".", write, notify.Write); err != nil {
 		log.Fatal(err)
 	}
-
 	defer notify.Stop(write)
 
 	for {

@@ -30,7 +30,7 @@ func (d debug) Print(v ...interface{}) {
 	if d {
 		fmt.Printf("[D] ")
 		fmt.Print(v...)
-		fmt.Printf(" (callstack=%v)\n", stacktrace(3))
+		fmt.Printf("\n\n")
 	}
 }
 

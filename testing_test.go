@@ -22,8 +22,17 @@ import (
 //     events
 //   - NOTIFY_TMP allows for changing location of temporary directory trees
 //     created for test purpose
-//
 
+// wd TODO(rjeczalik)
+var wd = func() string {
+	s, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	return s
+}()
+
+// timeout TODO(rjeczalik)
 func timeout() time.Duration {
 	if s := os.Getenv("NOTIFY_TIMEOUT"); s != "" {
 		if t, err := time.ParseDuration(s); err == nil {
@@ -33,6 +42,7 @@ func timeout() time.Duration {
 	return 2 * time.Second
 }
 
+// vfs TODO(rjeczalik)
 func vfs() (string, string) {
 	if s := os.Getenv("NOTIFY_TMP"); s != "" {
 		return filepath.Split(s)
@@ -40,11 +50,13 @@ func vfs() (string, string) {
 	return "testdata", ""
 }
 
+// isDir TODO(rjeczalik)
 func isDir(path string) bool {
 	r := path[len(path)-1]
 	return r == '\\' || r == '/'
 }
 
+// tmpcreateall TODO(rjeczalik)
 func tmpcreateall(tmp string, path string) error {
 	isdir := isDir(path)
 	path = filepath.Join(tmp, filepath.FromSlash(path))
@@ -67,6 +79,7 @@ func tmpcreateall(tmp string, path string) error {
 	return nil
 }
 
+// tmpcreate TODO(rjeczalik)
 func tmpcreate(root, path string) (bool, error) {
 	isdir := isDir(path)
 	path = filepath.Join(root, filepath.FromSlash(path))
@@ -86,7 +99,7 @@ func tmpcreate(root, path string) (bool, error) {
 	return isdir, nil
 }
 
-// tmptree TODO
+// tmptree TODO(rjeczalik)
 func tmptree(root, list string) (string, error) {
 	f, err := os.Open(list)
 	if err != nil {
@@ -110,6 +123,7 @@ func tmptree(root, list string) (string, error) {
 	return root, nil
 }
 
+// caller TODO(rjeczalik)
 func caller() string {
 	_, file, line, ok := runtime.Caller(3)
 	if !ok {
@@ -118,12 +132,13 @@ func caller() string {
 	return filepath.Base(file) + ":" + strconv.Itoa(line)
 }
 
-// WCase TODO
+// WCase TODO(rjeczalik)
 type WCase struct {
 	Action func()
 	Events []EventInfo
 }
 
+// String TODO(rjeczalik)
 func (cas WCase) String() string {
 	s := make([]string, 0, len(cas.Events))
 	for _, ei := range cas.Events {
@@ -132,7 +147,7 @@ func (cas WCase) String() string {
 	return strings.Join(s, ", ")
 }
 
-// W TODO
+// W TODO(rjeczalik)
 type W struct {
 	Watcher watcher        // TODO
 	C       chan EventInfo // TODO
@@ -142,6 +157,7 @@ type W struct {
 	root string
 }
 
+// newWatcherTest TODO(rjeczalik)
 func newWatcherTest(t *testing.T, tree string) *W {
 	root, err := tmptree("", filepath.FromSlash(tree))
 	if err != nil {
@@ -184,9 +200,8 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 	return w
 }
 
-// Drain : TODO
+// Drain TODO(ppknap): create tree using separate process
 func (w *W) Drain() {
-	// TODO Create tree using separate process.
 	time.Sleep(50 * time.Millisecond)
 	runtime.Gosched()
 	for {
@@ -198,12 +213,10 @@ func (w *W) Drain() {
 	}
 }
 
-// Fatal TODO
 func (w *W) Fatal(v interface{}) {
 	w.t.Fatalf("%s: %v", caller(), v)
 }
 
-// Fatalf TODO
 func (w *W) Fatalf(format string, v ...interface{}) {
 	w.t.Fatalf("%s: %s", caller(), fmt.Sprintf(format, v...))
 }
@@ -605,8 +618,9 @@ func (n *N) W() *W {
 }
 
 // Close TODO
-func (n *N) Close() error {
+func (n *N) Close() (err error) {
 	if cl, ok := n.notifier.(io.Closer); ok {
+		os.RemoveAll(n.w.root)
 		return cl.Close()
 	}
 	return n.w.Close()
@@ -700,6 +714,13 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 	return done
 }
 
+// abs TODO(rjeczalik)
+func (n *N) abs(rel *Call) *Call {
+	abs := *rel
+	abs.P = filepath.Join(wd, n.w.root, filepath.FromSlash(abs.P))
+	return &abs
+}
+
 // ExpectTreeEvents TODO(rjeczalik)
 func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
@@ -709,8 +730,7 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 			n.ExpectDry(all)
 		default:
 			ch := n.collect(cas.Receiver)
-			cas.Event.P = filepath.Join(n.w.root, filepath.FromSlash(cas.Event.P))
-			n.c <- &cas.Event
+			n.c <- n.abs(&cas.Event)
 			select {
 			case collected := <-ch:
 				for _, got := range collected {
@@ -719,7 +739,8 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 					}
 				}
 			case <-time.After(n.timeout()):
-				n.w.Fatalf("ExpectTreeEvents has timed out after %v (i=%d)", n.timeout(), i)
+				n.w.Fatalf("ExpectTreeEvents has timed out after %v waiting for"+
+					" %v on %s (i=%d)", n.timeout(), cas.Event.E, cas.Event.P, i)
 			}
 
 		}

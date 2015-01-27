@@ -6,7 +6,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(1)
+	ch := NewChans(3)
 
 	calls := [...]RCase{
 		// i=0
@@ -30,7 +30,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/rjeczalik/fs/cmd/...",
-				C: ch[0],
+				C: ch[1],
 				E: Delete,
 			},
 			Record: []Call{
@@ -46,7 +46,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/rjeczalik/fs",
-				C: ch[0],
+				C: ch[2],
 				E: Move,
 			},
 			Record: []Call{
@@ -278,4 +278,79 @@ func TestRecursiveTreeWatch(t *testing.T) {
 	}
 
 	n.ExpectRecordedCalls(calls[:])
+
+	events := [...]TCase{
+		// i=0
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go", E: Move},
+			Receiver: Chans{ch[2]},
+		},
+		// i=1
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go", E: Create},
+			Receiver: Chans{ch[0]},
+		},
+		// i=2
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go/file", E: Create},
+			Receiver: Chans{ch[0]},
+		},
+		// i=3
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs", E: Move},
+			Receiver: Chans{ch[2]},
+		},
+		// i=4
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs_test.go", E: Move},
+			Receiver: Chans{ch[2]},
+		},
+		// i=5
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/mktree/main.go", E: Delete},
+			Receiver: Chans{ch[1]},
+		},
+		// i=6
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/gotree", E: Delete},
+			Receiver: Chans{ch[1]},
+		},
+		// i=7
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd", E: Delete},
+			Receiver: Chans{ch[1]},
+		},
+		// i=8
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go/file", E: Write},
+			Receiver: nil,
+		},
+		// i=9
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go/file", E: Write},
+			Receiver: nil,
+		},
+		// i=10
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs", E: Delete},
+			Receiver: nil,
+		},
+		// i=11
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd", E: Move},
+			Receiver: nil,
+		},
+		// i=12
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/mktree/main.go", E: Write},
+			Receiver: nil,
+		},
+		// i=13
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/gotree", E: Move},
+			Receiver: nil,
+		},
+	}
+
+	n.ExpectTreeEvents(events[:], ch)
 }
