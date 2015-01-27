@@ -12,7 +12,7 @@ func TestNotifySystemAndGlobalMix(t *testing.T) {
 	ch := NewChans(2)
 
 	n.Watch("src/github.com/rjeczalik/fs", ch[0], Create)
-	n.Watch("src/github.com/rjeczalik/fs", ch[1], IN_CREATE)
+	n.Watch("src/github.com/rjeczalik/fs", ch[1], InCreate)
 
 	cases := []NCase{
 		{

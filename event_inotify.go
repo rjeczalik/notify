@@ -25,48 +25,48 @@ const (
 
 // Inotify events.
 const (
-	IN_ACCESS        = Event(syscall.IN_ACCESS)
-	IN_MODIFY        = Event(syscall.IN_MODIFY)
-	IN_ATTRIB        = Event(syscall.IN_ATTRIB)
-	IN_CLOSE_WRITE   = Event(syscall.IN_CLOSE_WRITE)
-	IN_CLOSE_NOWRITE = Event(syscall.IN_CLOSE_NOWRITE)
-	IN_OPEN          = Event(syscall.IN_OPEN)
-	IN_MOVED_FROM    = Event(syscall.IN_MOVED_FROM)
-	IN_MOVED_TO      = Event(syscall.IN_MOVED_TO)
-	IN_CREATE        = Event(syscall.IN_CREATE)
-	IN_DELETE        = Event(syscall.IN_DELETE)
-	IN_DELETE_SELF   = Event(syscall.IN_DELETE_SELF)
-	IN_MOVE_SELF     = Event(syscall.IN_MOVE_SELF)
+	InAccess       = Event(syscall.IN_ACCESS)
+	InModify       = Event(syscall.IN_MODIFY)
+	InAttrib       = Event(syscall.IN_ATTRIB)
+	InCloseWrite   = Event(syscall.IN_CLOSE_WRITE)
+	InCloseNowrite = Event(syscall.IN_CLOSE_NOWRITE)
+	InOpen         = Event(syscall.IN_OPEN)
+	InMovedFrom    = Event(syscall.IN_MOVED_FROM)
+	InMovedTo      = Event(syscall.IN_MOVED_TO)
+	InCreate       = Event(syscall.IN_CREATE)
+	InDelete       = Event(syscall.IN_DELETE)
+	InDeleteSelf   = Event(syscall.IN_DELETE_SELF)
+	InMoveSelf     = Event(syscall.IN_MOVE_SELF)
 )
 
 var osestr = map[Event]string{
-	IN_ACCESS:        "notify.IN_ACCESS",
-	IN_MODIFY:        "notify.IN_MODIFY",
-	IN_ATTRIB:        "notify.IN_ATTRIB",
-	IN_CLOSE_WRITE:   "notify.IN_CLOSE_WRITE",
-	IN_CLOSE_NOWRITE: "notify.IN_CLOSE_NOWRITE",
-	IN_OPEN:          "notify.IN_OPEN",
-	IN_MOVED_FROM:    "notify.IN_MOVED_FROM",
-	IN_MOVED_TO:      "notify.IN_MOVED_TO",
-	IN_CREATE:        "notify.IN_CREATE",
-	IN_DELETE:        "notify.IN_DELETE",
-	IN_DELETE_SELF:   "notify.IN_DELETE_SELF",
-	IN_MOVE_SELF:     "notify.IN_MOVE_SELF",
+	InAccess:       "notify.InAccess",
+	InModify:       "notify.InModify",
+	InAttrib:       "notify.InAttrib",
+	InCloseWrite:   "notify.InCloseWrite",
+	InCloseNowrite: "notify.InCloseNowrite",
+	InOpen:         "notify.InOpen",
+	InMovedFrom:    "notify.InMovedFrom",
+	InMovedTo:      "notify.InMovedTo",
+	InCreate:       "notify.InCreate",
+	InDelete:       "notify.InDelete",
+	InDeleteSelf:   "notify.InDeleteSelf",
+	InMoveSelf:     "notify.InMoveSelf",
 }
 
 // Inotify behavior events are not **currently** supported by notify package.
 const (
-	iN_DONT_FOLLOW = Event(syscall.IN_DONT_FOLLOW)
-	iN_EXCL_UNLINK = Event(syscall.IN_EXCL_UNLINK)
-	iN_MASK_ADD    = Event(syscall.IN_MASK_ADD)
-	iN_ONESHOT     = Event(syscall.IN_ONESHOT)
-	iN_ONLYDIR     = Event(syscall.IN_ONLYDIR)
+	inDontFollow = Event(syscall.IN_DONT_FOLLOW)
+	inExclUnlink = Event(syscall.IN_EXCL_UNLINK)
+	inMaskAdd    = Event(syscall.IN_MASK_ADD)
+	inOneshot    = Event(syscall.IN_ONESHOT)
+	inOnlydir    = Event(syscall.IN_ONLYDIR)
 )
 
 var ekind = map[Event]Event{
-	syscall.IN_MOVED_FROM:  Create,
-	syscall.IN_MOVED_TO:    Delete,
-	syscall.IN_DELETE_SELF: Delete,
+	InMovedFrom:  Create,
+	InMovedTo:    Delete,
+	InDeleteSelf: Delete,
 }
 
 // TODO(ppknap) : doc.

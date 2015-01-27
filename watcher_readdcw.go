@@ -123,21 +123,20 @@ func (g *grip) readDirChanges() error {
 func encode(filter uint32) uint32 {
 	e := Event(filter & (onlyNGlobalEvents | onlyNotifyChanges))
 	if e&dirmarker != 0 {
-		return uint32(FILE_NOTIFY_CHANGE_DIR_NAME)
+		return uint32(FileNotifyChangeDirName)
 	}
 	if e&Create != 0 {
-		e = (e ^ Create) | FILE_NOTIFY_CHANGE_FILE_NAME
+		e = (e ^ Create) | FileNotifyChangeFileName
 	}
 	if e&Delete != 0 {
-		e = (e ^ Delete) | FILE_NOTIFY_CHANGE_FILE_NAME
+		e = (e ^ Delete) | FileNotifyChangeFileName
 	}
 	if e&Write != 0 {
-		e = (e ^ Write) |
-			FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE |
-			FILE_NOTIFY_CHANGE_CREATION | FILE_NOTIFY_CHANGE_SECURITY
+		e = (e ^ Write) | FileNotifyChangeAttributes | FileNotifyChangeSize |
+			FileNotifyChangeCreation | FileNotifyChangeSecurity
 	}
 	if e&Move != 0 {
-		e = (e ^ Move) | FILE_NOTIFY_CHANGE_FILE_NAME
+		e = (e ^ Move) | FileNotifyChangeFileName
 	}
 	return uint32(e)
 }
@@ -176,11 +175,11 @@ func newWatched(cph syscall.Handle, filter uint32, recursive bool,
 
 // TODO : doc
 func (wd *watched) recreate(cph syscall.Handle) (err error) {
-	filefilter := wd.filter &^ uint32(FILE_NOTIFY_CHANGE_DIR_NAME)
+	filefilter := wd.filter &^ uint32(FileNotifyChangeDirName)
 	if err = wd.updateGrip(0, cph, filefilter == 0, filefilter); err != nil {
 		return
 	}
-	dirfilter := wd.filter & uint32(FILE_NOTIFY_CHANGE_DIR_NAME|Create|Delete)
+	dirfilter := wd.filter & uint32(FileNotifyChangeDirName|Create|Delete)
 	if err = wd.updateGrip(1, cph, dirfilter == 0,
 		wd.filter|uint32(dirmarker)); err != nil {
 		return
@@ -397,7 +396,7 @@ func (r *readdcw) send(es []*event) {
 			continue
 		}
 		switch Event(e.action) {
-		case (FILE_ACTION_ADDED >> 12), (FILE_ACTION_REMOVED >> 12):
+		case (FileActionAdded >> 12), (FileActionRemoved >> 12):
 			if e.filter&uint32(dirmarker) != 0 {
 				e.objtype = ObjectDirectory
 			} else {
@@ -526,15 +525,15 @@ func (r *readdcw) Close() (err error) {
 func decode(filter, action uint32) Event {
 	switch action {
 	case syscall.FILE_ACTION_ADDED:
-		return addrmv(filter, Create, FILE_ACTION_ADDED)
+		return addrmv(filter, Create, FileActionAdded)
 	case syscall.FILE_ACTION_REMOVED:
-		return addrmv(filter, Delete, FILE_ACTION_REMOVED)
+		return addrmv(filter, Delete, FileActionRemoved)
 	case syscall.FILE_ACTION_MODIFIED:
 		return Write
 	case syscall.FILE_ACTION_RENAMED_OLD_NAME:
-		return addrmv(filter, Move, FILE_ACTION_RENAMED_OLD_NAME)
+		return addrmv(filter, Move, FileActionRenamedOldName)
 	case syscall.FILE_ACTION_RENAMED_NEW_NAME:
-		return addrmv(filter, Move, FILE_ACTION_RENAMED_NEW_NAME)
+		return addrmv(filter, Move, FileActionRenamedNewName)
 	}
 	panic(`notify: cannot decode internal mask`)
 }
@@ -546,8 +545,8 @@ func decode(filter, action uint32) Event {
 func addrmv(filter uint32, e, syse Event) Event {
 	isdir := filter&uint32(dirmarker) != 0
 	switch {
-	case isdir && filter&uint32(FILE_NOTIFY_CHANGE_DIR_NAME) != 0 ||
-		!isdir && filter&uint32(FILE_NOTIFY_CHANGE_FILE_NAME) != 0:
+	case isdir && filter&uint32(FileNotifyChangeDirName) != 0 ||
+		!isdir && filter&uint32(FileNotifyChangeFileName) != 0:
 		return syse
 	case filter&uint32(e) != 0:
 		return e

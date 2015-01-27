@@ -135,16 +135,16 @@ func (k *kqueue) monitor() {
 			if w.fi.IsDir() {
 				// If it's dir and delete we have to send it and continue, because
 				// other processing relies on opening (in this case not existing) dir.
-				if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
+				if (Event(kevn[0].Fflags) & NoteDelete) != 0 {
 					// Write is reported also for Delete on directory. Because of that
 					// we have to filter it out explicitly.
 					evn = append(evn, event{w.p,
-						o & ^Write & ^NOTE_WRITE, KqEvent{&kevn[0], w.fi}})
+						o & ^Write & ^NoteWrite, KqEvent{&kevn[0], w.fi}})
 					k.del(w)
 					k.Unlock()
 					continue
 				}
-				if (Event(kevn[0].Fflags) & NOTE_WRITE) != 0 {
+				if (Event(kevn[0].Fflags) & NoteWrite) != 0 {
 					if err := k.walk(w.p, func(fi os.FileInfo) error {
 						p := filepath.Join(w.p, fi.Name())
 						if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
@@ -165,7 +165,7 @@ func (k *kqueue) monitor() {
 			} else {
 				evn = append(evn, event{w.p, o, KqEvent{&kevn[0], w.fi}})
 			}
-			if (Event(kevn[0].Fflags) & NOTE_DELETE) != 0 {
+			if (Event(kevn[0].Fflags) & NoteDelete) != 0 {
 				k.del(w)
 			}
 			k.Unlock()

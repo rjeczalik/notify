@@ -31,43 +31,44 @@ const (
 
 // ReadDirectoryChangesW filters.
 const (
-	FILE_NOTIFY_CHANGE_FILE_NAME   = Event(syscall.FILE_NOTIFY_CHANGE_FILE_NAME)
-	FILE_NOTIFY_CHANGE_DIR_NAME    = Event(syscall.FILE_NOTIFY_CHANGE_DIR_NAME)
-	FILE_NOTIFY_CHANGE_ATTRIBUTES  = Event(syscall.FILE_NOTIFY_CHANGE_ATTRIBUTES)
-	FILE_NOTIFY_CHANGE_SIZE        = Event(syscall.FILE_NOTIFY_CHANGE_SIZE)
-	FILE_NOTIFY_CHANGE_LAST_WRITE  = Event(syscall.FILE_NOTIFY_CHANGE_LAST_WRITE)
-	FILE_NOTIFY_CHANGE_LAST_ACCESS = Event(syscall.FILE_NOTIFY_CHANGE_LAST_ACCESS)
-	FILE_NOTIFY_CHANGE_CREATION    = Event(syscall.FILE_NOTIFY_CHANGE_CREATION)
-	FILE_NOTIFY_CHANGE_SECURITY    = Event(syscallFILE_NOTIFY_CHANGE_SECURITY)
+	FileNotifyChangeFileName   = Event(syscall.FILE_NOTIFY_CHANGE_FILE_NAME)
+	FileNotifyChangeDirName    = Event(syscall.FILE_NOTIFY_CHANGE_DIR_NAME)
+	FileNotifyChangeAttributes = Event(syscall.FILE_NOTIFY_CHANGE_ATTRIBUTES)
+	FileNotifyChangeSize       = Event(syscall.FILE_NOTIFY_CHANGE_SIZE)
+	FileNotifyChangeLastWrite  = Event(syscall.FILE_NOTIFY_CHANGE_LAST_WRITE)
+	FileNotifyChangeLastAccess = Event(syscall.FILE_NOTIFY_CHANGE_LAST_ACCESS)
+	FileNotifyChangeCreation   = Event(syscall.FILE_NOTIFY_CHANGE_CREATION)
+	FileNotifyChangeSecurity   = Event(syscallFileNotifyChangeSecurity)
 )
 
 // according to: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365465(v=vs.85).aspx
 // this flag should be declared in: http://golang.org/src/pkg/syscall/ztypes_windows.go
-const syscallFILE_NOTIFY_CHANGE_SECURITY = 0x00000100
+const syscallFileNotifyChangeSecurity = 0x00000100
 
 // ReadDirectoryChangesW actions.
 const (
-	FILE_ACTION_ADDED            = Event(syscall.FILE_ACTION_ADDED) << 12
-	FILE_ACTION_REMOVED          = Event(syscall.FILE_ACTION_REMOVED) << 12
-	FILE_ACTION_MODIFIED         = Event(syscall.FILE_ACTION_MODIFIED) << 14
-	FILE_ACTION_RENAMED_OLD_NAME = Event(syscall.FILE_ACTION_RENAMED_OLD_NAME) << 15
-	FILE_ACTION_RENAMED_NEW_NAME = Event(syscall.FILE_ACTION_RENAMED_NEW_NAME) << 16
+	FileActionAdded          = Event(syscall.FILE_ACTION_ADDED) << 12
+	FileActionRemoved        = Event(syscall.FILE_ACTION_REMOVED) << 12
+	FileActionModified       = Event(syscall.FILE_ACTION_MODIFIED) << 14
+	FileActionRenamedOldName = Event(syscall.FILE_ACTION_RENAMED_OLD_NAME) << 15
+	FileActionRenamedNewName = Event(syscall.FILE_ACTION_RENAMED_NEW_NAME) << 16
 )
 
 var osestr = map[Event]string{
-	FILE_NOTIFY_CHANGE_FILE_NAME:   "notify.FILE_NOTIFY_CHANGE_FILE_NAME",
-	FILE_NOTIFY_CHANGE_DIR_NAME:    "notify.FILE_NOTIFY_CHANGE_DIR_NAME",
-	FILE_NOTIFY_CHANGE_ATTRIBUTES:  "notify.FILE_NOTIFY_CHANGE_ATTRIBUTES",
-	FILE_NOTIFY_CHANGE_SIZE:        "notify.FILE_NOTIFY_CHANGE_SIZE",
-	FILE_NOTIFY_CHANGE_LAST_WRITE:  "notify.FILE_NOTIFY_CHANGE_LAST_WRITE",
-	FILE_NOTIFY_CHANGE_LAST_ACCESS: "notify.FILE_NOTIFY_CHANGE_LAST_ACCESS",
-	FILE_NOTIFY_CHANGE_CREATION:    "notify.FILE_NOTIFY_CHANGE_CREATION",
-	FILE_NOTIFY_CHANGE_SECURITY:    "notify.FILE_NOTIFY_CHANGE_SECURITY",
-	FILE_ACTION_ADDED:              "notify.FILE_ACTION_ADDED",
-	FILE_ACTION_REMOVED:            "notify.FILE_ACTION_REMOVED",
-	FILE_ACTION_MODIFIED:           "notify.FILE_ACTION_MODIFIED",
-	FILE_ACTION_RENAMED_OLD_NAME:   "notify.FILE_ACTION_RENAMED_OLD_NAME",
-	FILE_ACTION_RENAMED_NEW_NAME:   "notify.FILE_ACTION_RENAMED_NEW_NAME",
+	FileNotifyChangeFileName:   "notify.FileNotifyChangeFileName",
+	FileNotifyChangeDirName:    "notify.FileNotifyChangeDirName",
+	FileNotifyChangeAttributes: "notify.FileNotifyChangeAttributes",
+	FileNotifyChangeSize:       "notify.FileNotifyChangeSize",
+	FileNotifyChangeLastWrite:  "notify.FileNotifyChangeLastWrite",
+	FileNotifyChangeLastAccess: "notify.FileNotifyChangeLastAccess",
+	FileNotifyChangeCreation:   "notify.FileNotifyChangeCreation",
+	FileNotifyChangeSecurity:   "notify.FileNotifyChangeSecurity",
+
+	FileActionAdded:          "notify.FileActionAdded",
+	FileActionRemoved:        "notify.FileActionRemoved",
+	FileActionModified:       "notify.FileActionModified",
+	FileActionRenamedOldName: "notify.FileActionRenamedOldName",
+	FileActionRenamedNewName: "notify.FileActionRenamedNewName",
 }
 
 var ekind = map[Event]Event{}

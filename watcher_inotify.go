@@ -263,16 +263,16 @@ func (i *inotify) strip(es []*event) []*event {
 // TODO(ppknap) : doc.
 func encode(e Event) uint32 {
 	if e&Create != 0 {
-		e = (e ^ Create) | IN_CREATE | IN_MOVED_TO
+		e = (e ^ Create) | InCreate | InMovedTo
 	}
 	if e&Delete != 0 {
-		e = (e ^ Delete) | IN_DELETE | IN_DELETE_SELF
+		e = (e ^ Delete) | InDelete | InDeleteSelf
 	}
 	if e&Write != 0 {
-		e = (e ^ Write) | IN_MODIFY
+		e = (e ^ Write) | InModify
 	}
 	if e&Move != 0 {
-		e = (e ^ Move) | IN_MOVED_FROM | IN_MOVE_SELF
+		e = (e ^ Move) | InMovedFrom | InMoveSelf
 	}
 	return uint32(e)
 }
@@ -329,13 +329,13 @@ func decode(mask, syse uint32) Event {
 	switch {
 	case mask&syse != 0:
 		return Event(syse)
-	case imask&uint32(IN_CREATE|IN_MOVED_TO)&syse != 0:
+	case imask&uint32(InCreate|InMovedTo)&syse != 0:
 		return Create
-	case imask&uint32(IN_DELETE|IN_DELETE_SELF)&syse != 0:
+	case imask&uint32(InDelete|InDeleteSelf)&syse != 0:
 		return Delete
-	case imask&uint32(IN_MODIFY)&syse != 0:
+	case imask&uint32(InModify)&syse != 0:
 		return Write
-	case imask&uint32(IN_MOVED_FROM|IN_MOVE_SELF)&syse != 0:
+	case imask&uint32(InMovedFrom|InMoveSelf)&syse != 0:
 		return Move
 	}
 	panic("notify: cannot decode internal mask")

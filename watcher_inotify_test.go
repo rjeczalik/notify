@@ -20,9 +20,9 @@ func iopen(w *W, path string) WCase {
 			}
 		},
 		Events: []EventInfo{
-			&Call{P: path, E: IN_ACCESS},
-			&Call{P: path, E: IN_OPEN},
-			&Call{P: path, E: IN_CLOSE_NOWRITE},
+			&Call{P: path, E: InAccess},
+			&Call{P: path, E: InOpen},
+			&Call{P: path, E: InCloseNowrite},
 		},
 	}
 }
@@ -42,10 +42,10 @@ func iread(w *W, path string, p []byte) WCase {
 			}
 		},
 		Events: []EventInfo{
-			&Call{P: path, E: IN_ACCESS},
-			&Call{P: path, E: IN_OPEN},
-			&Call{P: path, E: IN_MODIFY},
-			&Call{P: path, E: IN_CLOSE_NOWRITE},
+			&Call{P: path, E: InAccess},
+			&Call{P: path, E: InOpen},
+			&Call{P: path, E: InModify},
+			&Call{P: path, E: InCloseNowrite},
 		},
 	}
 }
@@ -54,10 +54,10 @@ func iwrite(w *W, path string, p []byte) WCase {
 	cas := write(w, path, p)
 	path = cas.Events[0].Path()
 	cas.Events = append(cas.Events,
-		&Call{P: path, E: IN_ACCESS},
-		&Call{P: path, E: IN_OPEN},
-		&Call{P: path, E: IN_MODIFY},
-		&Call{P: path, E: IN_CLOSE_WRITE},
+		&Call{P: path, E: InAccess},
+		&Call{P: path, E: InOpen},
+		&Call{P: path, E: InModify},
+		&Call{P: path, E: InCloseWrite},
 	)
 	return cas
 }
@@ -72,29 +72,29 @@ func irename(w *W, path string) WCase {
 			}
 		},
 		Events: []EventInfo{
-			&Call{P: path, E: IN_MOVED_FROM},
-			&Call{P: path + ext, E: IN_MOVED_TO},
-			&Call{P: path, E: IN_OPEN},
-			&Call{P: path, E: IN_ACCESS},
-			&Call{P: path, E: IN_ACCESS},
-			&Call{P: path, E: IN_CREATE},
+			&Call{P: path, E: InMovedFrom},
+			&Call{P: path + ext, E: InMovedTo},
+			&Call{P: path, E: InOpen},
+			&Call{P: path, E: InAccess},
+			&Call{P: path, E: InAccess},
+			&Call{P: path, E: InCreate},
 		},
 	}
 }
 
 var events = []Event{
-	IN_ACCESS,
-	IN_MODIFY,
-	IN_ATTRIB,
-	IN_CLOSE_WRITE,
-	IN_CLOSE_NOWRITE,
-	IN_OPEN,
-	IN_MOVED_FROM,
-	IN_MOVED_TO,
-	IN_CREATE,
-	IN_DELETE,
-	IN_DELETE_SELF,
-	IN_MOVE_SELF,
+	InAccess,
+	InModify,
+	InAttrib,
+	InCloseWrite,
+	InCloseNowrite,
+	InOpen,
+	InMovedFrom,
+	InMovedTo,
+	InCreate,
+	InDelete,
+	InDeleteSelf,
+	InMoveSelf,
 }
 
 func TestWatcherInotify(t *testing.T) {

@@ -14,11 +14,11 @@ import (
 )
 
 var kqueueActions = test.Actions{
-	notify.NOTE_ATTRIB: func(p string) (err error) {
+	notify.NoteAttrib: func(p string) (err error) {
 		_, err = exec.Command("touch", p).CombinedOutput()
 		return
 	},
-	notify.NOTE_EXTEND: func(p string) (err error) {
+	notify.NoteExtend: func(p string) (err error) {
 		//TODO: Extend and no Write
 		var f *os.File
 		if f, err = os.OpenFile(p, os.O_RDWR|os.O_APPEND, 0755); err != nil {
@@ -30,10 +30,10 @@ var kqueueActions = test.Actions{
 		}
 		return
 	},
-	notify.NOTE_LINK: func(p string) error {
+	notify.NoteLink: func(p string) error {
 		return os.Link(p, p+"link")
 	},
-	/*TODO: notify.NOTE_REVOKE: func(p string) error {
+	/*TODO: notify.NoteRevoke: func(p string) error {
 		if err := syscall.Revoke(p); err != nil {
 			fmt.Printf("this is the error %v\n", err)
 			return err
@@ -56,13 +56,13 @@ func ExpectKqueueEvents(t *testing.T, wr notify.watcher, e notify.Event,
 func TestKqueue(t *testing.T) {
 	ei := map[notify.EventInfo][]notify.Event{
 		test.EI("github.com/rjeczalik/fs/fs.go",
-			notify.NOTE_ATTRIB): {notify.NOTE_ATTRIB},
+			notify.NoteAttrib): {notify.NoteAttrib},
 		test.EI("github.com/rjeczalik/fs/fs.go",
-			notify.NOTE_EXTEND): {notify.NOTE_EXTEND | notify.NOTE_WRITE},
+			notify.NoteExtend): {notify.NoteExtend | notify.NoteWrite},
 		test.EI("github.com/rjeczalik/fs/fs.go",
-			notify.NOTE_LINK): {notify.NOTE_LINK},
+			notify.NoteLink): {notify.NoteLink},
 	}
-	ExpectKqueueEvents(t, notify.NewWatcher(), notify.NOTE_DELETE|
-		notify.NOTE_WRITE|notify.NOTE_EXTEND|notify.NOTE_ATTRIB|notify.NOTE_LINK|
-		notify.NOTE_RENAME|notify.NOTE_REVOKE, ei)
+	ExpectKqueueEvents(t, notify.NewWatcher(), notify.NoteDelete|
+		notify.NoteWrite|notify.NoteExtend|notify.NoteAttrib|notify.NoteLink|
+		notify.NoteRename|notify.NoteRevoke, ei)
 }

@@ -26,9 +26,8 @@ var nilstream C.FSEventStreamRef
 // Default arguments for FSEventStreamCreate function.
 var (
 	latency C.CFTimeInterval
-	flags   C.FSEventStreamCreateFlags = C.kFSEventStreamCreateFlagFileEvents |
-		C.kFSEventStreamCreateFlagNoDefer
-	since = uint64(C.FSEventsGetCurrentEventId())
+	flags   = C.kFSEventStreamCreateFlagFileEvents | C.kFSEventStreamCreateFlagNoDefer
+	since   = uint64(C.FSEventsGetCurrentEventId())
 )
 
 var runloop C.CFRunLoopRef // global runloop which all streams are registered with
