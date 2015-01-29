@@ -145,10 +145,10 @@ func (k *kqueue) monitor() {
 					continue
 				}
 				if (Event(kevn[0].Fflags) & NoteWrite) != 0 {
-					if err := k.walk(w.p, func(fi os.FileInfo) error {
+					switch err := k.walk(w.p, func(fi os.FileInfo) error {
 						p := filepath.Join(w.p, fi.Name())
 						if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
-							if err != errAlreadyWatched {
+							if err != errAlreadyWatched && !os.IsNotExist(err) {
 								// TODO: pass error via chan because state of monitoring is
 								// invalid.
 								panic(err)
@@ -157,9 +157,15 @@ func (k *kqueue) monitor() {
 							evn = append(evn, event{p, Create, KqEvent{nil, fi}})
 						}
 						return nil
-					}); err != nil {
+					}); {
+					// If file is already watched, kqueue will return remove event.
+					// If it's not yet monitored.. TODO: Reconsider.
+					case os.IsNotExist(err):
+						continue
+					case err != nil:
 						// TODO: pass error via chan because state of monitoring is invalid.
 						panic(err)
+					default:
 					}
 				}
 			} else {
