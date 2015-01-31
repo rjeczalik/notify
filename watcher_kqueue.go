@@ -35,18 +35,24 @@ type KqEvent struct {
 }
 
 // Close closes all still open file descriptors and kqueue.
-func (k *kqueue) Close() error {
-	k.s <- struct{}{}
-	k.Lock()
-	if k.fd != nil {
-		syscall.Close(*k.fd)
+func (k *kqueue) Close() (err error) {
+	if _, err = syscall.Write(k.pipefds[1], []byte(` `)); err != nil {
+		return
 	}
+	<-k.s
+	k.Lock()
+	var e error
 	for _, w := range k.idLkp {
-		syscall.Close(w.fd)
+		if e = syscall.Close(w.fd); e != nil && err == nil {
+			err = e
+		}
+	}
+	if err = syscall.Close(k.fd); err != nil {
+		return
 	}
 	k.idLkp, k.pthLkp = nil, nil
 	k.Unlock()
-	return nil
+	return
 }
 
 // sendEvents sends reported events one by one through chan.
@@ -86,7 +92,7 @@ func unmask(o uint32, w Event) (e Event) {
 
 // del closes fd for `watched` and removes it from internal cache of monitored
 // files/directories.
-func (k *kqueue) del(w *watched) {
+func (k *kqueue) del(w watched) {
 	syscall.Close(w.fd)
 	delete(k.idLkp, w.fd)
 	delete(k.pthLkp, w.p)
@@ -100,90 +106,95 @@ func (k *kqueue) del(w *watched) {
 // Reading directory structure is less accurate than kqueue and can lead
 // to lack of detection of all events.
 func (k *kqueue) monitor() {
-	var evn []event
-	// TODO: This is poor, and incorrect way to debug issue with events for
-	// not registered fds, but temporarily for now might do. To be dropped.
-	// TODO: Maybe len(kevn)>1 would help. What len in this case?
-	hist := make(map[int]struct{})
+	var (
+		kevn [1]syscall.Kevent_t
+		n    int
+		err  error
+	)
 	for {
-		k.sendEvents(evn)
-		evn = make([]event, 0)
-		var kevn [1]syscall.Kevent_t
-		n, err := syscall.Kevent(*k.fd, nil, kevn[:], nil)
-		select {
-		case <-k.s:
-			return
-		default:
-		}
-		if err != nil {
+		kevn[0] = syscall.Kevent_t{}
+		switch n, err = syscall.Kevent(k.fd, nil, kevn[:], nil); {
+		case err != nil:
 			fmt.Fprintf(os.Stderr, "kqueue: failed to read events: %q\n", err)
 			continue
-		}
-		if n > 0 {
-			k.Lock()
-			w := k.idLkp[int(kevn[0].Ident)]
-			if w == nil {
-				if _, ok := hist[int(kevn[0].Ident)]; ok {
-					fmt.Fprintf(os.Stderr, "kqueue: %v was previously registered\n", kevn[0])
-				} else {
-					fmt.Fprintf(os.Stderr, "kqueue: %v kevent is not registerd\n", kevn[0])
-				}
-				continue
-			}
-			hist[int(kevn[0].Ident)] = struct{}{}
-			o := unmask(kevn[0].Fflags, w.eDir|w.eNonDir)
-			if w.fi.IsDir() {
-				// If it's dir and delete we have to send it and continue, because
-				// other processing relies on opening (in this case not existing) dir.
-				if (Event(kevn[0].Fflags) & NoteDelete) != 0 {
-					// Write is reported also for Delete on directory. Because of that
-					// we have to filter it out explicitly.
-					evn = append(evn, event{w.p,
-						o & ^Write & ^NoteWrite, KqEvent{&kevn[0], w.fi}})
-					k.del(w)
-					k.Unlock()
-					continue
-				}
-				if (Event(kevn[0].Fflags) & NoteWrite) != 0 {
-					switch err := k.walk(w.p, func(fi os.FileInfo) error {
-						p := filepath.Join(w.p, fi.Name())
-						if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
-							if err != errAlreadyWatched && !os.IsNotExist(err) {
-								// TODO: pass error via chan because state of monitoring is
-								// invalid.
-								panic(err)
-							}
-						} else if (w.eDir & Create) != 0 {
-							evn = append(evn, event{p, Create, KqEvent{nil, fi}})
-						}
-						return nil
-					}); {
-					// If file is already watched, kqueue will return remove event.
-					// If it's not yet monitored.. TODO: Reconsider.
-					case os.IsNotExist(err):
-						continue
-					case err != nil:
-						// TODO: pass error via chan because state of monitoring is invalid.
-						panic(err)
-					default:
-					}
-				}
-			} else {
-				evn = append(evn, event{w.p, o, KqEvent{&kevn[0], w.fi}})
-			}
-			if (Event(kevn[0].Fflags) & NoteDelete) != 0 {
-				k.del(w)
-			}
-			k.Unlock()
+		case int(kevn[0].Ident) == k.pipefds[0]:
+			k.s <- struct{}{}
+			return
+		case n > 0:
+			k.sendEvents(k.process(kevn[0]))
 		}
 	}
+}
+
+func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
+	// If it's dir and delete we have to send it and continue, because
+	// other processing relies on opening (in this case not existing) dir.
+	if (Event(kevn.Fflags) & NoteDelete) != 0 {
+		// Write is reported also for Delete on directory. Because of that
+		// we have to filter it out explicitly.
+		evn = append(evn, event{w.p,
+			e & ^Write & ^NoteWrite, KqEvent{&kevn, w.fi}})
+		k.del(w)
+		return
+	}
+	if (Event(kevn.Fflags) & NoteWrite) != 0 {
+		switch err := k.walk(w.p, func(fi os.FileInfo) error {
+			p := filepath.Join(w.p, fi.Name())
+			if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
+				if err != errAlreadyWatched && !os.IsNotExist(err) {
+					evn = append(evn, event{p, Error, KqEvent{nil, fi}})
+				}
+			} else if (w.eDir & Create) != 0 {
+				evn = append(evn, event{p, Create, KqEvent{nil, fi}})
+			}
+			return nil
+		}); {
+		// If file is already watched, kqueue will return remove event.
+		// If it's not yet monitored.. TODO: Reconsider.
+		case os.IsNotExist(err):
+			return
+		case err != nil:
+			// TODO: pass error via chan because state of monitoring is invalid.
+			panic(err)
+		default:
+		}
+	}
+	return
+}
+
+func (*kqueue) file(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
+	evn = append(evn, event{w.p, e, KqEvent{&kevn, w.fi}})
+	return
+}
+
+// process event returned by `Kevent` call.
+func (k *kqueue) process(kevn syscall.Kevent_t) (evn []event) {
+	k.Lock()
+	w := k.idLkp[int(kevn.Ident)]
+	if w == nil {
+		fmt.Fprintf(os.Stderr, "kqueue: %v event for not registered fd", kevn)
+		return
+	}
+	e := unmask(kevn.Fflags, w.eDir|w.eNonDir)
+	if w.fi.IsDir() {
+		evn = k.dir(*w, kevn, e)
+	} else {
+		evn = k.file(*w, kevn, e)
+	}
+	if (Event(kevn.Fflags) & NoteDelete) != 0 {
+		k.del(*w)
+	}
+	k.Unlock()
+	return
 }
 
 // kqueue is a type holding data for kqueue watcher.
 type kqueue struct {
 	sync.Mutex
 	// fd is a kqueue file descriptor
-	fd *int
+	fd int
+	// pipefds are file descriptors used to stop `Kevent` call.
+	pipefds [2]int
 	// idLkp is a data structure mapping file descriptors with data about watching
 	// represented by them files/directories.
 	idLkp map[int]*watched
@@ -211,13 +222,19 @@ type watched struct {
 }
 
 // init initializes kqueue.
-func (k *kqueue) init() error {
-	fd, err := syscall.Kqueue()
-	if err != nil {
-		return err
+func (k *kqueue) init() (err error) {
+	if k.fd, err = syscall.Kqueue(); err != nil {
+		return
 	}
-	k.fd = &fd
-	return nil
+	// Creates pipe used to stop `Kevent` call by registering it,
+	// watching read end and writing to other end of it.
+	if err = syscall.Pipe(k.pipefds[:]); err != nil {
+		return
+	}
+	var kevn [1]syscall.Kevent_t
+	syscall.SetKevent(&kevn[0], k.pipefds[0], syscall.EVFILT_READ, syscall.EV_ADD)
+	_, err = syscall.Kevent(k.fd, kevn[:], nil, nil)
+	return
 }
 
 func (k *kqueue) watch(p string, e Event, fi os.FileInfo) error {
@@ -262,7 +279,7 @@ func (k *kqueue) singlewatch(p string, e Event, direct bool,
 	var kevn [1]syscall.Kevent_t
 	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_ADD|syscall.EV_CLEAR)
 	kevn[0].Fflags = mask(w.eDir | w.eNonDir)
-	if _, err := syscall.Kevent(*k.fd, kevn[:], nil, nil); err != nil {
+	if _, err := syscall.Kevent(k.fd, kevn[:], nil, nil); err != nil {
 		return err
 	}
 	if !ok {
@@ -285,7 +302,7 @@ func (k *kqueue) singleunwatch(p string, direct bool) error {
 	}
 	var kevn [1]syscall.Kevent_t
 	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_DELETE)
-	if _, err := syscall.Kevent(*k.fd, kevn[:], nil, nil); err != nil {
+	if _, err := syscall.Kevent(k.fd, kevn[:], nil, nil); err != nil {
 		return err
 	}
 	if w.eNonDir&w.eDir != 0 {
@@ -294,7 +311,7 @@ func (k *kqueue) singleunwatch(p string, direct bool) error {
 			return err
 		}
 	} else {
-		k.del(w)
+		k.del(*w)
 	}
 	return nil
 }
