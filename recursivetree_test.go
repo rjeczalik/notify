@@ -2,7 +2,7 @@ package notify
 
 import "testing"
 
-func TestRecursiveTreeWatch(t *testing.T) {
+func TestRecursiveTree(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
@@ -338,7 +338,7 @@ func TestRecursiveTreeWatch(t *testing.T) {
 		// i=11
 		{
 			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd", E: Move},
-			Receiver: nil,
+			Receiver: Chans{ch[2]},
 		},
 		// i=12
 		{
@@ -348,6 +348,11 @@ func TestRecursiveTreeWatch(t *testing.T) {
 		// i=13
 		{
 			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/gotree", E: Move},
+			Receiver: nil,
+		},
+		// i=14
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/file", E: Move},
 			Receiver: nil,
 		},
 	}

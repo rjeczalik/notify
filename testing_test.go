@@ -715,22 +715,21 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 }
 
 // abs TODO(rjeczalik)
-func (n *N) abs(rel *Call) *Call {
-	abs := *rel
-	abs.P = filepath.Join(wd, n.w.root, filepath.FromSlash(abs.P))
-	return &abs
+func (n *N) abs(rel Call) *Call {
+	rel.P = filepath.Join(wd, n.w.root, filepath.FromSlash(rel.P))
+	return &rel
 }
 
 // ExpectTreeEvents TODO(rjeczalik)
 func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
 		dbg.Printf("ExpectTreeEvents: i=%d\n", i)
+		n.c <- n.abs(cas.Event)
 		switch cas.Receiver {
 		case nil:
 			n.ExpectDry(all)
 		default:
 			ch := n.collect(cas.Receiver)
-			n.c <- n.abs(&cas.Event)
 			select {
 			case collected := <-ch:
 				for _, got := range collected {
@@ -752,13 +751,13 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 	for i, cas := range cases {
 		dbg.Printf("ExpectNotifyEvents: i=%d\n", i)
+		cas.Event.Action()
+		Sync()
 		switch cas.Receiver {
 		case nil:
 			n.ExpectDry(all)
 		default:
 			ch := n.collect(cas.Receiver)
-			cas.Event.Action()
-			Sync()
 			select {
 			case collected := <-ch:
 			Compare:
