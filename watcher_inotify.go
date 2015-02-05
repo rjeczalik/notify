@@ -174,8 +174,10 @@ func (i *inotify) loop(esch chan<- []*event) {
 	epes := make([]syscall.EpollEvent, 1)
 	fd := atomic.LoadInt32(&i.fd)
 	for {
-		if _, err := syscall.EpollWait(i.epfd, epes, -1); err != nil {
+		if _, err := syscall.EpollWait(
+			i.epfd, epes, -1); err != nil && err != syscall.EINTR {
 			// Panic? error?
+			panic(err)
 		}
 		switch epes[0].Fd {
 		case fd:
@@ -185,6 +187,7 @@ func (i *inotify) loop(esch chan<- []*event) {
 			defer i.Unlock()
 			if err := syscall.Close(int(fd)); err != nil {
 				// Panic? error?
+				panic(err)
 			} else {
 				atomic.StoreInt32(&i.fd, invalidDescriptor)
 			}
@@ -200,7 +203,7 @@ func (i *inotify) read() (es []*event) {
 	n, err := syscall.Read(int(i.fd), i.buffer[:])
 	switch {
 	case err != nil || n < 0:
-		// TODO(rjeczalik): Panic, error?
+		// Panic? error?
 		panic(err)
 	case n < syscall.SizeofInotifyEvent:
 		return
