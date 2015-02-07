@@ -8,7 +8,7 @@ func TestRecursiveTree(t *testing.T) {
 
 	ch := NewChans(3)
 
-	calls := [...]RCase{
+	watches := [...]RCase{
 		// i=0
 		{
 			Call: Call{
@@ -277,7 +277,7 @@ func TestRecursiveTree(t *testing.T) {
 		},
 	}
 
-	n.ExpectRecordedCalls(calls[:])
+	n.ExpectRecordedCalls(watches[:])
 
 	events := [...]TCase{
 		// i=0
@@ -354,6 +354,77 @@ func TestRecursiveTree(t *testing.T) {
 		{
 			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/file", E: Move},
 			Receiver: nil,
+		},
+	}
+
+	n.ExpectTreeEvents(events[:], ch)
+}
+
+func TestRecursiveTreeWatch_InactiveMerge(t *testing.T) {
+	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
+	defer n.Close()
+
+	ch := NewChans(3)
+
+	watches := [...]RCase{
+		// i=0
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs",
+				C: ch[0],
+				E: Create,
+			},
+			Record: []Call{
+				{
+					F: FuncWatch,
+					P: "src/github.com/rjeczalik/fs",
+					E: Create,
+				},
+			},
+		},
+		// i=1
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs/cmd/gotree/...",
+				C: ch[0],
+				E: Delete,
+			},
+			Record: []Call{
+				{
+					F:  FuncRecursiveRewatch,
+					P:  "src/github.com/rjeczalik/fs",
+					NP: "src/github.com/rjeczalik/fs",
+					E:  Create,
+					NE: Create | Delete,
+				},
+			},
+		},
+	}
+
+	n.ExpectRecordedCalls(watches[:])
+
+	events := [...]TCase{
+		// i=0
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/.fs.go.swp", E: Create},
+			Receiver: Chans{ch[0]},
+		},
+		// i=1
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/.fs.go.swp", E: Delete},
+			Receiver: nil,
+		},
+		// i=2
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs", E: Delete},
+			Receiver: nil,
+		},
+		// i=3
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/gotree/main.go", E: Delete},
+			Receiver: Chans{ch[0]},
 		},
 	}
 
