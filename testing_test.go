@@ -273,6 +273,9 @@ func EqualEventInfo(want, got EventInfo) error {
 
 // EqualCall TODO(rjeczalik)
 func EqualCall(want, got Call) error {
+	if want.F != got.F {
+		return fmt.Errorf("want F=%v; got %v (P=%q)", want.F, got.F, want.P)
+	}
 	if got.E != want.E {
 		return fmt.Errorf("want E=%v; got %v (P=%q)", want.E, got.E, want.P)
 	}
@@ -287,9 +290,6 @@ func EqualCall(want, got Call) error {
 	}
 	if want := filepath.FromSlash(want.NP); !strings.HasSuffix(got.NP, want) {
 		return fmt.Errorf("want NP=%s; got %s", want, got.NP)
-	}
-	if want.F != got.F {
-		return fmt.Errorf("want F=%v; got %v (P=%q)", want.F, got.F, want.P)
 	}
 	return nil
 }

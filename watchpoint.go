@@ -35,27 +35,21 @@ func (wp watchpoint) Diff(e Event) eventDiff {
 	if wp[nil]&e == e {
 		return none
 	}
-	total := wp[nil] &^ internal
+	total := wp[nil] &^ recursive
 	return eventDiff{total, total | e}
 }
 
 // Add TODO
 //
 // Add assumes neither c nor e are nil or zero values.
-//
-// TODO(rjeczalik): The computed diff should take into account situation, when
-// registered channel is recursive, but real watchpoint covering it was set
-// elsewhere. In this case diff should be None. Not sure it is possible to
-// achieve using existing data (wp[rec]&e==e) or another internal event is
-// needed. To be researched.
 func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] |= e
 	diff[0] = wp[nil]
 	diff[1] = diff[0] | e
 	wp[nil] = diff[1]
-	// Strip diff from internal events.
-	diff[0] &^= internal
-	diff[1] &^= internal
+	// Strip diff from recursive events.
+	diff[0] &^= recursive
+	diff[1] &^= recursive
 	if diff[0] == diff[1] {
 		return none
 	}
@@ -63,27 +57,23 @@ func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 }
 
 // Del TODO
-//
-// TODO(rjeczalik): The computed diff should take into account situation, when
-// registered channel is recursive, but real watchpoint covering it was set
-// elsewhere. In this case diff should be None. Not sure it is possible to
-// achieve using existing data (wp[rec]&e==e) or another internal event is
-// needed. To be researched.
 func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] &^= e
 	if wp[c] == 0 {
 		delete(wp, c)
 	}
 	diff[0] = wp[nil]
-	// Recalculate total event set.
 	delete(wp, nil)
-	for _, e := range wp {
-		diff[1] |= e
+	if len(wp) != 0 {
+		// Recalculate total event set.
+		for _, e := range wp {
+			diff[1] |= e
+		}
+		wp[nil] = diff[1]
 	}
-	wp[nil] = diff[1]
-	// Strip diff from internal events.
-	diff[0] &^= internal
-	diff[1] &^= internal
+	// Strip diff from recursive events.
+	diff[0] &^= recursive
+	diff[1] &^= recursive
 	if diff[0] == diff[1] {
 		return none
 	}
@@ -100,7 +90,7 @@ func (wp watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
 		return
 	}
 	for ch, e := range wp {
-		if ch != nil && ch != rec && e&inactive == 0 && e&event == event {
+		if ch != nil && ch != rec && e&event == event {
 			select {
 			case ch <- ei:
 			default:
@@ -132,7 +122,7 @@ func (wp watchpoint) recursive() Event {
 
 // Total TODO
 func (wp watchpoint) Total() Event {
-	return wp[nil] &^ internal
+	return wp[nil] &^ recursive
 }
 
 // IsRecursive TODO
