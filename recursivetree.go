@@ -120,15 +120,13 @@ type recursiveTree struct {
 		watcher
 		recursiveWatcher
 	}
-	c   chan EventInfo
-	cnd chanNodesMap // TODO(rjeczalik): replace with subtree scanning
+	c chan EventInfo
 }
 
 // newRecursiveTree TODO(rjeczalik)
 func newRecursiveTree(w recursiveWatcher, c chan EventInfo) *recursiveTree {
 	t := &recursiveTree{
 		root: root{nd: newnode("")},
-		cnd:  make(chanNodesMap),
 		w: struct {
 			watcher
 			recursiveWatcher
@@ -219,8 +217,6 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 			watchAdd(cur, c, eventset)
 			// TODO(rjeczalik): traverse tree instead; eventually track minimum
 			// subtree root per each chan
-			t.cnd.Add(c, cur)    // rm
-			t.cnd.Add(c, parent) // rm
 			return nil
 		}
 	}
@@ -296,8 +292,36 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 
 // Stop TODO(rjeczalik)
 func (t *recursiveTree) Stop(c chan<- EventInfo) {
-	// TODO
-
+	var err error
+	fn := func(nd node) (e error) {
+		switch diff := watchDel(nd, c, all); {
+		case diff == none:
+			return nil
+		case diff[1] == 0:
+			if watchIsRecursive(nd) {
+				e = t.w.RecursiveUnwatch(nd.Name)
+			} else {
+				e = t.w.Unwatch(nd.Name)
+			}
+		default:
+			if watchIsRecursive(nd) {
+				e = t.w.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
+			} else {
+				e = t.w.Rewatch(nd.Name, diff[0], diff[1])
+			}
+		}
+		fn := func(nd node) error {
+			watchDel(nd, c, all)
+			return nil
+		}
+		err = nonil(err, e, nd.Walk(fn))
+		return skip
+	}
+	// TODO(rjeczalik): use max root per c
+	if e := t.root.Walk("", fn); e != nil {
+		err = nonil(err, e)
+	}
+	dbg.Printf("Stop(%p) error: %v\n", c, err)
 }
 
 // Close TODO(rjeczalik)

@@ -146,7 +146,7 @@ func (nd node) Get(name string) (node, error) {
 	return nd, nil
 }
 
-// Del TODO
+// Del TODO: rework
 func (nd node) Del(name string) error {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -191,7 +191,13 @@ Traverse:
 		default:
 			return err
 		}
-		for _, nd = range nd.Child {
+		for name, nd := range nd.Child {
+			if name == "" {
+				// Node storing inactive watchpoints has empty name, skip it
+				// form traversing. Root node has also an empty name, but it
+				// never has a parent node.
+				continue
+			}
 			stack = append(stack, nd)
 		}
 	}
@@ -299,8 +305,10 @@ func (r root) Walk(name string, fn walkFunc) error {
 	if err != nil {
 		return err
 	}
-	if nd, err = nd.Get(name); err != nil {
-		return err
+	if nd.Name != name {
+		if nd, err = nd.Get(name); err != nil {
+			return err
+		}
 	}
 	return nd.Walk(fn)
 }

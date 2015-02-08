@@ -127,5 +127,5 @@ func (wp watchpoint) Total() Event {
 
 // IsRecursive TODO
 func (wp watchpoint) IsRecursive() bool {
-	return wp[nil]&recursive == recursive
+	return wp[nil]&recursive != 0
 }

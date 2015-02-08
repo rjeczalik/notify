@@ -454,6 +454,12 @@ func (c Chans) Drain() (ei []EventInfo) {
 	return
 }
 
+func (c Chans) Debug() {
+	for i, c := range c {
+		fmt.Printf("ch[%d] = %p\n", i, c)
+	}
+}
+
 // NewChans TODO
 func NewChans(n int) Chans {
 	ch := make([]chan EventInfo, n)
@@ -554,6 +560,7 @@ type N struct {
 	w   *W
 	spy *Spy
 	c   chan<- EventInfo
+	j   int // spy offset
 }
 
 func newN(t *testing.T, tree string) *N {
@@ -662,15 +669,14 @@ func (n *N) ExpectDry(ch Chans) {
 
 // ExpectRecordedCalls TODO(rjeczalik)
 func (n *N) ExpectRecordedCalls(cases []RCase) {
-	j := 0
 	for i, cas := range cases {
 		dbg.Printf("ExpectRecordedCalls: i=%d\n", i)
 		n.Call(cas.Call)
-		record := (*n.spy)[j:]
+		record := (*n.spy)[n.j:]
 		if len(cas.Record) == 0 && len(record) == 0 {
 			continue
 		}
-		j = len(*n.spy)
+		n.j = len(*n.spy)
 		if len(record) != len(cas.Record) {
 			n.t.Fatalf("%s: want len(record)=%d; got %d [%+v] (i=%d)", caller(),
 				len(cas.Record), len(record), record, i)
@@ -734,7 +740,7 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 			case collected := <-ch:
 				for _, got := range collected {
 					if err := EqualEventInfo(&cas.Event, got); err != nil {
-						n.w.Fatalf("%s (i=%d)", err, i)
+						n.w.Fatalf("%s: %s (i=%d)", caller(), err, i)
 					}
 				}
 			case <-time.After(n.timeout()):

@@ -6,7 +6,7 @@ func TestRecursiveTree(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(3)
+	ch := NewChans(10)
 
 	watches := [...]RCase{
 		// i=0
@@ -86,7 +86,7 @@ func TestRecursiveTree(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/ppknap/link/include/...",
-				C: ch[0],
+				C: ch[4],
 				E: Delete,
 			},
 			Record: []Call{
@@ -191,7 +191,7 @@ func TestRecursiveTree(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/rjeczalik/fs/cmd/gotree",
-				C: ch[0],
+				C: ch[1],
 				E: Create | Delete,
 			},
 			Record: nil,
@@ -358,9 +358,28 @@ func TestRecursiveTree(t *testing.T) {
 	}
 
 	n.ExpectTreeEvents(events[:], ch)
+
+	stops := [...]RCase{
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[1],
+			},
+			Record: []Call{
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/rjeczalik/fs",
+					E:  Create | Delete | Move,
+					NE: Create | Move,
+				},
+			},
+		},
+	}
+
+	n.ExpectRecordedCalls(stops[:])
 }
 
-func TestRecursiveTreeWatch_InactiveMerge(t *testing.T) {
+func TestRecursiveTreeWatchInactiveMerge(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 

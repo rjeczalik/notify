@@ -618,7 +618,6 @@ func (t *bigTree) Stop(c chan<- EventInfo) {
 		}
 		delete(t.cnd, c)
 	}
-
 }
 
 // Close TODO
