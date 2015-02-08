@@ -7,11 +7,9 @@ type notifier interface {
 	Stop(chan<- EventInfo)
 }
 
-func newNotifier(w watcher, c <-chan EventInfo) notifier {
+func newNotifier(w watcher, c chan EventInfo) notifier {
 	if rw, ok := w.(recursiveWatcher); ok {
-		// return NewRecursiveTree(rw, c)
-		_ = rw // TODO
-		return newTree(w, c)
+		return newRecursiveTree(rw, c)
 	}
 	return newTree(w, c)
 }
