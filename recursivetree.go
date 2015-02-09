@@ -3,6 +3,7 @@ package notify
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const all = ^Event(0)
@@ -112,8 +113,9 @@ func watchIsRecursive(nd node) bool {
 	return ok
 }
 
-// recursiveTree TODO(rjeczalik): lock root
+// recursiveTree TODO(rjeczalik)
 type recursiveTree struct {
+	rw   sync.RWMutex // protects root
 	root root
 	// TODO(rjeczalik): merge watcher + recursiveWatcher after #5 and #6
 	w interface {
@@ -139,26 +141,30 @@ func newRecursiveTree(w recursiveWatcher, c chan EventInfo) *recursiveTree {
 
 // dispatch TODO(rjeczalik)
 func (t *recursiveTree) dispatch(c <-chan EventInfo) {
-	nd, ok := node{}, false
 	for ei := range c {
 		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
-		dir, base := split(ei.Path())
-		fn := func(it node, isbase bool) error {
-			if isbase {
-				nd = it
-			} else {
-				it.Watch.Dispatch(ei, true) // notify recursively nodes on the path
+		go func(ei EventInfo) {
+			nd, ok := node{}, false
+			dir, base := split(ei.Path())
+			fn := func(it node, isbase bool) error {
+				if isbase {
+					nd = it
+				} else {
+					it.Watch.Dispatch(ei, true) // notify recursively nodes on the path
+				}
+				return nil
 			}
-			return nil
-		}
-		if err := t.root.WalkPath(dir, fn); err != nil {
-			dbg.Print("dispatch did not reach leaf:", err)
-			continue
-		}
-		nd.Watch.Dispatch(ei, false) // notify parent watchpoint
-		if nd, ok = nd.Child[base]; ok {
-			nd.Watch.Dispatch(ei, false) // notify leaf watchpoint
-		}
+			t.rw.RLock()
+			defer t.rw.RUnlock()
+			if err := t.root.WalkPath(dir, fn); err != nil {
+				dbg.Print("dispatch did not reach leaf:", err)
+				return
+			}
+			nd.Watch.Dispatch(ei, false) // notify parent watchpoint
+			if nd, ok = nd.Child[base]; ok {
+				nd.Watch.Dispatch(ei, false) // notify leaf watchpoint
+			}
+		}(ei)
 	}
 }
 
@@ -179,6 +185,8 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	if isrec {
 		eventset |= recursive
 	}
+	t.rw.Lock()
+	defer t.rw.Unlock()
 	// case 1: cur is a child
 	//
 	// Look for parent watch which already covers the given path.
@@ -317,8 +325,11 @@ func (t *recursiveTree) Stop(c chan<- EventInfo) {
 		err = nonil(err, e, nd.Walk(fn))
 		return skip
 	}
+	t.rw.Lock()
 	// TODO(rjeczalik): use max root per c
-	if e := t.root.Walk("", fn); e != nil {
+	e := t.root.Walk("", fn)
+	t.rw.Unlock()
+	if e != nil {
 		err = nonil(err, e)
 	}
 	dbg.Printf("Stop(%p) error: %v\n", c, err)
