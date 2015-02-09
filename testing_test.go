@@ -561,21 +561,21 @@ type N struct {
 	spy *Spy
 	c   chan<- EventInfo
 	j   int // spy offset
+
+	realroot string
 }
 
 func newN(t *testing.T, tree string) *N {
-	return &N{
+	n := &N{
 		t: t,
 		w: newWatcherTest(t, tree),
 	}
-}
-
-// TODO(rjeczalik): rm
-func tmpHackTillReady(w watcher, c chan EventInfo) notifier {
-	if spy, ok := w.(*Spy); ok {
-		return newRecursiveTree(spy, c)
+	realroot, err := canonical(n.w.root)
+	if err != nil {
+		t.Fatalf("%s: unexpected fixture failure: %v", caller(), err)
 	}
-	return newNotifier(w, c)
+	n.realroot = realroot
+	return n
 }
 
 func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
@@ -585,7 +585,7 @@ func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
 	n.w.Watcher = fn(n.spy)
 	n.w.C = c
 	n.c = c
-	n.notifier = tmpHackTillReady(n.w.watcher(), n.w.c())
+	n.notifier = newNotifier(n.w.watcher(), n.w.c())
 	return n
 }
 
@@ -722,7 +722,10 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 
 // abs TODO(rjeczalik)
 func (n *N) abs(rel Call) *Call {
-	rel.P = filepath.Join(wd, n.w.root, filepath.FromSlash(rel.P))
+	rel.P = filepath.Join(n.realroot, filepath.FromSlash(rel.P))
+	if !filepath.IsAbs(rel.P) {
+		rel.P = filepath.Join(wd, rel.P)
+	}
 	return &rel
 }
 
