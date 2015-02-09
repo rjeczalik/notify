@@ -234,9 +234,11 @@ func (wd *watched) closeHandle() (err error) {
 // loop goroutine since these structures are used internally by operating system.
 type readdcw struct {
 	sync.Mutex
-	m   map[string]*watched
-	cph syscall.Handle
-	c   chan<- EventInfo
+	m     map[string]*watched
+	cph   syscall.Handle
+	start bool
+	wg    sync.WaitGroup
+	c     chan<- EventInfo
 }
 
 // NewWatcher creates new non-recursive watcher backed by ReadDirectoryChangesW.
@@ -303,7 +305,7 @@ func (r *readdcw) lazyinit() (err error) {
 				cph, 0, 0, 0); err != nil {
 				return
 			}
-			r.cph = cph
+			r.cph, r.start = cph, true
 			go r.loop()
 		}
 	}
@@ -323,6 +325,7 @@ func (r *readdcw) loop() {
 			r.cph = syscall.InvalidHandle
 			r.Unlock()
 			syscall.CloseHandle(handle)
+			r.wg.Done()
 			return
 		}
 		if overlapped == nil {
@@ -499,7 +502,7 @@ func (r *readdcw) unwatch(path string) (err error) {
 // and sends stateCPClose state as completion key to the main watcher's loop.
 func (r *readdcw) Close() (err error) {
 	r.Lock()
-	if r.cph == syscall.InvalidHandle {
+	if !r.start {
 		r.Unlock()
 		return nil
 	}
@@ -510,11 +513,14 @@ func (r *readdcw) Close() (err error) {
 			err = e
 		}
 	}
+	r.start = false
 	r.Unlock()
-	if e := syscall.PostQueuedCompletionStatus(
-		r.cph, 0, stateCPClose, nil); e != nil && err == nil {
+	r.wg.Add(1)
+	if e := syscall.PostQueuedCompletionStatus(r.cph, 0, stateCPClose,
+		nil); e != nil && err == nil {
 		return e
 	}
+	r.wg.Wait()
 	return
 }
 
