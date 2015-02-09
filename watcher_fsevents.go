@@ -163,6 +163,16 @@ func (w *watch) Dispatch(ev []FSEvent) {
 	}
 }
 
+// Stop closes underlying FSEvents stream and stops dispatching events.
+func (w *watch) Stop() {
+	w.stream.Stop()
+	// TODO(rjeczalik): make (*stream).Stop flush synchronously undelivered events,
+	// so the following hack can be removed. It should flush all the streams
+	// concurrently as we care not to block too much here.
+	atomic.StoreUint32(&w.events, 0)
+	atomic.StoreInt32(&w.isrec, 0)
+}
+
 // fsevents implements Watcher and RecursiveWatcher interfaces backed by FSEvents
 // framework.
 type fsevents struct {
@@ -300,7 +310,7 @@ func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, neweven
 // Close unwatches all watch-points.
 func (fse *fsevents) Close() error {
 	for _, w := range fse.watches {
-		w.stream.Stop()
+		w.Stop()
 	}
 	fse.watches = nil
 	return nil
