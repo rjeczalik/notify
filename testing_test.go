@@ -149,9 +149,9 @@ func (cas WCase) String() string {
 
 // W TODO(rjeczalik)
 type W struct {
-	Watcher watcher        // TODO
-	C       chan EventInfo // TODO
-	Timeout time.Duration  // TODO
+	Watcher watcher
+	C       chan EventInfo
+	Timeout time.Duration
 
 	t    *testing.T
 	root string
@@ -196,21 +196,19 @@ func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 			t.Fatalf("Walk(%q, fn)=%v", w.root, err)
 		}
 	}
-	w.Drain()
+	drainall(w.C)
 	return w
 }
 
-// Drain TODO(ppknap): create tree using separate process
-func (w *W) Drain() {
-	time.Sleep(50 * time.Millisecond)
-	runtime.Gosched()
-	for {
-		select {
-		case <-w.C:
-		default:
-			return
-		}
+func (w *W) clean(path string) string {
+	path, isrec, err := cleanpath(filepath.Join(w.root, path))
+	if err != nil {
+		w.Fatalf("cleanpath(%q)=%v", path, err)
 	}
+	if isrec {
+		path = path + "..."
+	}
+	return path
 }
 
 func (w *W) Fatal(v interface{}) {
@@ -219,6 +217,54 @@ func (w *W) Fatal(v interface{}) {
 
 func (w *W) Fatalf(format string, v ...interface{}) {
 	w.t.Fatalf("%s: %s", caller(), fmt.Sprintf(format, v...))
+}
+
+func (w *W) Watch(path string, e Event) {
+	if err := w.watcher().Watch(w.clean(path), e); err != nil {
+		w.Fatalf("Watch(%s, %v)=%v", path, e, err)
+	}
+}
+
+func (w *W) Rewatch(path string, olde, newe Event) {
+	if err := w.watcher().Rewatch(w.clean(path), olde, newe); err != nil {
+		w.Fatalf("Rewatch(%s, %v, %v)=%v", path, olde, newe, err)
+	}
+}
+
+func (w *W) Unwatch(path string) {
+	if err := w.watcher().Unwatch(w.clean(path)); err != nil {
+		w.Fatalf("Unwatch(%s)=%v", path, err)
+	}
+}
+
+func (w *W) RecursiveWatch(path string, e Event) {
+	rw, ok := w.watcher().(recursiveWatcher)
+	if !ok {
+		w.Fatal("watcher does not implement recursive watching on this platform")
+	}
+	if err := rw.RecursiveWatch(w.clean(path), e); err != nil {
+		w.Fatalf("RecursiveWatch(%s, %v)=%v", path, e, err)
+	}
+}
+
+func (w *W) RecursiveRewatch(oldp, newp string, olde, newe Event) {
+	rw, ok := w.watcher().(recursiveWatcher)
+	if !ok {
+		w.Fatal("watcher does not implement recursive watching on this platform")
+	}
+	if err := rw.RecursiveRewatch(w.clean(oldp), w.clean(newp), olde, newe); err != nil {
+		w.Fatalf("RecursiveRewatch(%s, %s, %v, %v)=%v", oldp, newp, olde, newe, err)
+	}
+}
+
+func (w *W) RecursiveUnwatch(path string) {
+	rw, ok := w.watcher().(recursiveWatcher)
+	if !ok {
+		w.Fatal("watcher does not implement recursive watching on this platform")
+	}
+	if err := rw.RecursiveUnwatch(w.clean(path)); err != nil {
+		w.Fatalf("RecursiveUnwatch(%s)=%v", path, err)
+	}
 }
 
 func (w *W) initwatcher(buffer int) {
@@ -369,6 +415,20 @@ func write(w *W, path string, p []byte) WCase {
 	}
 }
 
+func drainall(c chan EventInfo) (ei []EventInfo) {
+	// TODO(rjeczalik): remove
+	time.Sleep(50 * time.Millisecond)
+	for {
+		select {
+		case e := <-c:
+			ei = append(ei, e)
+			runtime.Gosched()
+		default:
+			return
+		}
+	}
+}
+
 // ExpectAny TODO
 func (w *W) ExpectAny(cases []WCase) {
 Test:
@@ -376,25 +436,32 @@ Test:
 		dbg.Printf("ExpectAny: i=%d\n", i)
 		cas.Action()
 		Sync()
-		select {
-		case ei := <-w.C:
-			dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d)", ei.Path(),
-				ei.Event(), ei.Sys(), i)
-			for j, want := range cas.Events {
-				if err := EqualEventInfo(want, ei); err != nil {
-					dbg.Print(err, j)
-					continue
-				}
-				w.Drain()
-				continue Test
+		switch cas.Events {
+		case nil:
+			if ei := drainall(w.C); len(ei) != 0 {
+				w.Fatalf("unexpected dangling events: %v", ei)
 			}
-			w.Fatalf("ExpectAny received an event which does not match any of "+
-				"the expected ones (i=%d): want one of %v; got %v", i, cas.Events, ei)
-		case <-time.After(w.timeout()):
-			w.Fatalf("timed out after %v waiting for one of %v (i=%d)", w.timeout(),
-				cas.Events, i)
+		default:
+			select {
+			case ei := <-w.C:
+				dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d)", ei.Path(),
+					ei.Event(), ei.Sys(), i)
+				for j, want := range cas.Events {
+					if err := EqualEventInfo(want, ei); err != nil {
+						dbg.Print(err, j)
+						continue
+					}
+					drainall(w.C)
+					continue Test
+				}
+				w.Fatalf("ExpectAny received an event which does not match any of "+
+					"the expected ones (i=%d): want one of %v; got %v", i, cas.Events, ei)
+			case <-time.After(w.timeout()):
+				w.Fatalf("timed out after %v waiting for one of %v (i=%d)", w.timeout(),
+					cas.Events, i)
+			}
+			drainall(w.C)
 		}
-		w.Drain()
 	}
 }
 

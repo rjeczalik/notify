@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 )
 
+// TODO(rjeczalik): get rid of calls to canonical, it's tree responsibility
+
 const (
 	failure = uint32(FSEventsMustScanSubDirs | FSEventsUserDropped | FSEventsKernelDropped)
 	filter  = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed |
@@ -30,13 +32,6 @@ func splitflags(set uint32) (e []uint32) {
 	}
 	return
 }
-
-const (
-	cdm = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed)
-	cd  = uint32(FSEventsCreated | FSEventsRemoved)
-	dm  = uint32(FSEventsRemoved | FSEventsRenamed)
-	cm  = uint32(FSEventsCreated | FSEventsRenamed)
-)
 
 // watch represents a filesystem watchpoint. It is a higher level abstraction
 // over FSEvents' stream, which implements filtering of file events based
@@ -138,7 +133,8 @@ func (w *watch) Dispatch(ev []FSEvent) {
 		if !strings.HasPrefix(ev[i].Path, w.path) {
 			continue
 		}
-		n, base := len(w.path), ""
+		n := len(w.path)
+		base := ""
 		if len(ev[i].Path) > n {
 			if ev[i].Path[n] != '/' {
 				continue
@@ -189,7 +185,7 @@ func newWatcher(c chan<- EventInfo) watcher {
 
 func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
 	if path, err = canonical(path); err != nil {
-		return
+		return err
 	}
 	if _, ok := fse.watches[path]; ok {
 		return errAlreadyWatched
@@ -203,7 +199,7 @@ func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
 	}
 	w.stream = newStream(path, w.Dispatch)
 	if err = w.stream.Start(); err != nil {
-		return
+		return err
 	}
 	fse.watches[path] = w
 	return nil
@@ -246,6 +242,7 @@ func (fse *fsevents) Rewatch(path string, oldevent, newevent Event) error {
 	if !atomic.CompareAndSwapUint32(&w.events, uint32(oldevent), uint32(newevent)) {
 		return errInvalidEventSet
 	}
+	atomic.StoreInt32(&w.isrec, 0)
 	return nil
 }
 
@@ -281,7 +278,7 @@ func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, neweven
 		if !ok {
 			return errNotWatched
 		}
-		atomic.CompareAndSwapInt32(&w.isrec, 0, 1)
+		atomic.StoreInt32(&w.isrec, 1)
 		return nil
 	case [2]bool{true, false}:
 		w, ok := fse.watches[oldpath]
@@ -291,7 +288,7 @@ func (fse *fsevents) RecursiveRewatch(oldpath, newpath string, oldevent, neweven
 		if !atomic.CompareAndSwapUint32(&w.events, uint32(oldevent), uint32(newevent)) {
 			return errors.New("invalid event state diff")
 		}
-		atomic.CompareAndSwapInt32(&w.isrec, 0, 1)
+		atomic.StoreInt32(&w.isrec, 1)
 		return nil
 	default:
 		// TODO(rjeczalik): rewatch newpath only if exists?
