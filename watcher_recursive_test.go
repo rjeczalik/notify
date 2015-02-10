@@ -1,10 +1,8 @@
-// +build darwin,!kqueue
+// +build darwin,!kqueue windows
 
 package notify
 
 import "testing"
-
-// TODO(rjeczalik): build it under Windows
 
 // noevent stripts test-case from expected event list, used when action is not
 // expected to trigger any events.
