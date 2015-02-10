@@ -431,6 +431,7 @@ func drainall(c chan EventInfo) (ei []EventInfo) {
 
 // ExpectAny TODO
 func (w *W) ExpectAny(cases []WCase) {
+	UpdateWait() // Wait some time before starting the test.
 Test:
 	for i, cas := range cases {
 		dbg.Printf("ExpectAny: i=%d\n", i)
@@ -825,6 +826,7 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 
 // ExpectNotifyEvents TODO(rjeczalik)
 func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
+	UpdateWait() // Wait some time before starting the test.
 	for i, cas := range cases {
 		dbg.Printf("ExpectNotifyEvents: i=%d\n", i)
 		cas.Event.Action()

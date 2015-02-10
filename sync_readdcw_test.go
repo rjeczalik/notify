@@ -7,6 +7,7 @@ package notify
 
 import (
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -22,4 +23,11 @@ func Sync() {
 	// if r == 0 {
 	//   dbg.Print("SetSystemFileCacheSize error:", err)
 	// }
+}
+
+// UpdateWait pauses the program for some minimal amount of time. This function
+// is required only by implementations which work asynchronously. It gives
+// watcher structure time to update its internal state.
+func UpdateWait() {
+	time.Sleep(50 * time.Millisecond)
 }

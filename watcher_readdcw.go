@@ -426,7 +426,7 @@ func (r *readdcw) RecursiveRewatch(oldpath, newpath string, oldevent,
 			return err
 		}
 		return r.watch(newpath, newevent, true)
-	case oldevent != newevent:
+	default:
 		return r.rewatch(newpath, uint32(oldevent), uint32(newevent), true)
 	}
 	return nil

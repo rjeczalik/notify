@@ -11,3 +11,8 @@ import "syscall"
 func Sync() {
 	syscall.Sync()
 }
+
+// UpdateWait is required only by windows watcher implementation. On other
+// platforms this function is no-op.
+func UpdateWait() {
+}
