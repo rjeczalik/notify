@@ -31,13 +31,6 @@ func splitflags(set uint32) (e []uint32) {
 	return
 }
 
-const (
-	cdm = uint32(FSEventsCreated | FSEventsRemoved | FSEventsRenamed)
-	cd  = uint32(FSEventsCreated | FSEventsRemoved)
-	dm  = uint32(FSEventsRemoved | FSEventsRenamed)
-	cm  = uint32(FSEventsCreated | FSEventsRenamed)
-)
-
 // watch represents a filesystem watchpoint. It is a higher level abstraction
 // over FSEvents' stream, which implements filtering of file events based
 // on path and event set. It emulates non-recursive watch-point by filtering out
