@@ -2,7 +2,10 @@
 
 package notify
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 const (
 	Create Event = 0x100000 << iota
@@ -73,3 +76,12 @@ type event struct {
 func (e *event) Event() Event     { return e.event }
 func (e *event) Path() string     { return e.path }
 func (e *event) Sys() interface{} { return e.sys }
+
+// isdir TODO(ppknap): native implementation for inotify
+func isdir(ei EventInfo) (bool, error) {
+	fi, err := os.Stat(ei.Path())
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
+}

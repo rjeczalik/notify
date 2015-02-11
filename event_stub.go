@@ -3,6 +3,8 @@
 
 package notify
 
+import "errors"
+
 const (
 	Create = EvStubCreate
 	Delete = EvStubDelete
@@ -32,4 +34,8 @@ var osestr = map[Event]string{}
 
 var ekind = map[Event]Event{
 	Move: Create,
+}
+
+func isdir(EventInfo) (bool, error) {
+	return false, errors.New("not implemented")
 }

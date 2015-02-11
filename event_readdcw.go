@@ -3,6 +3,7 @@
 package notify
 
 import (
+	"os"
 	"path/filepath"
 	"syscall"
 )
@@ -86,3 +87,12 @@ type event struct {
 func (e *event) Event() Event     { return e.e }
 func (e *event) Path() string     { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
 func (e *event) Sys() interface{} { return e.objtype }
+
+// isdir TODO(ppknap): native implementation for readdcw
+func isdir(ei EventInfo) (bool, error) {
+	fi, err := os.Stat(ei.Path())
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
+}

@@ -65,3 +65,10 @@ type event struct {
 func (ei *event) Event() Event     { return ei.event }
 func (ei *event) Path() string     { return ei.fse.Path }
 func (ei *event) Sys() interface{} { return &ei.fse }
+
+func isdir(ei EventInfo) (bool, error) {
+	if ei, ok := ei.(*event); ok {
+		return ei.fse.Flags&FSEventsIsDir != 0, nil
+	}
+	panic("invalid underlying type for the ErrorInfo interface")
+}

@@ -2,7 +2,10 @@
 
 package notify
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // TODO(pblaszczyk): ensure in runtime notify built-in event values do not
 // overlap with platform-defined ones.
@@ -77,3 +80,12 @@ func (e *event) Path() string { return e.p }
 
 // Sys returns platform specific object describing reported event.
 func (e *event) Sys() interface{} { return e.kq }
+
+// isdir TODO(pblaszczyk): native implementation for kqueue
+func isdir(ei EventInfo) (bool, error) {
+	fi, err := os.Stat(ei.Path())
+	if err != nil {
+		return false, err
+	}
+	return fi.IsDir(), nil
+}
