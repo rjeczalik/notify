@@ -22,3 +22,12 @@ func TestNotifySystemAndGlobalMix(t *testing.T) {
 
 	n.ExpectNotifyEvents(cases, ch)
 }
+
+func TestUnknownEvent(t *testing.T) {
+	n := NewNotifyTest(t, "testdata/vfs.txt")
+	defer n.Close()
+
+	ch := NewChans(1)
+
+	n.WatchErr("src/github.com/rjeczalik/fs", ch[0], nil, inExclUnlink)
+}

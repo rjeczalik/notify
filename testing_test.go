@@ -709,6 +709,17 @@ func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
 	}
 }
 
+// WatchErr TODO(ppknap)
+func (n *N) WatchErr(path string, c chan<- EventInfo, err error, events ...Event) {
+	path = filepath.Join(n.w.root, path)
+	switch e := n.notifier.Watch(path, c, events...); {
+	case err == nil && e == nil:
+		n.t.Errorf("Watch(%s, %p, %v)=nil", path, c, events)
+	case err != nil && e != err:
+		n.t.Errorf("Watch(%s, %p, %v)=%v != %v", path, c, events, e, err)
+	}
+}
+
 // Stop TODO(rjeczalik)
 func (n *N) Stop(c chan<- EventInfo) {
 	n.notifier.Stop(c)

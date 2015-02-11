@@ -420,15 +420,13 @@ func (r *readdcw) Rewatch(path string, oldevent, newevent Event) error {
 // RecursiveRewatch implements notify.RecursiveRewatcher interface.
 func (r *readdcw) RecursiveRewatch(oldpath, newpath string, oldevent,
 	newevent Event) error {
-	switch {
-	case oldpath != newpath:
+	if oldpath != newpath {
 		if err := r.unwatch(oldpath); err != nil {
 			return err
 		}
 		return r.watch(newpath, newevent, true)
-	default:
-		return r.rewatch(newpath, uint32(oldevent), uint32(newevent), true)
 	}
+	return r.rewatch(newpath, uint32(oldevent), uint32(newevent), true)
 }
 
 // TODO : (pknap) doc.

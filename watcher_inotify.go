@@ -118,6 +118,7 @@ func (i *inotify) lazyinit() error {
 			atomic.StoreInt32(&i.fd, int32(fd))
 			if err = i.epollinit(); err != nil {
 				i.epollclose()
+				atomic.StoreInt32(&i.fd, int32(invalidDescriptor))
 				return err
 			}
 			esch := make(chan []*event)
