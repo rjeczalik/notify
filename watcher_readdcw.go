@@ -429,7 +429,6 @@ func (r *readdcw) RecursiveRewatch(oldpath, newpath string, oldevent,
 	default:
 		return r.rewatch(newpath, uint32(oldevent), uint32(newevent), true)
 	}
-	return nil
 }
 
 // TODO : (pknap) doc.
