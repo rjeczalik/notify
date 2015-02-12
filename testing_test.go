@@ -442,7 +442,7 @@ Test:
 		switch cas.Events {
 		case nil:
 			if ei := drainall(w.C); len(ei) != 0 {
-				w.Fatalf("unexpected dangling events: %v", ei)
+				w.Fatalf("unexpected dangling events: %v (i=%d)", ei, i)
 			}
 		default:
 			select {
@@ -579,7 +579,7 @@ func (s *Spy) Watch(p string, e Event) (_ error) {
 }
 
 func (s *Spy) Unwatch(p string) (_ error) {
-	dbg.Printf("%s: (*Spy).(%q)", caller(), p)
+	dbg.Printf("%s: (*Spy).Unwatch(%q)", caller(), p)
 	*s = append(*s, Call{F: FuncUnwatch, P: p})
 	return
 }
@@ -751,10 +751,10 @@ func (n *N) Call(calls ...Call) {
 	}
 }
 
-// ExpectDry TODO(rjeczalik)
-func (n *N) ExpectDry(ch Chans) {
+// expectDry TODO(rjeczalik)
+func (n *N) expectDry(ch Chans, i int) {
 	if ei := ch.Drain(); len(ei) != 0 {
-		n.w.Fatalf("unexpected dangling events: %v", ei)
+		n.w.Fatalf("unexpected dangling events: %v (i=%d)", ei, i)
 	}
 }
 
@@ -824,10 +824,12 @@ func (n *N) abs(rel Call) *Call {
 func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
 		dbg.Printf("ExpectTreeEvents: i=%d\n", i)
+		// Ensure there're no dangling event left by previous test-case.
+		n.expectDry(all, i)
 		n.c <- n.abs(cas.Event)
 		switch cas.Receiver {
 		case nil:
-			n.ExpectDry(all)
+			n.expectDry(all, i)
 		default:
 			ch := n.collect(cas.Receiver)
 			select {
@@ -844,7 +846,7 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 
 		}
 	}
-	n.ExpectDry(all)
+	n.expectDry(all, -1)
 }
 
 // ExpectNotifyEvents TODO(rjeczalik)
@@ -856,7 +858,7 @@ func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 		Sync()
 		switch cas.Receiver {
 		case nil:
-			n.ExpectDry(all)
+			n.expectDry(all, i)
 		default:
 			ch := n.collect(cas.Receiver)
 			select {
@@ -882,5 +884,5 @@ func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 			}
 		}
 	}
-	n.ExpectDry(all)
+	n.expectDry(all, -1)
 }

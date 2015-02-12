@@ -6,7 +6,7 @@ func TestRecursiveTree(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(10)
+	ch := NewChans(4)
 
 	watches := [...]RCase{
 		// i=0
@@ -86,7 +86,7 @@ func TestRecursiveTree(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/ppknap/link/include/...",
-				C: ch[4],
+				C: ch[3],
 				E: Delete,
 			},
 			Record: []Call{
@@ -191,7 +191,7 @@ func TestRecursiveTree(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/rjeczalik/fs/cmd/gotree",
-				C: ch[1],
+				C: ch[2],
 				E: Create | Delete,
 			},
 			Record: nil,
@@ -275,6 +275,16 @@ func TestRecursiveTree(t *testing.T) {
 				},
 			},
 		},
+		// i=16
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs/fs.go",
+				C: ch[3],
+				E: Move,
+			},
+			Record: nil,
+		},
 	}
 
 	n.ExpectRecordedCalls(watches[:])
@@ -283,7 +293,7 @@ func TestRecursiveTree(t *testing.T) {
 		// i=0
 		{
 			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go", E: Move},
-			Receiver: Chans{ch[2]},
+			Receiver: Chans{ch[2], ch[3]},
 		},
 		// i=1
 		{
@@ -313,7 +323,7 @@ func TestRecursiveTree(t *testing.T) {
 		// i=6
 		{
 			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/gotree", E: Delete},
-			Receiver: Chans{ch[1]},
+			Receiver: Chans{ch[1], ch[2]},
 		},
 		// i=7
 		{
@@ -354,6 +364,11 @@ func TestRecursiveTree(t *testing.T) {
 		{
 			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/file", E: Move},
 			Receiver: nil,
+		},
+		// i=15
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go", E: Move},
+			Receiver: Chans{ch[2], ch[3]},
 		},
 	}
 

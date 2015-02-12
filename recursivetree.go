@@ -144,26 +144,29 @@ func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 	for ei := range c {
 		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
 		go func(ei EventInfo) {
-			nd, ok := node{}, false
+			var parent node
 			dir, base := split(ei.Path())
-			fn := func(it node, isbase bool) error {
+			fn := func(nd node, isbase bool) error {
 				if isbase {
-					nd = it
+					parent = nd
 				} else {
-					it.Watch.Dispatch(ei, recursive) // notify recursively nodes on the path
+					nd.Watch.Dispatch(ei, recursive)
 				}
 				return nil
 			}
 			t.rw.RLock()
 			defer t.rw.RUnlock()
+			// Notify recursive watchpoints found on the path.
 			if err := t.root.WalkPath(dir, fn); err != nil {
 				dbg.Print("dispatch did not reach leaf:", err)
 				return
 			}
-			nd.Watch.Dispatch(ei, 0) // notify parent watchpoint
-			if nd, ok = nd.Child[base]; ok {
-				nd.Watch.Dispatch(ei, 0) // notify leaf watchpoint
+			// If leaf watchpoint exists, notify it.
+			if nd, ok := parent.Child[base]; ok {
+				nd.Watch.Dispatch(ei, 0)
 			}
+			// Notify parent watchpoint.
+			parent.Watch.Dispatch(ei, 0)
 		}(ei)
 	}
 }
@@ -205,7 +208,8 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		// return t.resetwatchpoint(parent, parent, c, eventset|inactive)
 		switch diff := watchAddInactive(parent, c, eventset); {
 		case diff == none:
-			return nil
+			// the parent watchpoint already covers requested subtree with its
+			// eventset
 		case diff[0] == 0:
 			panic("dangling watchpoint: " + parent.Name)
 		default:
@@ -215,18 +219,14 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 				err = t.w.Rewatch(parent.Name, diff[0], diff[1])
 			}
 			if err != nil {
-				// TODO(rjeczalik): it should be possible to keep all watchpoints
-				// only in the actual watch node; currently it's split between
-				// parent watch node (inactive watchpoints) and the children nodes
-				// (active ones).
 				watchDel(parent, c, diff.Event())
 				return err
 			}
-			watchAdd(cur, c, eventset)
 			// TODO(rjeczalik): traverse tree instead; eventually track minimum
 			// subtree root per each chan
-			return nil
 		}
+		watchAdd(cur, c, eventset)
+		return nil
 	}
 	// case 2: cur is new parent
 	//
@@ -302,7 +302,8 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 func (t *recursiveTree) Stop(c chan<- EventInfo) {
 	var err error
 	fn := func(nd node) (e error) {
-		switch diff := watchDel(nd, c, all); {
+		diff := watchDel(nd, c, all)
+		switch {
 		case diff == none:
 			return nil
 		case diff[1] == 0:
