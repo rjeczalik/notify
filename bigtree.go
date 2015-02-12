@@ -76,7 +76,7 @@ func (t *bigTree) loopdispatch(c <-chan EventInfo) {
 				if isbase {
 					nd = it
 				} else {
-					it.Watch.Dispatch(ei, true)
+					it.Watch.Dispatch(ei, recursive)
 				}
 				return
 			}
@@ -85,10 +85,10 @@ func (t *bigTree) loopdispatch(c <-chan EventInfo) {
 				dbg.Printf("unexpected event: ei=%v, err=%v", ei, err)
 			}
 			// Send to parent watchpoint.
-			nd.Watch.Dispatch(ei, false)
+			nd.Watch.Dispatch(ei, 0)
 			// Try send to self watchpoint.
 			if nd, ok = nd.Child[name]; ok {
-				nd.Watch.Dispatch(ei, false)
+				nd.Watch.Dispatch(ei, 0)
 			}
 		case <-t.stop:
 			return

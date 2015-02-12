@@ -5,12 +5,12 @@ package notify
 // functions typically return the None value.
 type eventDiff [2]Event
 
-// Event TODO
+// Event TODO(rjeczalik)
 func (diff eventDiff) Event() Event {
 	return diff[1] &^ diff[0]
 }
 
-// Watchpoint TODO
+// Watchpoint TODO(rjeczalik)
 //
 // The nil key holds total event set - logical sum for all registered events.
 // It speeds up computing EventDiff for Add method.
@@ -29,7 +29,7 @@ var rec = func() (ch chan<- EventInfo) {
 	return
 }()
 
-// Diff TODO
+// Diff TODO(rjeczalik)
 func (wp watchpoint) Diff(e Event) eventDiff {
 	e &^= recursive
 	if wp[nil]&e == e {
@@ -39,7 +39,7 @@ func (wp watchpoint) Diff(e Event) eventDiff {
 	return eventDiff{total, total | e}
 }
 
-// Add TODO
+// Add TODO(rjeczalik)
 //
 // Add assumes neither c nor e are nil or zero values.
 func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
@@ -56,7 +56,7 @@ func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 	return
 }
 
-// Del TODO
+// Del TODO(rjeczalik)
 func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] &^= e
 	if wp[c] == 0 {
@@ -80,16 +80,14 @@ func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	return
 }
 
-// Dispatch TODO
-func (wp watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
-	event := ei.Event()
-	if recursiveonly {
-		event |= recursive
-	}
+// Dispatch TODO(rjeczalik)
+func (wp watchpoint) Dispatch(ei EventInfo, ctrl Event) {
+	event := ei.Event() | ctrl
 	if wp[nil]&event != event {
 		return
 	}
 	for ch, e := range wp {
+		// TODO(rjeczalik): rm rec
 		if ch != nil && ch != rec && e&event == event {
 			select {
 			case ch <- ei:
@@ -100,12 +98,12 @@ func (wp watchpoint) Dispatch(ei EventInfo, recursiveonly bool) {
 	}
 }
 
-// AddRecursive TODO
+// AddRecursive TODO(rjeczalik): rm
 func (wp watchpoint) AddRecursive(e Event) eventDiff {
 	return wp.Add(rec, e|recursive)
 }
 
-// DelRecursive TODO
+// DelRecursive TODO(rjeczalik): rm
 func (wp watchpoint) DelRecursive(e Event) eventDiff {
 	// If this delete would remove all events from rec event set, ensure Recursive
 	// is also gone.
@@ -115,17 +113,17 @@ func (wp watchpoint) DelRecursive(e Event) eventDiff {
 	return wp.Del(rec, e)
 }
 
-// Recursive TODO
+// Recursive TODO(rjeczalik): rm
 func (wp watchpoint) recursive() Event {
 	return wp[rec]
 }
 
-// Total TODO
+// Total TODO(rjeczalik)
 func (wp watchpoint) Total() Event {
 	return wp[nil] &^ recursive
 }
 
-// IsRecursive TODO
+// IsRecursive TODO(rjeczalik)
 func (wp watchpoint) IsRecursive() bool {
 	return wp[nil]&recursive != 0
 }

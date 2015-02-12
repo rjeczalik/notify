@@ -150,7 +150,7 @@ func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 				if isbase {
 					nd = it
 				} else {
-					it.Watch.Dispatch(ei, true) // notify recursively nodes on the path
+					it.Watch.Dispatch(ei, recursive) // notify recursively nodes on the path
 				}
 				return nil
 			}
@@ -160,9 +160,9 @@ func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 				dbg.Print("dispatch did not reach leaf:", err)
 				return
 			}
-			nd.Watch.Dispatch(ei, false) // notify parent watchpoint
+			nd.Watch.Dispatch(ei, 0) // notify parent watchpoint
 			if nd, ok = nd.Child[base]; ok {
-				nd.Watch.Dispatch(ei, false) // notify leaf watchpoint
+				nd.Watch.Dispatch(ei, 0) // notify leaf watchpoint
 			}
 		}(ei)
 	}
