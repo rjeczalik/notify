@@ -32,10 +32,16 @@ const (
 
 var osestr = map[Event]string{}
 
-var ekind = map[Event]Event{
-	Move: Create,
-}
+var ekind = map[Event]Event{}
+
+const notImplemented = "notify: not implemented"
+
+type event struct{}
+
+func (e *event) Event() Event     { return Error }
+func (e *event) Path() string     { return notImplemented }
+func (e *event) Sys() interface{} { return nil }
 
 func isdir(EventInfo) (bool, error) {
-	return false, errors.New("not implemented")
+	return false, errors.New(notImplemented)
 }

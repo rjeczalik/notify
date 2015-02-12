@@ -44,11 +44,10 @@ func (e Event) String() string {
 type EventInfo interface {
 	Event() Event     // single event of the file
 	Path() string     // real path of the file
-	String() string   // #57
 	Sys() interface{} // underlying data source (can return nil)
 }
 
-// String implements EventInfo interface.
+// String implements fmt.Stringer interface.
 func (e *event) String() string {
 	return e.Event().String() + `, "` + e.Path() + `"`
 }
