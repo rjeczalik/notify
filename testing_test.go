@@ -429,8 +429,10 @@ func drainall(c chan EventInfo) (ei []EventInfo) {
 	}
 }
 
-// ExpectAny TODO
-func (w *W) ExpectAny(cases []WCase) {
+type WCaseFunc func(i int, cas WCase, ei EventInfo) error
+
+// ExpectAnyFunc TODO(rjeczalik)
+func (w *W) ExpectAnyFunc(cases []WCase, fn WCaseFunc) {
 	UpdateWait() // Wait some time before starting the test.
 Test:
 	for i, cas := range cases {
@@ -452,7 +454,12 @@ Test:
 						dbg.Print(err, j)
 						continue
 					}
-					drainall(w.C)
+					if fn != nil {
+						if err := fn(i, cas, ei); err != nil {
+							w.Fatalf("ExpectAnyFunc(%d, %v)=%v", i, ei, err)
+						}
+					}
+					drainall(w.C) // TODO(rjeczalik): revisit
 					continue Test
 				}
 				w.Fatalf("ExpectAny received an event which does not match any of "+
@@ -461,9 +468,14 @@ Test:
 				w.Fatalf("timed out after %v waiting for one of %v (i=%d)", w.timeout(),
 					cas.Events, i)
 			}
-			drainall(w.C)
+			drainall(w.C) // TODO(rjeczalik): revisit
 		}
 	}
+}
+
+// ExpectAny TODO(rjeczalik)
+func (w *W) ExpectAny(cases []WCase) {
+	w.ExpectAnyFunc(cases, nil)
 }
 
 // FuncType represents enums for Watcher interface.
