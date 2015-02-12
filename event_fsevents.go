@@ -9,10 +9,11 @@ const (
 	Move   = Event(FSEventsRenamed)
 	Error  = Event(0x100000)
 
-	// Internal events TOOD(rjeczalik): unexport
-	//
-	// Recursive is used to distinguish recursive eventsets from non-recursive ones.
+	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive = Event(0x200000)
+	// internal is used for watching for new directories within recursive subtrees
+	// by non-recrusive watchers
+	internal = Event(0x400000)
 )
 
 const (

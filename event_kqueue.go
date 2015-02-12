@@ -17,10 +17,11 @@ const (
 	Move
 	Error
 
-	// Internal events TOOD(rjeczalik): unexport
-	//
-	// Recursive is used to distinguish recursive eventsets from non-recursive ones.
+	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
+	// internal is used for watching for new directories within recursive subtrees
+	// by non-recrusive watchers
+	internal
 )
 
 const (

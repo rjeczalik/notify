@@ -24,7 +24,8 @@ var estr = map[Event]string{
 	//    got [notify.Delete notify.Delete|notify.Create] (i=1)
 	//
 	// Yup, here the diff have Recursive event inside. Go figure.
-	recursive: "internal.Recursive",
+	recursive: "recursive",
+	internal:  "internal",
 }
 
 // String implements fmt.Stringer interface.

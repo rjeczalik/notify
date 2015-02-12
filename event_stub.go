@@ -6,42 +6,29 @@ package notify
 import "errors"
 
 const (
-	Create = EvStubCreate
-	Delete = EvStubDelete
-	Write  = EvStubWrite
-	Move   = EvStubMove
-	Error  = EvStubError
+	Create Event = iota
+	Delete
+	Write
+	Move
+	Error
 
-	// Internal events TOOD(rjeczalik): unexport
-	//
-	// Recursive is used to distinguish recursive eventsets
-	// from non-recursive ones.
-	recursive = EvStubRecursive
-)
-
-// Events TODO
-const (
-	EvStubCreate    = Event(0x01)
-	EvStubDelete    = Event(0x02)
-	EvStubWrite     = Event(0x04)
-	EvStubMove      = Event(0x08)
-	EvStubError     = Event(0x10)
-	EvStubRecursive = Event(0x20)
-	EvStubAll       = Event(0x7f)
+	// recursive is used to distinguish recursive eventsets from non-recursive ones
+	recursive
+	// internal is used for watching for new directories within recursive subtrees
+	// by non-recrusive watchers
+	internal
 )
 
 var osestr = map[Event]string{}
 
 var ekind = map[Event]Event{}
 
-const notImplemented = "notify: not implemented"
-
 type event struct{}
 
 func (e *event) Event() Event     { return Error }
-func (e *event) Path() string     { return notImplemented }
+func (e *event) Path() string     { return "" }
 func (e *event) Sys() interface{} { return nil }
 
 func isdir(EventInfo) (bool, error) {
-	return false, errors.New(notImplemented)
+	return false, errors.New("notify: not implemented")
 }
