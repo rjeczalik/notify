@@ -191,10 +191,12 @@ func (i *inotify) loop(esch chan<- []*event) {
 			if err := syscall.Close(int(fd)); err != nil {
 				// Panic? error?
 				panic(err)
-			} else {
-				atomic.StoreInt32(&i.fd, invalidDescriptor)
 			}
-			i.epollclose()
+			atomic.StoreInt32(&i.fd, invalidDescriptor)
+			if err := i.epollclose(); err != nil {
+				// Panic? error?
+				panic(err)
+			}
 			close(esch)
 			return
 		}

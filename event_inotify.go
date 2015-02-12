@@ -77,8 +77,10 @@ func (e *event) Event() Event     { return e.event }
 func (e *event) Path() string     { return e.path }
 func (e *event) Sys() interface{} { return e.sys }
 
-// isdir TODO(ppknap): native implementation for inotify
 func isdir(ei EventInfo) (bool, error) {
+	if _, ok := ei.Sys().(syscall.InotifyEvent); ok {
+		return ei.Sys().(syscall.InotifyEvent).Mask&syscall.IN_ISDIR != 0, nil
+	}
 	fi, err := os.Stat(ei.Path())
 	if err != nil {
 		return false, err

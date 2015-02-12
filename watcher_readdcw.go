@@ -401,12 +401,12 @@ func (r *readdcw) send(es []*event) {
 		switch Event(e.action) {
 		case (FileActionAdded >> 12), (FileActionRemoved >> 12):
 			if e.filter&uint32(dirmarker) != 0 {
-				e.objtype = ObjectDirectory
+				e.ftype = fTypeDirectory
 			} else {
-				e.objtype = ObjectFile
+				e.ftype = fTypeFile
 			}
 		default:
-			e.objtype = ObjectUnknown
+			e.ftype = fTypeUnknown
 		}
 		r.c <- e
 	}

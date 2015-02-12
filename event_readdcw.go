@@ -69,27 +69,29 @@ var osestr = map[Event]string{
 var ekind = map[Event]Event{}
 
 const (
-	ObjectUnknown uint8 = iota
-	ObjectFile
-	ObjectDirectory
+	fTypeUnknown uint8 = iota
+	fTypeFile
+	fTypeDirectory
 )
 
 // TODO(ppknap) : doc.
 type event struct {
-	pathw   []uint16
-	name    string
-	objtype uint8
-	action  uint32
-	filter  uint32
-	e       Event
+	pathw  []uint16
+	name   string
+	ftype  uint8
+	action uint32
+	filter uint32
+	e      Event
 }
 
 func (e *event) Event() Event     { return e.e }
 func (e *event) Path() string     { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
-func (e *event) Sys() interface{} { return e.objtype }
+func (e *event) Sys() interface{} { return e.ftype }
 
-// isdir TODO(ppknap): native implementation for readdcw
 func isdir(ei EventInfo) (bool, error) {
+	if ftype, ok := ei.Sys().(uint8); ok && ftype != fTypeUnknown {
+		return ftype == fTypeDirectory, nil
+	}
 	fi, err := os.Stat(ei.Path())
 	if err != nil {
 		return false, err
