@@ -123,13 +123,18 @@ func tmptree(root, list string) (string, error) {
 	return root, nil
 }
 
-// caller TODO(rjeczalik)
-func caller() string {
-	_, file, line, ok := runtime.Caller(3)
+// callern TODO(rjeczalik)
+func callern(n int) string {
+	_, file, line, ok := runtime.Caller(n)
 	if !ok {
 		return "<unknown>"
 	}
 	return filepath.Base(file) + ":" + strconv.Itoa(line)
+}
+
+// caller TODO(rjeczalik)
+func caller() string {
+	return callern(3)
 }
 
 // WCase TODO(rjeczalik)

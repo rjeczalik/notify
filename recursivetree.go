@@ -107,8 +107,24 @@ func watchTotal(nd node) Event {
 // watchIsRecursive TODO(rjeczalik)
 func watchIsRecursive(nd node) bool {
 	ok := nd.Watch.IsRecursive()
+	// TODO(rjeczalik): add a test for len(wp) != 0 change the condition.
 	if wp := nd.Child[""].Watch; len(wp) != 0 {
 		ok = ok || wp.IsRecursive()
+		// If a watchpoint holds inactive watchpoints, it means it's a parent
+		// one, which is recursive by nature even though it may be not recursive
+		// itself. It currently does not work due to some watchpoints being
+		// registered twice - one for actual watchpoint and one for an inactive
+		// one.
+		//
+		//   ok = true
+		//
+		// TODO(rjeczalik): fix this hack:
+		for c, _ := range wp {
+			if _, b := nd.Watch[c]; !b {
+				ok = true
+				break
+			}
+		}
 	}
 	return ok
 }
@@ -299,13 +315,21 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 }
 
 // Stop TODO(rjeczalik)
+//
+// TODO(rjeczalik): Split parent watchpoint - transfer watches to children
+// if parent is no longer needed. This carries a risk that underlying
+// watcher calls could fail - reconsider if it's worth the effort.
 func (t *recursiveTree) Stop(c chan<- EventInfo) {
 	var err error
 	fn := func(nd node) (e error) {
 		diff := watchDel(nd, c, all)
 		switch {
-		case diff == none:
+		case diff == none && watchTotal(nd) == 0:
+			// TODO(rjeczalik): There's no watchpoints deeper in the tree,
+			// probably we should remove the nodes as well.
 			return nil
+		case diff == none:
+			// Removing c from nd does not require shrinking its eventset.
 		case diff[1] == 0:
 			if watchIsRecursive(nd) {
 				e = t.w.RecursiveUnwatch(nd.Name)

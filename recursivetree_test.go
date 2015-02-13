@@ -6,7 +6,7 @@ func TestRecursiveTree(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(4)
+	ch := NewChans(5)
 
 	watches := [...]RCase{
 		// i=0
@@ -262,7 +262,7 @@ func TestRecursiveTree(t *testing.T) {
 			Call: Call{
 				F: FuncWatch,
 				P: "src/github.com/pblaszczyk/qttu",
-				C: ch[0],
+				C: ch[4],
 				E: Write,
 			},
 			Record: []Call{
@@ -380,12 +380,23 @@ func TestRecursiveTree(t *testing.T) {
 				F: FuncStop,
 				C: ch[1],
 			},
+			Record: nil,
+		},
+		// TODO(rjeczalik): research if we can get rid of inactive watchpoints
+		// from "src/github.com/pblaszczyk/qttu/src" (debug tree structure).
+		// Those inactive watchpoints seem too excessive.
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[4],
+			},
 			Record: []Call{
 				{
-					F:  FuncRewatch,
-					P:  "src/github.com/rjeczalik/fs",
-					E:  Create | Delete | Move,
-					NE: Create | Move,
+					F:  FuncRecursiveRewatch,
+					P:  "src/github.com/pblaszczyk/qttu",
+					NP: "src/github.com/pblaszczyk/qttu",
+					E:  Create | Delete | Write,
+					NE: Create | Delete,
 				},
 			},
 		},
