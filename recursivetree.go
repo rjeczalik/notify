@@ -109,22 +109,10 @@ func watchIsRecursive(nd node) bool {
 	ok := nd.Watch.IsRecursive()
 	// TODO(rjeczalik): add a test for len(wp) != 0 change the condition.
 	if wp := nd.Child[""].Watch; len(wp) != 0 {
-		ok = ok || wp.IsRecursive()
 		// If a watchpoint holds inactive watchpoints, it means it's a parent
 		// one, which is recursive by nature even though it may be not recursive
-		// itself. It currently does not work due to some watchpoints being
-		// registered twice - one for actual watchpoint and one for an inactive
-		// one.
-		//
-		//   ok = true
-		//
-		// TODO(rjeczalik): fix this hack:
-		for c, _ := range wp {
-			if _, b := nd.Watch[c]; !b {
-				ok = true
-				break
-			}
-		}
+		// itself.
+		ok = true
 	}
 	return ok
 }
@@ -210,9 +198,11 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	//
 	// Look for parent watch which already covers the given path.
 	parent := node{}
-	err = t.root.WalkPath(path, func(nd node, _ bool) error {
+	self := false
+	err = t.root.WalkPath(path, func(nd node, isbase bool) error {
 		if watchTotal(nd) != 0 {
 			parent = nd
+			self = isbase
 			return skip
 		}
 		return nil
@@ -222,7 +212,13 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		// Parent watch found. Register inactive watchpoint, so we have enough
 		// information to shrink the eventset on eventual Stop.
 		// return t.resetwatchpoint(parent, parent, c, eventset|inactive)
-		switch diff := watchAddInactive(parent, c, eventset); {
+		var diff eventDiff
+		if self {
+			diff = watchAdd(cur, c, eventset)
+		} else {
+			diff = watchAddInactive(parent, c, eventset)
+		}
+		switch {
 		case diff == none:
 			// the parent watchpoint already covers requested subtree with its
 			// eventset
@@ -241,7 +237,9 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 			// TODO(rjeczalik): traverse tree instead; eventually track minimum
 			// subtree root per each chan
 		}
-		watchAdd(cur, c, eventset)
+		if !self {
+			watchAdd(cur, c, eventset)
+		}
 		return nil
 	}
 	// case 2: cur is new parent
