@@ -6,7 +6,10 @@
 
 package notify
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // TODO(pblaszczyk): ensure in runtime notify built-in event values do not
 // overlap with platform-defined ones.
@@ -67,11 +70,11 @@ var ekind = map[Event]Event{
 
 // event is a struct storing reported event's data.
 type event struct {
-	// p is a absolute path to file for which event is reported.
+	// p is an absolute path to file for which event is reported.
 	p string
 	// e specifies type of a reported event.
 	e Event
-	// kq specifies single event.
+	// kq specifies event's additional information.
 	kq KqEvent
 }
 
@@ -86,4 +89,10 @@ func (e *event) Sys() interface{} { return e.kq }
 
 func isdir(ei EventInfo) (bool, error) {
 	return ei.Sys().(KqEvent).FI.IsDir(), nil
+}
+
+// KqEvent represents a single event.
+type KqEvent struct {
+	Kq *syscall.Kevent_t // Kq is a kqueue specific structure.
+	FI os.FileInfo       // FI describes file/dir.
 }

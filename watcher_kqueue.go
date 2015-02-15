@@ -7,16 +7,13 @@
 package notify
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 )
 
-// TODO: Take into account currently monitored files with those read from dir.
-
-// newWatcher returns `kqueue` Watcher implementation.
+// newWatcher returns kqueue Watcher implementation.
 func newWatcher(c chan<- EventInfo) watcher {
 	k := &kqueue{
 		idLkp:  make(map[int]*watched, 0),
@@ -25,34 +22,30 @@ func newWatcher(c chan<- EventInfo) watcher {
 		s:      make(chan struct{}, 1),
 	}
 	if err := k.init(); err != nil {
-		// TODO: Does it really has to be this way?
 		panic(err)
 	}
 	go k.monitor()
 	return k
 }
 
-// KqEvent represents a single event.
-type KqEvent struct {
-	Kq *syscall.Kevent_t
-	FI os.FileInfo
-}
-
 // Close closes all still open file descriptors and kqueue.
 func (k *kqueue) Close() (err error) {
-	if _, err = syscall.Write(k.pipefds[1], []byte(` `)); err != nil {
+	// trigger event used to interrup Kevent call.
+	if _, err = syscall.Write(k.pipefds[1], []byte{0x00}); err != nil {
 		return
 	}
 	<-k.s
 	k.Lock()
 	var e error
 	for _, w := range k.idLkp {
-		if e = syscall.Close(w.fd); e != nil && err == nil {
+		if e = k.unwatch(w.p, w.fi); e != nil && err == nil {
+			dbg.Printf("kqueue: unwatch %q failed: %q", w.p, e)
 			err = e
 		}
 	}
-	if err = syscall.Close(k.fd); err != nil {
-		return
+	if e = syscall.Close(k.fd); e != nil && err == nil {
+		dbg.Printf("kqueue: closing kqueu fd failed: %q", e)
+		err = e
 	}
 	k.idLkp, k.pthLkp = nil, nil
 	k.Unlock()
@@ -66,7 +59,7 @@ func (k *kqueue) sendEvents(evn []event) {
 	}
 }
 
-// mask converts requested events to `kqueue` representation.
+// mask converts requested events to kqueue representation.
 func mask(e Event) (o uint32) {
 	o = uint32(e &^ Create)
 	for k, n := range ekind {
@@ -77,8 +70,8 @@ func mask(e Event) (o uint32) {
 	return
 }
 
-// unmask converts event received from `kqueue` to `notify.Event`
-// representation taking into account requested events (`w`).
+// unmask converts event received from kqueue to notify.Event
+// representation taking into account requested events (w).
 func unmask(o uint32, w Event) (e Event) {
 	for k, n := range ekind {
 		if o&uint32(k) != 0 {
@@ -94,7 +87,7 @@ func unmask(o uint32, w Event) (e Event) {
 	return
 }
 
-// del closes fd for `watched` and removes it from internal cache of monitored
+// del closes fd for watched and removes it from internal cache of monitored
 // files/directories.
 func (k *kqueue) del(w watched) {
 	syscall.Close(w.fd)
@@ -118,9 +111,9 @@ func (k *kqueue) monitor() {
 	for {
 		kevn[0] = syscall.Kevent_t{}
 		switch n, err = syscall.Kevent(k.fd, nil, kevn[:], nil); {
+		case err == syscall.EINTR:
 		case err != nil:
-			fmt.Fprintf(os.Stderr, "kqueue: failed to read events: %q\n", err)
-			continue
+			dbg.Printf("kqueue: failed to read events: %q\n", err)
 		case int(kevn[0].Ident) == k.pipefds[0]:
 			k.s <- struct{}{}
 			return
@@ -133,6 +126,7 @@ func (k *kqueue) monitor() {
 func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 	// If it's dir and delete we have to send it and continue, because
 	// other processing relies on opening (in this case not existing) dir.
+	// Events for contents of this dir are reported by kqueue.
 	if (Event(kevn.Fflags) & NoteDelete) != 0 {
 		// Write is reported also for Delete on directory. Because of that
 		// we have to filter it out explicitly.
@@ -147,6 +141,7 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 			switch err := k.singlewatch(p, w.eDir, false, fi); {
 			case os.IsNotExist(err) && ((w.eDir & Delete) != 0):
 				evn = append(evn, event{p, Delete, KqEvent{nil, fi}})
+			case err == errAlreadyWatched:
 			case err != nil:
 				dbg.Printf("kqueue: watching %q failed: %q", p, err)
 			case (w.eDir & Create) != 0:
@@ -155,12 +150,10 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 			return nil
 		}); {
 		// If file is already watched, kqueue will return remove event.
-		// If it's not yet monitored.. TODO: Reconsider.
 		case os.IsNotExist(err):
 			return
 		case err != nil:
-			// TODO: pass error via chan because state of monitoring is invalid.
-			panic(err)
+			dbg.Printf("kqueue: dir processing failed: %q", err)
 		default:
 		}
 	}
@@ -172,12 +165,13 @@ func (*kqueue) file(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 	return
 }
 
-// process event returned by `Kevent` call.
+// process event returned by Kevent call.
 func (k *kqueue) process(kevn syscall.Kevent_t) (evn []event) {
 	k.Lock()
 	w := k.idLkp[int(kevn.Ident)]
 	if w == nil {
-		fmt.Fprintf(os.Stderr, "kqueue: %v event for not registered fd", kevn)
+		k.Unlock()
+		dbg.Printf("kqueue: %v event for not registered fd", kevn)
 		return
 	}
 	e := unmask(kevn.Fflags, w.eDir|w.eNonDir)
@@ -265,7 +259,7 @@ func (k *kqueue) watch(p string, e Event, fi os.FileInfo) error {
 	return nil
 }
 
-// watch starts to watch given `p` file/directory.
+// watch starts to watch given p file/directory.
 func (k *kqueue) singlewatch(p string, e Event, direct bool,
 	fi os.FileInfo) error {
 	w, ok := k.pthLkp[p]
@@ -282,7 +276,8 @@ func (k *kqueue) singlewatch(p string, e Event, direct bool,
 		w.eNonDir |= e
 	}
 	var kevn [1]syscall.Kevent_t
-	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_ADD|syscall.EV_CLEAR)
+	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE,
+		syscall.EV_ADD|syscall.EV_CLEAR)
 	kevn[0].Fflags = mask(w.eDir | w.eNonDir)
 	if _, err := syscall.Kevent(k.fd, kevn[:], nil, nil); err != nil {
 		return err
@@ -294,7 +289,7 @@ func (k *kqueue) singlewatch(p string, e Event, direct bool,
 	return errAlreadyWatched
 }
 
-// unwatch stops watching `p` file/directory.
+// unwatch stops watching p file/directory.
 func (k *kqueue) singleunwatch(p string, direct bool) error {
 	w := k.pthLkp[p]
 	if w == nil {
@@ -321,7 +316,7 @@ func (k *kqueue) singleunwatch(p string, direct bool) error {
 	return nil
 }
 
-// walk runs `f` func on each file from `p` directory.
+// walk runs f func on each file/dir from p directory.
 func (k *kqueue) walk(p string, f func(os.FileInfo) error) error {
 	fp, err := os.Open(p)
 	if err != nil {
@@ -344,7 +339,11 @@ func (k *kqueue) unwatch(p string, fi os.FileInfo) error {
 	if fi.IsDir() {
 		err := k.walk(p, func(fi os.FileInfo) error {
 			if !fi.IsDir() {
-				return k.singleunwatch(filepath.Join(p, fi.Name()), false)
+				err := k.singleunwatch(filepath.Join(p, fi.Name()), false)
+				if err != errNotWatched {
+					return err
+				}
+				return nil
 			}
 			return nil
 		})
