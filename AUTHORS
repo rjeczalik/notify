@@ -1,11 +1,10 @@
-# List of losers who decided to waste their life on developing this package.
+# List of individuals who contributed to the Notify package.
 #
 # The up-to-date list of the authors one may obtain with:
 #
-#   ~ $ git shortlog -es | cut -f2
+#   ~ $ git shortlog -es | cut -f2 | rev | uniq -f1 | rev
 #
 
-Jacek Szwec     <szwec.jacek@gmail.com>
 Pawel Blaszczyk <blaszczykpb@gmail.com>
 Pawel Knap      <pawelknap88@gmail.com>
 Rafal Jeczalik  <rjeczalik@gmail.com>
