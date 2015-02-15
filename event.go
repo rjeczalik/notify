@@ -53,7 +53,7 @@ var estr = map[Event]string{
 
 // String implements fmt.Stringer interface.
 func (e *event) String() string {
-	return e.Event().String() + `, "` + e.Path() + `"`
+	return e.Event().String() + `: "` + e.Path() + `"`
 }
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to
