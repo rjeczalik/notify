@@ -80,7 +80,7 @@ type event struct {
 
 func (e *event) Event() Event     { return e.event }
 func (e *event) Path() string     { return e.path }
-func (e *event) Sys() interface{} { return e.sys }
+func (e *event) Sys() interface{} { return &e.sys }
 
 func isdir(ei EventInfo) (bool, error) {
 	if _, ok := ei.Sys().(syscall.InotifyEvent); ok {

@@ -67,6 +67,22 @@ func (e Event) String() string {
 // documentation for FSEventStreamEventFlags constants:
 //
 //    https://developer.apple.com/library/mac/documentation/Darwin/Reference/FSEvents_Ref/index.html#//apple_ref/doc/constant_group/FSEventStreamEventFlags
+//
+// When using on Linux (inotify), Sys() method returns a pointer to
+// syscall.InotifyEvent object which is defined as:
+//
+//   type InotifyEvent struct {
+//     Wd     int32    // Watch descriptor
+//     Mask   uint32   // Mask describing event
+//     Cookie uint32   // Unique cookie associating related events (for rename(2))
+//     Len    uint32   // Size of name field
+//     Name   [0]uint8 // Optional null-terminated name
+//   }
+//
+// More information about inotify masks and the usage of inotify_event structure
+// can be found at:
+//
+//    http://man7.org/linux/man-pages/man7/inotify.7.html
 type EventInfo interface {
 	Event() Event     // event value for the filesystem action
 	Path() string     // real path of the file or directory
