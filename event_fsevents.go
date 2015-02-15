@@ -6,14 +6,12 @@
 
 package notify
 
-// Platform independent event values.
 const (
-	Create = Event(FSEventsCreated)
-	Delete = Event(FSEventsRemoved)
-	Write  = Event(FSEventsModified)
-	Move   = Event(FSEventsRenamed)
-	_      = Event(0x100000) // reserved
-
+	osSpecificCreate = Event(FSEventsCreated)
+	osSpecificDelete = Event(FSEventsRemoved)
+	osSpecificWrite  = Event(FSEventsModified)
+	osSpecificMove   = Event(FSEventsRenamed)
+	// internal = Event(0x100000)
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive = Event(0x200000)
 	// internal is used for watching for new directories within recursive subtrees

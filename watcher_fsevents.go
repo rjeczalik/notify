@@ -20,11 +20,12 @@ const (
 		FSEventsModified | FSEventsInodeMetaMod)
 )
 
-// FSEvent represents single file event.
+// FSEvent represents single file event. It is created out of values passed by
+// FSEvents to FSEventStreamCallback function.
 type FSEvent struct {
-	Path  string
-	ID    uint64
-	Flags uint32
+	Path  string // real path of the file or directory
+	ID    uint64 // ID of the event (FSEventStreamEventId)
+	Flags uint32 // joint FSEvents* flags (FSEventStreamEventFlags)
 }
 
 // splitflags separates event flags from single set into slice of flags.

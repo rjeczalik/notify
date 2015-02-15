@@ -6,11 +6,27 @@ package notify
 
 import "strings"
 
-// Event TODO
+// Event represents the type of filesystem action.
+//
+// Number of available event values is dependent on the target system or the
+// watcher implmenetation used (e.g. it's possible to use either kqueue or
+// FSEvents on Darwin).
+//
+// Please consult documentation for your target platform to see list of all
+// available events.
 type Event uint32
 
-// All TODO
-const All = Create | Delete | Write | Move
+// Create, Delete, Write and Move are the only event values guaranteed to be
+// present on all platforms.
+const (
+	Create = osSpecificCreate
+	Delete = osSpecificDelete
+	Write  = osSpecificWrite
+	Move   = osSpecificMove
+
+	// All is handful alias for all platform-independent event values.
+	All = Create | Delete | Write | Move
+)
 
 // String implements fmt.Stringer interface.
 func (e Event) String() string {
@@ -25,10 +41,35 @@ func (e Event) String() string {
 	return strings.Join(s, "|")
 }
 
-// EventInfo TODO(rjeczalik)
+// EventInfo describes an event reported by the underlying filesystem notification
+// subsystem.
+//
+// It always describes single event, even if the OS reported a coalesced action.
+// Reported path is absolute and clean.
+//
+// For non-recursive watchpoints its base is always equal to the path passed
+// to corresponding Watch call.
+//
+// The value of Sys if system-dependent and can be nil.
+//
+// Sys
+//
+// Under Darwin (FSEvents) Sys() always returns a non-nil notify.(*FSEvent) value,
+// which is defined as:
+//
+//   type FSEvent struct {
+//     Path  string // real path of the file or directory
+//     ID    uint64 // ID of the event (FSEventStreamEventId)
+//     Flags uint32 // joint FSEvents* flags (FSEventStreamEventFlags)
+//   }
+//
+// For possible values of Flags see Darwin godoc for notify or FSEvents
+// documentation for FSEventStreamEventFlags constants:
+//
+//    https://developer.apple.com/library/mac/documentation/Darwin/Reference/FSEvents_Ref/index.html#//apple_ref/doc/constant_group/FSEventStreamEventFlags
 type EventInfo interface {
-	Event() Event     // single event of the file
-	Path() string     // real path of the file
+	Event() Event     // event value for the filesystem action
+	Path() string     // real path of the file or directory
 	Sys() interface{} // underlying data source (can return nil)
 }
 
@@ -37,7 +78,7 @@ var estr = map[Event]string{
 	Delete: "notify.Delete",
 	Write:  "notify.Write",
 	Move:   "notify.Move",
-	// Display name for Recursive internal event is added only for debugging
+	// Display name for recursive event is added only for debugging
 	// purposes. It's an internal event after all and won't be exposed to the
 	// user. Having Recursive event printable is helpful, e.g. for reading
 	// testing failure messages:
@@ -48,7 +89,6 @@ var estr = map[Event]string{
 	//
 	// Yup, here the diff have Recursive event inside. Go figure.
 	recursive: "recursive",
-	internal:  "internal",
 }
 
 // String implements fmt.Stringer interface.

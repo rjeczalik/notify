@@ -2,6 +2,12 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
+// BUG Currently notify does not automagically set a watch for newly created
+// directory within recursively watched path for inotify and kqueue. (#5)
+
+// BUG Currently notify does not gracefully handle rewatching directories,
+// that were deleted but their watchpoints were not cleaned by the user. (#69)
+
 package notify
 
 import "sync"
@@ -34,18 +40,47 @@ func tree() notifier {
 	return g
 }
 
-// Watch TODO
-func Watch(name string, c chan<- EventInfo, events ...Event) (err error) {
+// Watch sets up a watchpoint on path listening for events given by the events
+// argument.
+//
+// File or directory given by the path must exist, otherwise Watch will fail
+// with non-nil error. Notify resolves, for its internal purpose, any symlinks
+// the provided path may contain, so it may fail if the symlinks form a cycle.
+// It does so, since not all watcher implementations treat passed paths as-is.
+// E.g. FSEvents reports realpath for every event, setting a watchpoint
+// on /tmp will report events with paths rooted at /private/tmp etc.
+//
+// It is allowed to pass the same channel multiple times with different event
+// list or different paths. Calling Watch with different event lists for a single
+// watchpoint expands its event set. The only way to shrink it is to call
+// Stop on its channel.
+//
+// Calling Watch with empty event list does expand nor shrink watchpoint's event
+// set. If c is the first channel to listen for events on the given path, Watch
+// will seamlessly create a watch on the filesystem.
+//
+// Notify dispatches copies of single filesystem event to all channels registered
+// for each path. If a single filesystem event contains multiple coalesced events,
+// each of them is dispatched separately. E.g. the following filesystem change:
+//
+//   ~ $ echo Hello > Notify.txt
+//
+// dispatches two events - notify.Create and notify.Write. However it may depend
+// on the underlying watcher implementation whether OS reports both of them.
+func Watch(path string, c chan<- EventInfo, events ...Event) error {
 	m.Lock()
-	err = tree().Watch(name, c, events...)
+	err := tree().Watch(path, c, events...)
 	m.Unlock()
-	return
+	return err
 }
 
-// Stop TODO
+// Stop removes all watchpoints registered for c. All underlying watches are
+// also removed, for which c was the last channel listening for events.
+//
+// Stop does not close c. When Stop returns, it is guranteed that c will
+// receive no more signals.
 func Stop(c chan<- EventInfo) {
 	m.Lock()
 	tree().Stop(c)
 	m.Unlock()
-	return
 }

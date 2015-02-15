@@ -690,8 +690,6 @@ func (t *bigTree) RecursiveRewatch(oldp, newp string, olde, newe Event) error {
 			}
 			nd, err := t.TryLookPath(oldp)
 			if err != nil {
-				// BUG(rjeczalik): Relocation requested for a path, which does
-				// not exist.
 				panic(err) // DEBUG
 			}
 			err = t.Walk(nd, fn)

@@ -11,12 +11,11 @@ import "errors"
 
 // Platform independent event values.
 const (
-	Create Event = iota
-	Delete
-	Write
-	Move
-	_ // reserved
-
+	osSpecificCreate Event = iota
+	osSpecificDelete
+	osSpecificWrite
+	osSpecificMove
+	// internal
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
 	// internal is used for watching for new directories within recursive subtrees
