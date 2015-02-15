@@ -1,25 +1,35 @@
 language: go
 
 go:
-- 1.4.1
+ - 1.4.1
+
+os:
+ - linux
+ - osx
 
 matrix:
-  fast_finish: true
+  include:
+   - os: osx
+     env:
+      - GOFLAGS="-tags kqueue"
 
 env:
   global:
-    secure: JfdLa3hcnvIwT13kbH2fr4c+4V9H4yO4GZsqDckODmxILlEtKcCLM5eCi09D21uTuaMUfZDIFNPN4mpDhbeEoM6Aoro4Ht+mX0vlpFUOS5bRqhP0l59PKEXqKFfh2IIlqEOmQ9XU6XvqWezTirN1OFUPMIMO9qSM/HuKhbX5wJQ=
+   - secure: JfdLa3hcnvIwT13kbH2fr4c+4V9H4yO4GZsqDckODmxILlEtKcCLM5eCi09D21uTuaMUfZDIFNPN4mpDhbeEoM6Aoro4Ht+mX0vlpFUOS5bRqhP0l59PKEXqKFfh2IIlqEOmQ9XU6XvqWezTirN1OFUPMIMO9qSM/HuKhbX5wJQ=
+   - GOBIN=$HOME/bin
+   - PATH=$HOME/bin:$PATH
+   - NOTIFY_DEBUG=1
 
 install:
-- export GOBIN=$HOME/bin PATH=$HOME/bin:$PATH NOTIFY_DEBUG=XD
-- go get golang.org/x/tools/cmd/vet golang.org/x/tools/cmd/cover github.com/mattn/goveralls github.com/modocache/gover
-- go get -t -v ./...
-- go install -a -race std
+ - if [ "$TRAVIS_OS_NAME" = "osx" ]; then eval "$(gimme 1.4.1)"; export GOBIN=$HOME/bin; fi
+ - go get golang.org/x/tools/cmd/vet
+ - if [ "$TRAVIS_OS_NAME" = "linux" ]; then go get golang.org/x/tools/cmd/cover github.com/mattn/goveralls github.com/modocache/gover; fi
+ - go get -t -v ./...
 
 script:
-- go tool vet -all .
-- go build ./...
-- go test -v -p 1 ./...
-- go list -f '{{if len .TestGoFiles}}go test -coverprofile={{.Dir}}/.coverprofile {{.ImportPath}}{{end}}' ./... | xargs -i sh -c {}
-- gover
-- goveralls -coverprofile=gover.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN
+ - go tool vet -all .
+ - go install $GOFLAGS ./...
+ - go test -v -p 1 $GOFLAGS ./...
+ - if [ "$TRAVIS_OS_NAME" = "linux" ]; then go list -f '{{if len .TestGoFiles}}go test -coverprofile={{.Dir}}/.coverprofile {{.ImportPath}}{{end}}' ./... | xargs -i sh -c {}; fi
+ - if [ "$TRAVIS_OS_NAME" = "linux" ]; then gover; fi
+ - if [ "$TRAVIS_OS_NAME" = "linux" ]; then goveralls -coverprofile=gover.coverprofile -service=travis-ci -repotoken $COVERALLS_TOKEN; fi
