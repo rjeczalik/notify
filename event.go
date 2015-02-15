@@ -13,7 +13,6 @@ var estr = map[Event]string{
 	Delete: "notify.Delete",
 	Write:  "notify.Write",
 	Move:   "notify.Move",
-	Error:  "notiffy.Error",
 	// Display name for Recursive internal event is added only for debugging
 	// purposes. It's an internal event after all and won't be exposed to the
 	// user. Having Recursive event printable is helpful, e.g. for reading

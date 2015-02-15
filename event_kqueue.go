@@ -10,12 +10,13 @@ import (
 // TODO(pblaszczyk): ensure in runtime notify built-in event values do not
 // overlap with platform-defined ones.
 
+// Platform independent event values.
 const (
 	Create Event = 0x0100 << iota
 	Delete
 	Write
 	Move
-	Error
+	_ // reserved
 
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive

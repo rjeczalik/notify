@@ -7,12 +7,13 @@ import (
 	"syscall"
 )
 
+// Platform independent event values.
 const (
 	Create Event = 0x100000 << iota
 	Delete
 	Write
 	Move
-	Error
+	_ // reserved
 
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
@@ -21,7 +22,7 @@ const (
 	internal
 )
 
-// Inotify events.
+// Inotify specific event values.
 const (
 	InAccess       = Event(syscall.IN_ACCESS)
 	InModify       = Event(syscall.IN_MODIFY)

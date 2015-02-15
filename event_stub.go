@@ -5,12 +5,13 @@ package notify
 
 import "errors"
 
+// Platform independent event values.
 const (
 	Create Event = iota
 	Delete
 	Write
 	Move
-	Error
+	_ // reserved
 
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive

@@ -2,12 +2,13 @@
 
 package notify
 
+// Platform independent event values.
 const (
 	Create = Event(FSEventsCreated)
 	Delete = Event(FSEventsRemoved)
 	Write  = Event(FSEventsModified)
 	Move   = Event(FSEventsRenamed)
-	Error  = Event(0x100000)
+	_      = Event(0x100000) // reserved
 
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive = Event(0x200000)
@@ -16,6 +17,7 @@ const (
 	internal = Event(0x400000)
 )
 
+// FSEvents specific event values.
 const (
 	FSEventsMustScanSubDirs Event = 0x00001
 	FSEventsUserDropped           = 0x00002

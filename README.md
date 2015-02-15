@@ -40,36 +40,6 @@ func main() {
 }
 ```
 
-Event error handling.
-
-```go
-package main
-
-import (
-	"log"
-
-	"github.com/rjeczalik/notify"
-)
-
-func main() {
-	c := make(chan notify.EventInfo, 1)
-
-	if err := notify.Watch(".", c, notify.Create); err != nil {
-		log.Fatal(err)
-	}
-	defer notify.Stop(c)
-
-	for ei := range c {
-		switch ei.Event() {
-		case notify.Error:
-			log.Fatal(ei.Sys().(error))
-		default:
-			log.Println(ei)
-		}
-	}
-}
-```
-
 Watching multiple events on a single chan.
 
 ```go
