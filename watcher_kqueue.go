@@ -144,11 +144,12 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 	if (Event(kevn.Fflags) & NoteWrite) != 0 {
 		switch err := k.walk(w.p, func(fi os.FileInfo) error {
 			p := filepath.Join(w.p, fi.Name())
-			if err := k.singlewatch(p, w.eDir, false, fi); err != nil {
-				if err != errAlreadyWatched && !os.IsNotExist(err) {
-					evn = append(evn, event{p, Error, KqEvent{nil, fi}})
-				}
-			} else if (w.eDir & Create) != 0 {
+			switch err := k.singlewatch(p, w.eDir, false, fi); {
+			case os.IsNotExist(err) && ((w.eDir & Delete) != 0):
+				evn = append(evn, event{p, Delete, KqEvent{nil, fi}})
+			case err != nil:
+				dbg.Printf("kqueue: watching %q failed: %q", p, err)
+			case (w.eDir & Create) != 0:
 				evn = append(evn, event{p, Create, KqEvent{nil, fi}})
 			}
 			return nil
