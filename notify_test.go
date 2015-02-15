@@ -16,7 +16,7 @@ func TestNotifyExample(t *testing.T) {
 	n.Watch("src/github.com/rjeczalik/fs", ch[0], Write)
 	n.Watch("src/github.com/pblaszczyk/qttu/...", ch[1], Create) // BUG(rjeczalik): fix tree
 	n.Watch("src/github.com/pblaszczyk/qttu", ch[0], Write)
-	n.Watch("src/github.com/rjeczalik/fs/cmd/...", ch[2], Delete)
+	n.Watch("src/github.com/rjeczalik/fs/cmd/...", ch[2], Remove)
 
 	cases := []NCase{
 		{

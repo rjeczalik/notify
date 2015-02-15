@@ -21,9 +21,9 @@ func s(s string) string {
 func TestEventString(t *testing.T) {
 	cases := map[Event]string{
 		Create:                  "notify.Create",
-		Create | Delete:         "notify.Create|notify.Delete",
-		Create | Delete | Write: "notify.Create|notify.Delete|notify.Write",
-		Create | Write | Move:   "notify.Create|notify.Move|notify.Write",
+		Create | Remove:         "notify.Create|notify.Remove",
+		Create | Remove | Write: "notify.Create|notify.Remove|notify.Write",
+		Create | Write | Rename:   "notify.Create|notify.Rename|notify.Write",
 	}
 	for e, str := range cases {
 		if s := s(e.String()); s != str {

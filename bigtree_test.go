@@ -114,20 +114,20 @@ func TestTreeWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[0],
 			P: "/github.com/rjeczalik/fakerpc",
-			E: Create | Delete | Move,
+			E: Create | Remove | Rename,
 		},
 		Record: Record{
 			TreeAll: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc",
-				E: Delete | Create | Move,
+				E: Remove | Create | Rename,
 			}}},
 	}, { // i=1
 		Call: Call{
 			F: FuncWatch,
 			C: ch[1],
 			P: "/github.com/rjeczalik/fakerpc",
-			E: Delete | Move,
+			E: Remove | Rename,
 		},
 		Record: nil,
 	}, { // i=2
@@ -135,7 +135,7 @@ func TestTreeWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[2],
 			P: "/github.com/rjeczalik/fakerpc",
-			E: Move,
+			E: Rename,
 		},
 		Record: nil,
 	}, { // i=3
@@ -143,13 +143,13 @@ func TestTreeWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[0],
 			P: "/github.com/rjeczalik/fs",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: Record{
 			TreeAll: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fs",
-				E: Create | Delete,
+				E: Create | Remove,
 			}}},
 	}, { // i=4
 		Call: Call{
@@ -168,8 +168,8 @@ func TestTreeWatch(t *testing.T) {
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Move,
-				NE: Delete | Move,
+				E:  Create | Remove | Rename,
+				NE: Remove | Rename,
 			}, {
 				F: FuncUnwatch,
 				P: "/github.com/rjeczalik/fs",
@@ -194,33 +194,33 @@ func TestTreeWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[1],
 			P: "/github.com/rjeczalik/which",
-			E: Delete,
+			E: Remove,
 		},
 		Record: Record{
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which",
 				E:  Create,
-				NE: Create | Delete,
+				NE: Create | Remove,
 			}},
 		},
 	}}
 	events := [...]EventCase{{
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/.fakerpc.go.swp",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[1]},
 	}, {
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/.travis.yml",
-			E: Move,
+			E: Rename,
 		},
 		Receiver: Chans{ch[1], ch[2]},
 	}, {
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/which",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[1]},
 	}}
@@ -238,15 +238,15 @@ func TestTreeStop(t *testing.T) {
 	ch := NewChans(3)
 	// Watchpoints:
 	//
-	// x ch[0] -> {"/github.com/rjeczalik",         Create|Delete}
-	// x ch[1] -> {"/github.com/rjeczalik",         Create|Delete|Move}
-	// x ch[2] -> {"/github.com/rjeczalik",         Move|Write}
-	// x ch[0] -> {"/github.com/rjeczalik/which",   Write|Move}
-	// x ch[1] -> {"/github.com/rjeczalik/which",   Create|Delete}
-	// x ch[2] -> {"/github.com/rjeczalik/which",   Delete|Move}
+	// x ch[0] -> {"/github.com/rjeczalik",         Create|Remove}
+	// x ch[1] -> {"/github.com/rjeczalik",         Create|Remove|Rename}
+	// x ch[2] -> {"/github.com/rjeczalik",         Rename|Write}
+	// x ch[0] -> {"/github.com/rjeczalik/which",   Write|Rename}
+	// x ch[1] -> {"/github.com/rjeczalik/which",   Create|Remove}
+	// x ch[2] -> {"/github.com/rjeczalik/which",   Remove|Rename}
 	// x ch[0] -> {"/github.com/rjeczalik/fs/fs.go, Write}
-	// x ch[1] -> {"/github.com/rjeczalik/fs/fs.go, Move|Delete}
-	// x ch[2] -> {"/github.com/rjeczalik/fs/fs.go, Create|Delete}
+	// x ch[1] -> {"/github.com/rjeczalik/fs/fs.go, Rename|Remove}
+	// x ch[2] -> {"/github.com/rjeczalik/fs/fs.go, Create|Remove}
 	//
 	setup := [...]CallCase{{
 		// i=0
@@ -254,13 +254,13 @@ func TestTreeStop(t *testing.T) {
 			F: FuncWatch,
 			C: ch[0],
 			P: "/github.com/rjeczalik",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: Record{
 			TreeAll: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik",
-				E: Create | Delete,
+				E: Create | Remove,
 			}},
 		},
 	}, {
@@ -268,14 +268,14 @@ func TestTreeStop(t *testing.T) {
 		Call: Call{
 			F: FuncWatch,
 			C: ch[1],
-			P: "/github.com/rjeczalik", E: Create | Delete | Move,
+			P: "/github.com/rjeczalik", E: Create | Remove | Rename,
 		},
 		Record: Record{
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik",
-				E:  Create | Delete,
-				NE: Create | Delete | Move,
+				E:  Create | Remove,
+				NE: Create | Remove | Rename,
 			}},
 		},
 	}, {
@@ -283,14 +283,14 @@ func TestTreeStop(t *testing.T) {
 		Call: Call{
 			F: FuncWatch,
 			C: ch[2],
-			P: "/github.com/rjeczalik", E: Move | Write,
+			P: "/github.com/rjeczalik", E: Rename | Write,
 		},
 		Record: Record{
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik",
-				E:  Create | Delete | Move,
-				NE: Create | Delete | Move | Write,
+				E:  Create | Remove | Rename,
+				NE: Create | Remove | Rename | Write,
 			}},
 		},
 	}, {
@@ -299,13 +299,13 @@ func TestTreeStop(t *testing.T) {
 			F: FuncWatch,
 			C: ch[0],
 			P: "/github.com/rjeczalik/which",
-			E: Write | Move,
+			E: Write | Rename,
 		},
 		Record: Record{
 			TreeAll: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/which",
-				E: Write | Move,
+				E: Write | Rename,
 			}},
 		},
 	}, {
@@ -314,14 +314,14 @@ func TestTreeStop(t *testing.T) {
 			F: FuncWatch,
 			C: ch[1],
 			P: "/github.com/rjeczalik/which",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: Record{
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which",
-				E:  Write | Move,
-				NE: Write | Move | Create | Delete,
+				E:  Write | Rename,
+				NE: Write | Rename | Create | Remove,
 			}},
 		},
 	}, {
@@ -330,7 +330,7 @@ func TestTreeStop(t *testing.T) {
 			F: FuncWatch,
 			C: ch[2],
 			P: "/github.com/rjeczalik/which",
-			E: Delete | Move,
+			E: Remove | Rename,
 		},
 		Record: nil,
 	}, {
@@ -354,14 +354,14 @@ func TestTreeStop(t *testing.T) {
 			F: FuncWatch,
 			C: ch[1],
 			P: "/github.com/rjeczalik/fs/fs.go",
-			E: Move | Delete,
+			E: Rename | Remove,
 		},
 		Record: Record{
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fs/fs.go",
 				E:  Write,
-				NE: Write | Move | Delete,
+				NE: Write | Rename | Remove,
 			}},
 		},
 	}, {
@@ -370,14 +370,14 @@ func TestTreeStop(t *testing.T) {
 			F: FuncWatch,
 			C: ch[2],
 			P: "/github.com/rjeczalik/fs/fs.go",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: Record{
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fs/fs.go",
-				E:  Write | Move | Delete,
-				NE: Write | Move | Delete | Create,
+				E:  Write | Rename | Remove,
+				NE: Write | Rename | Remove | Create,
 			}},
 		},
 	}}
@@ -392,14 +392,14 @@ func TestTreeStop(t *testing.T) {
 		// i=1
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fs/fs.go",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[1], ch[2]},
 	}, {
 		// i=2
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fs/fs.go",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[1], ch[2]},
 	}, {
@@ -433,13 +433,13 @@ func TestTreeStop(t *testing.T) {
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fs/fs.go",
-				E:  Create | Delete | Move | Write,
-				NE: Create | Delete | Move,
+				E:  Create | Remove | Rename | Write,
+				NE: Create | Remove | Rename,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which",
-				E:  Create | Delete | Write | Move,
-				NE: Create | Delete | Move,
+				E:  Create | Remove | Write | Rename,
+				NE: Create | Remove | Rename,
 			}},
 		},
 	}, {
@@ -451,18 +451,18 @@ func TestTreeStop(t *testing.T) {
 			TreeAll: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik",
-				E:  Create | Delete | Write | Move,
-				NE: Move | Write,
+				E:  Create | Remove | Write | Rename,
+				NE: Rename | Write,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fs/fs.go",
-				E:  Create | Delete | Move,
-				NE: Create | Delete,
+				E:  Create | Remove | Rename,
+				NE: Create | Remove,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which",
-				E:  Create | Delete | Move,
-				NE: Delete | Move,
+				E:  Create | Remove | Rename,
+				NE: Remove | Rename,
 			}},
 		},
 	}, {
@@ -498,13 +498,13 @@ func TestTreeStopRecursive(t *testing.T) {
 	ch := NewChans(7)
 	// Watchpoints:
 	//
-	//   ch[0] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
+	//   ch[0] -> {"/github.com/rjeczalik/fakerpc/...", Create|Remove}
 	// x ch[1] -> {"/github.com/rjeczalik/fakerpc/...", Create}
-	// x ch[2] -> {"/github.com/rjeczalik/fakerpc/...", Create|Delete}
-	// x ch[3] -> {"/github.com/rjeczalik/fakerpc", Create|Delete|Write}
-	// x ch[4] -> {"/github.com/rjeczalik/fakerpc/cli", Delete|Move}
-	//   ch[5] -> {"/github.com/rjeczalik/fakerpc/cmd/...", Create|Delete}
-	//   ch[6] -> {"/github.com/rjeczalik/fakerpc/cmd/fakerpc/...", Move|Delete}
+	// x ch[2] -> {"/github.com/rjeczalik/fakerpc/...", Create|Remove}
+	// x ch[3] -> {"/github.com/rjeczalik/fakerpc", Create|Remove|Write}
+	// x ch[4] -> {"/github.com/rjeczalik/fakerpc/cli", Remove|Rename}
+	//   ch[5] -> {"/github.com/rjeczalik/fakerpc/cmd/...", Create|Remove}
+	//   ch[6] -> {"/github.com/rjeczalik/fakerpc/cmd/fakerpc/...", Rename|Remove}
 	//
 	setup := [...]CallCase{{
 		// i=0
@@ -512,30 +512,30 @@ func TestTreeStopRecursive(t *testing.T) {
 			F: FuncWatch,
 			C: ch[0],
 			P: "/github.com/rjeczalik/fakerpc/...",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc",
-				E: Create | Delete,
+				E: Create | Remove,
 			}, {
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc/cli",
-				E: Create | Delete,
+				E: Create | Remove,
 			}, {
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc/cmd",
-				E: Create | Delete,
+				E: Create | Remove,
 			}, {
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
-				E: Create | Delete,
+				E: Create | Remove,
 			}},
 			TreeNativeRecursive: {{
 				F: FuncRecursiveWatch,
 				P: "/github.com/rjeczalik/fakerpc",
-				E: Create | Delete,
+				E: Create | Remove,
 			}},
 		},
 	}, {
@@ -553,7 +553,7 @@ func TestTreeStopRecursive(t *testing.T) {
 			F: FuncWatch,
 			C: ch[2],
 			P: "/github.com/rjeczalik/fakerpc/...",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: nil,
 	}, {
@@ -562,21 +562,21 @@ func TestTreeStopRecursive(t *testing.T) {
 			F: FuncWatch,
 			C: ch[3],
 			P: "/github.com/rjeczalik/fakerpc",
-			E: Create | Delete | Write,
+			E: Create | Remove | Write,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}},
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}},
 		},
 	}, {
@@ -585,21 +585,21 @@ func TestTreeStopRecursive(t *testing.T) {
 			F: FuncWatch,
 			C: ch[4],
 			P: "/github.com/rjeczalik/fakerpc/cli",
-			E: Delete | Move,
+			E: Remove | Rename,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cli",
-				E:  Create | Delete,
-				NE: Create | Delete | Move,
+				E:  Create | Remove,
+				NE: Create | Remove | Rename,
 			}},
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Write,
-				NE: Create | Delete | Write | Move,
+				E:  Create | Remove | Write,
+				NE: Create | Remove | Write | Rename,
 			}},
 		},
 	}, {
@@ -608,7 +608,7 @@ func TestTreeStopRecursive(t *testing.T) {
 			F: FuncWatch,
 			C: ch[5],
 			P: "/github.com/rjeczalik/fakerpc/cmd/...",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: nil,
 	}, {
@@ -617,14 +617,14 @@ func TestTreeStopRecursive(t *testing.T) {
 			F: FuncWatch,
 			C: ch[6],
 			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/...",
-			E: Move | Delete,
+			E: Rename | Remove,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
-				E:  Create | Delete,
-				NE: Create | Delete | Move,
+				E:  Create | Remove,
+				NE: Create | Remove | Rename,
 			}},
 			TreeNativeRecursive: nil,
 		},
@@ -640,7 +640,7 @@ func TestTreeStopRecursive(t *testing.T) {
 		// i=1
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[0], ch[2], ch[5], ch[6]},
 	}, {
@@ -654,21 +654,21 @@ func TestTreeStopRecursive(t *testing.T) {
 		// i=3
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/fakerpc.go",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[0], ch[2], ch[3]},
 	}, {
 		// i=4
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/cli/cli_test.go",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[0], ch[2], ch[4]},
 	}, {
 		// i=5
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/cli/cli_test.go",
-			E: Move,
+			E: Rename,
 		},
 		Receiver: Chans{ch[4]},
 	}, {
@@ -777,8 +777,8 @@ func TestTreeStopRecursive(t *testing.T) {
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cli",
-				E:  Create | Delete | Move,
-				NE: Create | Delete,
+				E:  Create | Remove | Rename,
+				NE: Create | Remove,
 			}},
 			TreeNativeRecursive: nil,
 		},
@@ -799,15 +799,15 @@ func TestTreeStopRecursive(t *testing.T) {
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Write,
-				NE: Create | Delete,
+				E:  Create | Remove | Write,
+				NE: Create | Remove,
 			}},
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Write,
-				NE: Create | Delete,
+				E:  Create | Remove | Write,
+				NE: Create | Remove,
 			}},
 		},
 	}}
@@ -840,30 +840,30 @@ func TestTreeRecursiveWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[0],
 			P: "/github.com/rjeczalik/fakerpc/...",
-			E: Create | Delete,
+			E: Create | Remove,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc",
-				E: Create | Delete,
+				E: Create | Remove,
 			}, {
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc/cli",
-				E: Create | Delete,
+				E: Create | Remove,
 			}, {
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc/cmd",
-				E: Create | Delete,
+				E: Create | Remove,
 			}, {
 				F: FuncWatch,
 				P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
-				E: Create | Delete,
+				E: Create | Remove,
 			}},
 			TreeNativeRecursive: {{
 				F: FuncRecursiveWatch,
 				P: "/github.com/rjeczalik/fakerpc",
-				E: Create | Delete,
+				E: Create | Remove,
 			}},
 		},
 	}, { // i=1 create new watchpoint
@@ -924,30 +924,30 @@ func TestTreeRecursiveWatch(t *testing.T) {
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cli",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cmd",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}},
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete,
-				NE: Create | Delete | Write,
+				E:  Create | Remove,
+				NE: Create | Remove | Write,
 			}},
 		},
 	}, { // i=4 rewatch oldp!=newp subtree
@@ -955,26 +955,26 @@ func TestTreeRecursiveWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[4],
 			P: "/github.com/rjeczalik/fakerpc/cmd/...",
-			E: Delete | Move,
+			E: Remove | Rename,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cmd",
-				E:  Create | Delete | Write,
-				NE: Create | Write | Move | Delete,
+				E:  Create | Remove | Write,
+				NE: Create | Write | Rename | Remove,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/fakerpc/cmd/fakerpc",
-				E:  Create | Delete | Write,
-				NE: Create | Write | Move | Delete,
+				E:  Create | Remove | Write,
+				NE: Create | Write | Rename | Remove,
 			}},
 			TreeNativeRecursive: {{
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik/fakerpc",
-				E:  Create | Delete | Write,
-				NE: Create | Write | Move | Delete,
+				E:  Create | Remove | Write,
+				NE: Create | Write | Rename | Remove,
 			}},
 		},
 	}, { // i=5 merge two subtree watchpoints into one subtree watchpoint
@@ -1057,7 +1057,7 @@ func TestTreeRecursiveWatch(t *testing.T) {
 				F:  FuncRecursiveRewatch,
 				P:  "/github.com/rjeczalik/fakerpc",
 				NP: "/github.com/rjeczalik",
-				NE: Create | Delete | Move | Write,
+				NE: Create | Remove | Rename | Write,
 			}},
 		},
 	}, { // i=6 plant new recursive watchpoint in already watched subtree
@@ -1065,24 +1065,24 @@ func TestTreeRecursiveWatch(t *testing.T) {
 			F: FuncWatch,
 			C: ch[5],
 			P: "/github.com/rjeczalik/which/cmd/...",
-			E: Delete | Write,
+			E: Remove | Write,
 		},
 		Record: Record{
 			TreeFakeRecursive: {{
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which/cmd",
 				E:  Create,
-				NE: Create | Delete | Write,
+				NE: Create | Remove | Write,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which/cmd/gofile",
 				E:  Create,
-				NE: Create | Delete | Write,
+				NE: Create | Remove | Write,
 			}, {
 				F:  FuncRewatch,
 				P:  "/github.com/rjeczalik/which/cmd/gowhich",
 				E:  Create,
-				NE: Create | Delete | Write,
+				NE: Create | Remove | Write,
 			}},
 			TreeNativeRecursive: nil,
 		},
@@ -1097,7 +1097,7 @@ func TestTreeRecursiveWatch(t *testing.T) {
 	}, { // i=1
 		Event: TreeEvent{
 			P: "/github.com/rjeczalik/fakerpc/cmd/fakerpc/.main.go.swp",
-			E: Delete,
+			E: Remove,
 		},
 		Receiver: Chans{ch[0], ch[4]},
 	}, { // i=2

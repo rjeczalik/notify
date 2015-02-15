@@ -19,7 +19,7 @@ func ExampleWatch() {
 
 	// Set up a watchpoint listening on events within current working directory.
 	// Relay each create and delete events separately to c.
-	if err := notify.Watch(".", c, notify.Create, notify.Delete); err != nil {
+	if err := notify.Watch(".", c, notify.Create, notify.Remove); err != nil {
 		log.Fatal(err)
 	}
 
@@ -35,7 +35,7 @@ func ExampleWatch_recursively() {
 
 	// Set up a watchpoint listening on events within a directory tree rooted
 	// at current working directory. Relay delete events to c.
-	if err := notify.Watch("./...", c, notify.Delete); err != nil {
+	if err := notify.Watch("./...", c, notify.Remove); err != nil {
 		log.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func ExampleStop() {
 		log.Println("The git repository was locked")
 	}
 
-	if waitfor("index.lock", notify.Delete, 5*time.Second) {
+	if waitfor("index.lock", notify.Remove, 5*time.Second) {
 		log.Println("The git repository was unlocked")
 	}
 }

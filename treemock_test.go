@@ -134,7 +134,7 @@ func NewTreeFixture() (tf TreeFixture) {
 	tf = make(map[TreeType]*MockedTree)
 	for _, typ := range TreeTypes {
 		// TODO(rjeczalik): Copy FS to allow for modying tree via Create and
-		// Delete events.
+		// Remove events.
 		c := make(chan EventInfo, 128)
 		mt := &MockedTree{C: c}
 		tf[typ] = mt

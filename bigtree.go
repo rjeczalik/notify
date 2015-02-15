@@ -22,7 +22,7 @@ import (
 // watchers and second for fake ones.
 // TODO(rjeczalik): Locking.
 // TODO(rjeczalik): Concurrent tree-dispatch.
-// TODO(rjeczalik): Move to separate package notify/tree.
+// TODO(rjeczalik): Rename to separate package notify/tree.
 
 // pathError TODO
 type pathError struct {

@@ -282,14 +282,14 @@ func encode(e Event) uint32 {
 	if e&Create != 0 {
 		e = (e ^ Create) | InCreate | InMovedTo
 	}
-	if e&Delete != 0 {
-		e = (e ^ Delete) | InDelete | InDeleteSelf
+	if e&Remove != 0 {
+		e = (e ^ Remove) | InDelete | InDeleteSelf
 	}
 	if e&Write != 0 {
 		e = (e ^ Write) | InModify
 	}
-	if e&Move != 0 {
-		e = (e ^ Move) | InMovedFrom | InMoveSelf
+	if e&Rename != 0 {
+		e = (e ^ Rename) | InMovedFrom | InMoveSelf
 	}
 	return uint32(e)
 }
@@ -308,15 +308,15 @@ func decode(e *event, mask Event) (multi []*event) {
 	case mask&Create != 0 &&
 		imask&uint32(InCreate|InMovedTo)&e.sys.Mask != 0:
 		e.event = Create
-	case mask&Delete != 0 &&
+	case mask&Remove != 0 &&
 		imask&uint32(InDelete|InDeleteSelf)&e.sys.Mask != 0:
-		e.event = Delete
+		e.event = Remove
 	case mask&Write != 0 &&
 		imask&uint32(InModify)&e.sys.Mask != 0:
 		e.event = Write
-	case mask&Move != 0 &&
+	case mask&Rename != 0 &&
 		imask&uint32(InMovedFrom|InMoveSelf)&e.sys.Mask != 0:
-		e.event = Move
+		e.event = Rename
 	}
 	return
 }

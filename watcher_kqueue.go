@@ -97,7 +97,7 @@ func (k *kqueue) del(w watched) {
 
 // monitor reads reported kqueue events and forwards them further after
 // performing additional processing. If read event concerns directory,
-// it generates Create/Delete event and sent them further instead of directory
+// it generates Create/Remove event and sent them further instead of directory
 // event. This event is detected based on reading contents of analyzed
 // directory. If no changes in file list are detected, no event is send further.
 // Reading directory structure is less accurate than kqueue and can lead
@@ -128,7 +128,7 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 	// other processing relies on opening (in this case not existing) dir.
 	// Events for contents of this dir are reported by kqueue.
 	if (Event(kevn.Fflags) & NoteDelete) != 0 {
-		// Write is reported also for Delete on directory. Because of that
+		// Write is reported also for Remove on directory. Because of that
 		// we have to filter it out explicitly.
 		evn = append(evn, event{w.p,
 			e & ^Write & ^NoteWrite, KqEvent{&kevn, w.fi}})
@@ -139,8 +139,8 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 		switch err := k.walk(w.p, func(fi os.FileInfo) error {
 			p := filepath.Join(w.p, fi.Name())
 			switch err := k.singlewatch(p, w.eDir, false, fi); {
-			case os.IsNotExist(err) && ((w.eDir & Delete) != 0):
-				evn = append(evn, event{p, Delete, KqEvent{nil, fi}})
+			case os.IsNotExist(err) && ((w.eDir & Remove) != 0):
+				evn = append(evn, event{p, Remove, KqEvent{nil, fi}})
 			case err == errAlreadyWatched:
 			case err != nil:
 				dbg.Printf("kqueue: watching %q failed: %q", p, err)

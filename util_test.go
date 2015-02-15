@@ -51,8 +51,8 @@ func TestJoinevents(t *testing.T) {
 		0: {nil, All},
 		1: {[]Event{}, All},
 		2: {[]Event{Create}, Create},
-		3: {[]Event{Move}, Move},
-		4: {[]Event{Create, Write, Delete}, Create | Write | Delete},
+		3: {[]Event{Rename}, Rename},
+		4: {[]Event{Create, Write, Remove}, Create | Write | Remove},
 	}
 	for i, cas := range cases {
 		if ev := joinevents(cas.evs); ev != cas.ev {

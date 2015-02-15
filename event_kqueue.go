@@ -17,9 +17,9 @@ import (
 // Platform independent event values.
 const (
 	osSpecificCreate Event = 0x0100 << iota
-	osSpecificDelete
+	osSpecificRemove
 	osSpecificWrite
-	osSpecificMove
+	osSpecificRename
 	// internal
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
@@ -63,8 +63,8 @@ var osestr = map[Event]string{
 
 var ekind = map[Event]Event{
 	NoteWrite:  Write,
-	NoteRename: Move,
-	NoteDelete: Delete,
+	NoteRename: Rename,
+	NoteDelete: Remove,
 }
 
 // event is a struct storing reported event's data.

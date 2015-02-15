@@ -8,9 +8,9 @@ package notify
 
 const (
 	osSpecificCreate = Event(FSEventsCreated)
-	osSpecificDelete = Event(FSEventsRemoved)
+	osSpecificRemove = Event(FSEventsRemoved)
 	osSpecificWrite  = Event(FSEventsModified)
-	osSpecificMove   = Event(FSEventsRenamed)
+	osSpecificRename   = Event(FSEventsRenamed)
 	// internal = Event(0x100000)
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive = Event(0x200000)

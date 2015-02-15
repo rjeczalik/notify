@@ -14,9 +14,9 @@ import (
 // Platform independent event values.
 const (
 	osSpecificCreate Event = 0x100000 << iota
-	osSpecificDelete
+	osSpecificRemove
 	osSpecificWrite
-	osSpecificMove
+	osSpecificRename
 	// internal
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
@@ -67,8 +67,8 @@ const (
 
 var ekind = map[Event]Event{
 	InMovedFrom:  Create,
-	InMovedTo:    Delete,
-	InDeleteSelf: Delete,
+	InMovedTo:    Remove,
+	InDeleteSelf: Remove,
 }
 
 // TODO(ppknap) : doc.

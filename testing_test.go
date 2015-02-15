@@ -183,7 +183,7 @@ func newWatcherTest(t *testing.T, tree string) *W {
 func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 	w := newWatcherTest(t, tree)
 	if len(events) == 0 {
-		events = []Event{Create, Delete, Write, Move}
+		events = []Event{Create, Remove, Write, Rename}
 	}
 	if rw, ok := w.watcher().(recursiveWatcher); ok {
 		if err := rw.RecursiveWatch(w.root, joinevents(events)); err != nil {
@@ -379,7 +379,7 @@ func remove(w *W, path string) WCase {
 			dbg.Printf("[FS] os.Remove(%q)\n", path)
 		},
 		Events: []EventInfo{
-			&Call{P: path, E: Delete},
+			&Call{P: path, E: Remove},
 		},
 	}
 }
@@ -396,7 +396,7 @@ func rename(w *W, oldpath, newpath string) WCase {
 			dbg.Printf("[FS] os.Rename(%q, %q)\n", oldpath, newpath)
 		},
 		Events: []EventInfo{
-			&Call{P: newpath, E: Move},
+			&Call{P: newpath, E: Rename},
 		},
 	}
 }

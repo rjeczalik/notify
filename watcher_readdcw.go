@@ -132,15 +132,15 @@ func encode(filter uint32) uint32 {
 	if e&Create != 0 {
 		e = (e ^ Create) | FileNotifyChangeFileName
 	}
-	if e&Delete != 0 {
-		e = (e ^ Delete) | FileNotifyChangeFileName
+	if e&Remove != 0 {
+		e = (e ^ Remove) | FileNotifyChangeFileName
 	}
 	if e&Write != 0 {
 		e = (e ^ Write) | FileNotifyChangeAttributes | FileNotifyChangeSize |
 			FileNotifyChangeCreation | FileNotifyChangeSecurity
 	}
-	if e&Move != 0 {
-		e = (e ^ Move) | FileNotifyChangeFileName
+	if e&Rename != 0 {
+		e = (e ^ Rename) | FileNotifyChangeFileName
 	}
 	return uint32(e)
 }
@@ -160,7 +160,7 @@ type watched struct {
 // newWatched creates a new watched instance. It splits the filter variable into
 // two parts. The first part is responsible for watching all events which can be
 // created for a file in watched directory structure and the second one watches
-// only directory Create/Delete actions. If all operations succeed, the Create
+// only directory Create/Remove actions. If all operations succeed, the Create
 // message is sent to I/O completion port queue for further processing.
 func newWatched(cph syscall.Handle, filter uint32, recursive bool,
 	path string) (wd *watched, err error) {
@@ -183,7 +183,7 @@ func (wd *watched) recreate(cph syscall.Handle) (err error) {
 	if err = wd.updateGrip(0, cph, filefilter == 0, filefilter); err != nil {
 		return
 	}
-	dirfilter := wd.filter & uint32(FileNotifyChangeDirName|Create|Delete)
+	dirfilter := wd.filter & uint32(FileNotifyChangeDirName|Create|Remove)
 	if err = wd.updateGrip(1, cph, dirfilter == 0,
 		wd.filter|uint32(dirmarker)); err != nil {
 		return
@@ -534,13 +534,13 @@ func decode(filter, action uint32) Event {
 	case syscall.FILE_ACTION_ADDED:
 		return addrmv(filter, Create, FileActionAdded)
 	case syscall.FILE_ACTION_REMOVED:
-		return addrmv(filter, Delete, FileActionRemoved)
+		return addrmv(filter, Remove, FileActionRemoved)
 	case syscall.FILE_ACTION_MODIFIED:
 		return Write
 	case syscall.FILE_ACTION_RENAMED_OLD_NAME:
-		return addrmv(filter, Move, FileActionRenamedOldName)
+		return addrmv(filter, Rename, FileActionRenamedOldName)
 	case syscall.FILE_ACTION_RENAMED_NEW_NAME:
-		return addrmv(filter, Move, FileActionRenamedNewName)
+		return addrmv(filter, Rename, FileActionRenamedNewName)
 	}
 	panic(`notify: cannot decode internal mask`)
 }

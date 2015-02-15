@@ -20,9 +20,9 @@ const tformat = "2006-01-02 15:04:05.0000"
 var event = map[string]notify.Event{
 	"all":    notify.All,
 	"create": notify.Create,
-	"delete": notify.Delete,
+	"delete": notify.Remove,
 	"write":  notify.Write,
-	"move":   notify.Move,
+	"move":   notify.Rename,
 }
 
 func parse(s []string) (e []notify.Event) {

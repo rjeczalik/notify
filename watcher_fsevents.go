@@ -67,12 +67,12 @@ type watch struct {
 //   ~ $ echo > file # Create|Write -> Create|Write
 //   ~ $ echo > file # Create|Write|InodeMetaMod -> Write|InodeMetaMod
 //
-// 2. Delete event is removed if it was present in previouse event set.
+// 2. Remove event is removed if it was present in previouse event set.
 // Example:
 //
 //   ~ $ touch file # Create -> Create
-//   ~ $ rm file    # Create|Delete -> Delete
-//   ~ $ touch file # Create|Delete -> Create
+//   ~ $ rm file    # Create|Remove -> Remove
+//   ~ $ touch file # Create|Remove -> Create
 //
 // 3. Write event is removed if not followed by InodeMetaMod on existing
 // file. Example:
@@ -80,11 +80,11 @@ type watch struct {
 //   ~ $ echo > file   # Create|Write -> Create|Write
 //   ~ $ chmod +x file # Create|Write|ChangeOwner -> ChangeOwner
 //
-// 4. Write&InodeMetaMod is removed when effective event set contain Delete event.
+// 4. Write&InodeMetaMod is removed when effective event set contain Remove event.
 // Example:
 //
 //   ~ $ echo > file # Write|InodeMetaMod -> Write|InodeMetaMod
-//   ~ $ rm file     # Delete|Write|InodeMetaMod -> Delete
+//   ~ $ rm file     # Remove|Write|InodeMetaMod -> Remove
 //
 func (w *watch) strip(base string, set uint32) uint32 {
 	const (

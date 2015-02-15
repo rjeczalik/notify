@@ -16,16 +16,16 @@ import "strings"
 // available events.
 type Event uint32
 
-// Create, Delete, Write and Move are the only event values guaranteed to be
+// Create, Remove, Write and Rename are the only event values guaranteed to be
 // present on all platforms.
 const (
 	Create = osSpecificCreate
-	Delete = osSpecificDelete
+	Remove = osSpecificRemove
 	Write  = osSpecificWrite
-	Move   = osSpecificMove
+	Rename   = osSpecificRename
 
 	// All is handful alias for all platform-independent event values.
-	All = Create | Delete | Write | Move
+	All = Create | Remove | Write | Rename
 )
 
 // String implements fmt.Stringer interface.
@@ -75,17 +75,17 @@ type EventInfo interface {
 
 var estr = map[Event]string{
 	Create: "notify.Create",
-	Delete: "notify.Delete",
+	Remove: "notify.Remove",
 	Write:  "notify.Write",
-	Move:   "notify.Move",
+	Rename:   "notify.Rename",
 	// Display name for recursive event is added only for debugging
 	// purposes. It's an internal event after all and won't be exposed to the
 	// user. Having Recursive event printable is helpful, e.g. for reading
 	// testing failure messages:
 	//
 	//    --- FAIL: TestWatchpoint (0.00 seconds)
-	//    watchpoint_test.go:64: want diff=[notify.Delete notify.Create|notify.Delete];
-	//    got [notify.Delete notify.Delete|notify.Create] (i=1)
+	//    watchpoint_test.go:64: want diff=[notify.Remove notify.Create|notify.Remove];
+	//    got [notify.Remove notify.Remove|notify.Create] (i=1)
 	//
 	// Yup, here the diff have Recursive event inside. Go figure.
 	recursive: "recursive",
@@ -98,11 +98,11 @@ func (e *event) String() string {
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to
 // hint the notify runtime whether the event created a file or directory or it
-// deleted one. The possible values of Kind are Create or Delete, any other
+// deleted one. The possible values of Kind are Create or Remove, any other
 // value is ignored by the notify runtime.
 func kind(e Event) Event {
 	switch e {
-	case Create, Delete:
+	case Create, Remove:
 		return e
 	default:
 		ev, _ := ekind[e]
