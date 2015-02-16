@@ -12,6 +12,7 @@ import (
 	"github.com/rjeczalik/notify"
 )
 
+// This is a basic example showing how to work with notify.Watch function.
 func ExampleWatch() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
@@ -29,6 +30,7 @@ func ExampleWatch() {
 	log.Println("Got event:", ei)
 }
 
+// This example shows how to set up a recursive watchpoint.
 func ExampleWatch_recursive() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
@@ -46,6 +48,8 @@ func ExampleWatch_recursive() {
 	log.Println("Got event:", ei)
 }
 
+// This example shows why it is important to not create leaks by stoping
+// a channel when it's no longer being used.
 func ExampleStop() {
 	waitfor := func(path string, e notify.Event, timeout time.Duration) bool {
 		dir, file := filepath.Split(path)

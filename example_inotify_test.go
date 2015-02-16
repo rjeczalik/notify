@@ -14,7 +14,7 @@ import (
 )
 
 // Watch changes made by text editors when saving a file. Usually, either
-// InCloseWrite or InMovedTo(when swapping with a temporary file) event
+// InCloseWrite or InMovedTo (when swapping with a temporary file) event
 // is created.
 func ExampleWatch_linux() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop

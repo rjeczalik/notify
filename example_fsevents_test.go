@@ -12,6 +12,7 @@ import (
 	"github.com/rjeczalik/notify"
 )
 
+// This example shows how to use FSEvents-specifc event values.
 func ExampleWatch_darwin() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
@@ -34,6 +35,9 @@ func ExampleWatch_darwin() {
 	}
 }
 
+// This example shows how to work with EventInfo's underlying FSEvent struct.
+// Investigating notify.(*FSEvent).Flags field we are able to say whether
+// the event's path is a file or a directory and many more.
 func ExampleWatch_darwinDirFileSymlink() {
 	var must = func(err error) {
 		if err != nil {
@@ -87,6 +91,12 @@ func ExampleWatch_darwinDirFileSymlink() {
 	}
 }
 
+// FSEvents may report multiple filesystem actions with one, coalesced event.
+// Notify unscoalesces such event and dispatches series of single events
+// back to the user.
+//
+// This example shows how to coalesce events by investigating notify.(*FSEvent).ID
+// field, for the science.
 func ExampleWatch_darwinCoalesce() {
 	// Make the channels buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
@@ -99,10 +109,6 @@ func ExampleWatch_darwinCoalesce() {
 	}
 	defer notify.Stop(c)
 
-	// FSEvents may report multiple filesystem actions with one, coalesced event.
-	// Notify unscoalesces such event and dispatches series of single events
-	// back to the user. By investigating underlying *notify.FSEvent struct
-	// it is possible to coalesce those events back into one, for science purposes.
 	var id uint64
 	var coalesced []notify.EventInfo
 
