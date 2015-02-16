@@ -13,7 +13,7 @@ import (
 	"github.com/rjeczalik/notify"
 )
 
-func ExampleWatch_system_specific_events() {
+func ExampleWatch_linuxEvents() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
 	c := make(chan notify.EventInfo, 1)
@@ -35,7 +35,7 @@ func ExampleWatch_system_specific_events() {
 	}
 }
 
-func ExampleWatch_move_file_on_linux() {
+func ExampleWatch_linuxMove() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
 	c := make(chan notify.EventInfo, 2)
