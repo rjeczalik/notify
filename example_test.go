@@ -18,7 +18,7 @@ func ExampleWatch() {
 	c := make(chan notify.EventInfo, 1)
 
 	// Set up a watchpoint listening on events within current working directory.
-	// Relay each create and delete events separately to c.
+	// Dispatch each create and remove events separately to c.
 	if err := notify.Watch(".", c, notify.Create, notify.Remove); err != nil {
 		log.Fatal(err)
 	}
@@ -34,8 +34,8 @@ func ExampleWatch_recursive() {
 	// an event if the receiver is not able to keep up the sending pace.
 	c := make(chan notify.EventInfo, 1)
 
-	// Set up a watchpoint listening on events within a directory tree rooted
-	// at current working directory. Relay delete events to c.
+	// Set up a watchpoint listening for events within a directory tree rooted
+	// at current working directory. Dispatch remove events to c.
 	if err := notify.Watch("./...", c, notify.Remove); err != nil {
 		log.Fatal(err)
 	}

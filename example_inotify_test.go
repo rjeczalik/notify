@@ -13,13 +13,13 @@ import (
 	"github.com/rjeczalik/notify"
 )
 
-func ExampleWatch_linuxEvents() {
+func ExampleWatch_linux() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
 	c := make(chan notify.EventInfo, 1)
 
-	// Set up a watchpoint listening on inotify system-specific events within a
-	// current working directory. Relay each IN_CLOSE_WRITE and IN_MOVED_TO
+	// Set up a watchpoint listening for inotify-specific events within a
+	// current working directory. Dispatch each InCloseWrite and InMovedTo
 	// events separately to c.
 	if err := notify.Watch(".", c, notify.InCloseWrite, notify.InMovedTo); err != nil {
 		log.Fatal(err)
@@ -40,15 +40,18 @@ func ExampleWatch_linuxMove() {
 	// an event if the receiver is not able to keep up the sending pace.
 	c := make(chan notify.EventInfo, 2)
 
-	// Set up a watchpoint listening on inotify system-specific events within a
-	// current working directory. Relay each IN_MOVED_FROM and IN_MOVED_TO
+	// Set up a watchpoint listening for inotify-specific events within a
+	// current working directory. Dispatch each InMovedFrom and InMovedTo
 	// events separately to c.
 	if err := notify.Watch(".", c, notify.InMovedFrom, notify.InMovedTo); err != nil {
 		log.Fatal(err)
 	}
 	defer notify.Stop(c)
 
-	// We create a simple map which connects two events that have equal cookie values.
+	// Inotify reports move filesystem action by sending two events tied with
+	// unique cookie value (uint32): one of the events is of InMovedFrom type
+	// carrying move source path, while the second one is of InMoveTo type
+	// carrying move destination path.
 	moves := make(map[uint32]struct {
 		From string
 		To   string
@@ -71,6 +74,5 @@ func ExampleWatch_linuxMove() {
 			log.Println("File:", info.From, "was renamed to", info.To)
 			delete(moves, cookie)
 		}
-		// From time to time we should clear our map.
 	}
 }

@@ -67,6 +67,14 @@ func tree() notifier {
 //
 // dispatches two events - notify.Create and notify.Write. However it may depend
 // on the underlying watcher implementation whether OS reports both of them.
+//
+// Windows and recursive watches
+//
+// If a directory which path was used to create recursive watch under Windows
+// gets deleted, the OS will not report such event. It is advised to keep in
+// mind this limitation while setting recursive watchpoints for your application,
+// e.g. use persistant paths like %userprofile% or watch additionaly parent
+// directory of a recursive watchpoint in order to receive delete events for it.
 func Watch(path string, c chan<- EventInfo, events ...Event) error {
 	m.Lock()
 	err := tree().Watch(path, c, events...)

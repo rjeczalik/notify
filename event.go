@@ -22,7 +22,7 @@ const (
 	Create = osSpecificCreate
 	Remove = osSpecificRemove
 	Write  = osSpecificWrite
-	Rename   = osSpecificRename
+	Rename = osSpecificRename
 
 	// All is handful alias for all platform-independent event values.
 	All = Create | Remove | Write | Rename
@@ -54,13 +54,13 @@ func (e Event) String() string {
 //
 // Sys
 //
-// Under Darwin (FSEvents) Sys() always returns a non-nil notify.(*FSEvent) value,
+// Under Darwin (FSEvents) Sys() always returns a non-nil *notify.FSEvent value,
 // which is defined as:
 //
 //   type FSEvent struct {
-//     Path  string // real path of the file or directory
-//     ID    uint64 // ID of the event (FSEventStreamEventId)
-//     Flags uint32 // joint FSEvents* flags (FSEventStreamEventFlags)
+//       Path  string // real path of the file or directory
+//       ID    uint64 // ID of the event (FSEventStreamEventId)
+//       Flags uint32 // joint FSEvents* flags (FSEventStreamEventFlags)
 //   }
 //
 // For possible values of Flags see Darwin godoc for notify or FSEvents
@@ -68,15 +68,15 @@ func (e Event) String() string {
 //
 //    https://developer.apple.com/library/mac/documentation/Darwin/Reference/FSEvents_Ref/index.html#//apple_ref/doc/constant_group/FSEventStreamEventFlags
 //
-// When using on Linux (inotify), Sys() method returns a pointer to
-// syscall.InotifyEvent object which is defined as:
+// Under Linux (inotify) Sys() always returns a non-nil *syscall.InotifyEvent
+// value, defined as:
 //
 //   type InotifyEvent struct {
-//     Wd     int32    // Watch descriptor
-//     Mask   uint32   // Mask describing event
-//     Cookie uint32   // Unique cookie associating related events (for rename(2))
-//     Len    uint32   // Size of name field
-//     Name   [0]uint8 // Optional null-terminated name
+//       Wd     int32    // Watch descriptor
+//       Mask   uint32   // Mask describing event
+//       Cookie uint32   // Unique cookie associating related events (for rename(2))
+//       Len    uint32   // Size of name field
+//       Name   [0]uint8 // Optional null-terminated name
 //   }
 //
 // More information about inotify masks and the usage of inotify_event structure
@@ -93,7 +93,7 @@ var estr = map[Event]string{
 	Create: "notify.Create",
 	Remove: "notify.Remove",
 	Write:  "notify.Write",
-	Rename:   "notify.Rename",
+	Rename: "notify.Rename",
 	// Display name for recursive event is added only for debugging
 	// purposes. It's an internal event after all and won't be exposed to the
 	// user. Having Recursive event printable is helpful, e.g. for reading
