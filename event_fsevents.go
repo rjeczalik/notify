@@ -10,7 +10,7 @@ const (
 	osSpecificCreate = Event(FSEventsCreated)
 	osSpecificRemove = Event(FSEventsRemoved)
 	osSpecificWrite  = Event(FSEventsModified)
-	osSpecificRename   = Event(FSEventsRenamed)
+	osSpecificRename = Event(FSEventsRenamed)
 	// internal = Event(0x100000)
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive = Event(0x200000)
