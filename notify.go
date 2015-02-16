@@ -2,10 +2,10 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-// BUG(rjeczalik): Currently notify does not automagically set a watch for newly
+// BUG(rjeczalik): Notify does not automagically set a watch for newly
 // created directory within recursively watched path for inotify and kqueue. (#5)
 
-// BUG(rjeczalik): Currently notify does not gracefully handle rewatching directories,
+// BUG(rjeczalik): Notify does not gracefully handle rewatching directories,
 // that were deleted but their watchpoints were not cleaned by the user. (#69)
 
 // BUG(ppknap): Linux(inotify) does not currently support watcher behavior masks
