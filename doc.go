@@ -15,12 +15,12 @@
 // strategy for creating and closing filesystem watches and dispatching filesystem
 // events to user channels.
 //
-// An event set is just an event list joint using bitwise and operator
+// An event set is just an event list joint using bitwise OR operator
 // into a single event value.
 //
 // A filesystem watch or just a watch is platform-specific entity which represents
-// single path registered for notifications for specific event set. Setting a watch
-// means using platform-specific API call for creating / initialising said watch.
+// a single path registered for notifications for specific event set. Setting a watch
+// means using platform-specific API calls for creating / initializing said watch.
 // For each watcher the API call is:
 //
 //   - inotify:  notify_add_watch

@@ -8,6 +8,9 @@
 // BUG(rjeczalik): Currently notify does not gracefully handle rewatching directories,
 // that were deleted but their watchpoints were not cleaned by the user. (#69)
 
+// BUG(ppknap): Linux(inotify) does not currently support watcher behavior masks
+// like InOneshot, InOnlydir etc. (#71)
+
 package notify
 
 import "sync"
@@ -47,12 +50,12 @@ func tree() notifier {
 // with non-nil error. Notify resolves, for its internal purpose, any symlinks
 // the provided path may contain, so it may fail if the symlinks form a cycle.
 // It does so, since not all watcher implementations treat passed paths as-is.
-// E.g. FSEvents reports realpath for every event, setting a watchpoint
+// E.g. FSEvents reports a real path for every event, setting a watchpoint
 // on /tmp will report events with paths rooted at /private/tmp etc.
 //
 // It is allowed to pass the same channel multiple times with different event
 // list or different paths. Calling Watch with different event lists for a single
-// watchpoint expands its event set. The only way to shrink it is to call
+// watchpoint expands its event set. The only way to shrink it, is to call
 // Stop on its channel.
 //
 // Calling Watch with empty event list does expand nor shrink watchpoint's event
@@ -65,7 +68,7 @@ func tree() notifier {
 //
 //   ~ $ echo Hello > Notify.txt
 //
-// dispatches two events - notify.Create and notify.Write. However it may depend
+// dispatches two events - notify.Create and notify.Write. However, it may depend
 // on the underlying watcher implementation whether OS reports both of them.
 //
 // Windows and recursive watches
@@ -73,7 +76,7 @@ func tree() notifier {
 // If a directory which path was used to create recursive watch under Windows
 // gets deleted, the OS will not report such event. It is advised to keep in
 // mind this limitation while setting recursive watchpoints for your application,
-// e.g. use persistant paths like %userprofile% or watch additionaly parent
+// e.g. use persistant paths like %userprofile% or watch additionally parent
 // directory of a recursive watchpoint in order to receive delete events for it.
 func Watch(path string, c chan<- EventInfo, events ...Event) error {
 	m.Lock()

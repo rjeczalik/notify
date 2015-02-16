@@ -25,20 +25,21 @@ const (
 	internal
 )
 
-// Inotify specific event values.
+// Inotify specific masks are legal, implemented events that are guaranteed to
+// work with notify package on linux-based systems.
 const (
-	InAccess       = Event(syscall.IN_ACCESS)
-	InModify       = Event(syscall.IN_MODIFY)
-	InAttrib       = Event(syscall.IN_ATTRIB)
-	InCloseWrite   = Event(syscall.IN_CLOSE_WRITE)
-	InCloseNowrite = Event(syscall.IN_CLOSE_NOWRITE)
-	InOpen         = Event(syscall.IN_OPEN)
-	InMovedFrom    = Event(syscall.IN_MOVED_FROM)
-	InMovedTo      = Event(syscall.IN_MOVED_TO)
-	InCreate       = Event(syscall.IN_CREATE)
-	InDelete       = Event(syscall.IN_DELETE)
-	InDeleteSelf   = Event(syscall.IN_DELETE_SELF)
-	InMoveSelf     = Event(syscall.IN_MOVE_SELF)
+	InAccess       = Event(syscall.IN_ACCESS)        // File was accessed
+	InModify       = Event(syscall.IN_MODIFY)        // File was modified
+	InAttrib       = Event(syscall.IN_ATTRIB)        // Metadata changed
+	InCloseWrite   = Event(syscall.IN_CLOSE_WRITE)   // Writtable file was closed
+	InCloseNowrite = Event(syscall.IN_CLOSE_NOWRITE) // Unwrittable file closed
+	InOpen         = Event(syscall.IN_OPEN)          // File was opened
+	InMovedFrom    = Event(syscall.IN_MOVED_FROM)    // File was moved from X
+	InMovedTo      = Event(syscall.IN_MOVED_TO)      // File was moved to Y
+	InCreate       = Event(syscall.IN_CREATE)        // Subfile was created
+	InDelete       = Event(syscall.IN_DELETE)        // Subfile was deleted
+	InDeleteSelf   = Event(syscall.IN_DELETE_SELF)   // Self was deleted
+	InMoveSelf     = Event(syscall.IN_MOVE_SELF)     // Self was moved
 )
 
 var osestr = map[Event]string{
@@ -71,7 +72,6 @@ var ekind = map[Event]Event{
 	InDeleteSelf: Remove,
 }
 
-// TODO(ppknap) : doc.
 type event struct {
 	sys   syscall.InotifyEvent
 	path  string

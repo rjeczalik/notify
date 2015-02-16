@@ -13,6 +13,9 @@ import (
 	"github.com/rjeczalik/notify"
 )
 
+// Watch changes made by text editors when saving a file. Usually, either
+// InCloseWrite or InMovedTo(when swapping with a temporary file) event
+// is created.
 func ExampleWatch_linux() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
@@ -35,6 +38,8 @@ func ExampleWatch_linux() {
 	}
 }
 
+// Use Sys() method from EventInfo interface to tie two separate events generated
+// by rename(2) function.
 func ExampleWatch_linuxMove() {
 	// Make the channel buffered to ensure no event is dropped. Notify will drop
 	// an event if the receiver is not able to keep up the sending pace.
