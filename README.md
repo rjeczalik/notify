@@ -5,26 +5,16 @@
 
 Filesystem event notification library on steroids. (under active development)
 
+*Documentation* 
+
+[godoc.org/github.com/rjeczalik/notify](https://godoc.org/github.com/rjeczalik/notify)
+
 *Installation*
 
 ```
 ~ $ go get -u github.com/rjeczalik/notify
 ```
 
-*Documentation* 
+*Projects using notify*
 
-[godoc.org/github.com/rjeczalik/notify](https://godoc.org/github.com/rjeczalik/notify)
-
-### cmd/notify [![GoDoc](https://godoc.org/github.com/rjeczalik/notify?status.svg)](https://godoc.org/github.com/rjeczalik/notify)
-
-Listens on filesystem changes and forwards received events to user-defined handlers.
-
-*Installation*
-
-```
-~ $ go get -u github.com/rjeczalik/notify/cmd/notify
-```
-
-*Documentation*
-
-[godoc.org/github.com/rjeczalik/notify/cmd/notify](https://godoc.org/github.com/rjeczalik/notify/cmd/notify)
+- [cmd/notify](https://godoc.org/github.com/rjeczalik/notify/cmd/notify) 
