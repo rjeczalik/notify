@@ -31,20 +31,19 @@ Listens on filesystem changes and forwards received events to user-defined handl
 
 *Usage*
 
-```bash
+```
 ~ $ notify -c 'echo "Hello from handler! (event={{.Event}}, path={{.Path}})"'
 2015/02/17 01:17:40 received notify.Create: "/Users/rjeczalik/notify.tmp"
 Hello from handler! (event=create, path=/Users/rjeczalik/notify.tmp)
-2015/02/17 01:18:13 received notify.Write: "/Users/rjeczalik/notify.tmp"
-Hello from handler! (event=write, path=/Users/rjeczalik/notify.tmp)
+...
 ```
-```bash
+```
 ~ $ cat > handler <<EOF
 > echo "Hello from handler! (event={{.Event}}, path={{.Path}})"
 > EOF
+
 ~ $ notify -f handler
 2015/02/17 01:22:26 received notify.Create: "/Users/rjeczalik/notify.tmp"
 Hello from handler! (event=create, path=/Users/rjeczalik/notify.tmp)
-2015/02/17 01:22:26 received notify.Remove: "/Users/rjeczalik/notify.tmp"
-Hello from handler! (event=remove, path=/Users/rjeczalik/notify.tmp)
+...
 ```
