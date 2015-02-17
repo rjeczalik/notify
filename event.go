@@ -83,6 +83,18 @@ func (e Event) String() string {
 // can be found at:
 //
 //    http://man7.org/linux/man-pages/man7/inotify.7.html
+//
+// Under Darwin, DragonFlyBSD, FreeBSD, NetBSD, OpenBSD (kqueue) Sys() always
+// returns notify.Kevent value, which is defined as:
+//
+//   type Kevent struct {
+//     Kevent *syscall.Kevent_t // Kevent is a kqueue specific structure.
+//  	 FI     os.FileInfo       // FI describes file/dir.
+// }
+//
+// More information about *syscall.Kevent_t can be found at:
+//
+//    https://www.freebsd.org/cgi/man.cgi?query=kqueue
 type EventInfo interface {
 	Event() Event     // event value for the filesystem action
 	Path() string     // real path of the file or directory
