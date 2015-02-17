@@ -8,8 +8,8 @@
 // BUG(rjeczalik): Notify does not gracefully handle rewatching directories,
 // that were deleted but their watchpoints were not cleaned by the user. (#69)
 
-// BUG(ppknap): Linux(inotify) does not currently support watcher behavior masks
-// like InOneshot, InOnlydir etc. (#71)
+// BUG(ppknap): Linux(inotify) does not support watcher behavior masks like
+// InOneshot, InOnlydir etc. (#71)
 
 package notify
 

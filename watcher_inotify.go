@@ -56,7 +56,7 @@ func newWatcher(c chan<- EventInfo) *inotify {
 		fd:     invalidDescriptor,
 		pipefd: []int{invalidDescriptor, invalidDescriptor},
 		epfd:   invalidDescriptor,
-		epes:   make([]syscall.EpollEvent, 0, 2),
+		epes:   make([]syscall.EpollEvent, 0),
 		c:      c,
 	}
 	runtime.SetFinalizer(i, func(i *inotify) {
@@ -80,8 +80,6 @@ func (i *inotify) Rewatch(path string, _, newevent Event) error {
 
 // TODO : pknap
 func (i *inotify) watch(path string, e Event) (err error) {
-	// Adding new filters with IN_MASK_ADD mask is not supported.
-	e &^= Event(syscall.IN_MASK_ADD)
 	if e&^(All|Event(syscall.IN_ALL_EVENTS)) != 0 {
 		return errors.New("notify: unknown event")
 	}
@@ -109,7 +107,11 @@ func (i *inotify) watch(path string, e Event) (err error) {
 	return nil
 }
 
-// TODO : pknap
+// lazyinit sets up all required file descriptors and starts 1+consumersCount
+// goroutines. The producer goroutine blocks until file-system notifications
+// occur. Then, all events are read from system buffer and sent to consumer
+// goroutines which construct valid notify events. This method uses
+// Double-Checked Locking optimization.
 func (i *inotify) lazyinit() error {
 	if atomic.LoadInt32(&i.fd) == invalidDescriptor {
 		i.Lock()
@@ -119,10 +121,11 @@ func (i *inotify) lazyinit() error {
 			if err != nil {
 				return err
 			}
-			atomic.StoreInt32(&i.fd, int32(fd))
+			i.fd = int32(fd)
 			if err = i.epollinit(); err != nil {
-				i.epollclose()
-				atomic.StoreInt32(&i.fd, int32(invalidDescriptor))
+				// Ignore errors returned from epollclose and close(2).
+				_, _ = i.epollclose(), syscall.Close(int(fd))
+				i.fd = invalidDescriptor
 				return err
 			}
 			esch := make(chan []*event)
@@ -136,7 +139,10 @@ func (i *inotify) lazyinit() error {
 	return nil
 }
 
-// TODO : pknap
+// epollinit opens an epoll file descriptor and creates a pipe which will be
+// used to wake up the epoll_wait(2) function. Then, file descriptor associated
+// with inotify event queue and the read end of the pipe are added to epoll set.
+// Note that `fd` member must be set before this function is called.
 func (i *inotify) epollinit() (err error) {
 	if i.epfd, err = syscall.EpollCreate(2); err != nil {
 		return
@@ -145,8 +151,14 @@ func (i *inotify) epollinit() (err error) {
 		return
 	}
 	i.epes = []syscall.EpollEvent{
-		{Events: syscall.EPOLLIN, Fd: int32(i.fd), Pad: 0},
-		{Events: syscall.EPOLLIN, Fd: int32(i.pipefd[0]), Pad: 0},
+		{ // inotify file descriptor.
+			Events: syscall.EPOLLIN,
+			Fd:     int32(i.fd),
+		},
+		{ // read end of the pipe used to stop event loop.
+			Events: syscall.EPOLLIN | syscall.EPOLLONESHOT,
+			Fd:     int32(i.pipefd[0]),
+		},
 	}
 	if err = syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd),
 		&i.epes[0]); err != nil {
@@ -156,7 +168,8 @@ func (i *inotify) epollinit() (err error) {
 		&i.epes[1])
 }
 
-// TODO : pknap
+// epollclose closes the file descriptor created by the call to epoll_create(2)
+// and two file descriptors opened by pipe(2) function.
 func (i *inotify) epollclose() (err error) {
 	if i.epfd != invalidDescriptor {
 		if err = syscall.Close(i.epfd); err == nil {
@@ -176,33 +189,39 @@ func (i *inotify) epollclose() (err error) {
 	return
 }
 
-// TODO : pknap
+// loop blocks until either inotify or pipe file descriptor is ready for I/O.
+// All read operations triggered by filesystem notifications are forwarded to
+// one of the event's consumers. If pipe fd became ready, loop function closes
+// all file descriptors opened by lazyinit method and returns afterwards.
 func (i *inotify) loop(esch chan<- []*event) {
 	epes := make([]syscall.EpollEvent, 1)
 	fd := atomic.LoadInt32(&i.fd)
 	for {
-		if _, err := syscall.EpollWait(i.epfd, epes, -1); err != nil &&
-			err != syscall.EINTR {
-			// Panic? error?
-			panic(err)
-		}
-		switch epes[0].Fd {
-		case fd:
-			esch <- i.read()
-		case int32(i.pipefd[0]):
-			i.Lock()
-			defer i.Unlock()
-			if err := syscall.Close(int(fd)); err != nil {
-				// Panic? error?
-				panic(err)
+		switch _, err := syscall.EpollWait(i.epfd, epes, -1); err {
+		case nil:
+			switch epes[0].Fd {
+			case fd:
+				esch <- i.read()
+			case int32(i.pipefd[0]):
+				i.Lock()
+				defer i.Unlock()
+				if err = syscall.Close(int(fd)); err != nil &&
+					err != syscall.EINTR { // Ignore EINTR error.
+					panic("notify: close(2) error - " + err.Error())
+				}
+				atomic.StoreInt32(&i.fd, invalidDescriptor)
+				if err = i.epollclose(); err != nil && err != syscall.EINTR {
+					// epollclose method calls syscall.Close function.
+					panic("notify: epollclose error - " + err.Error())
+				}
+				close(esch)
+				return
 			}
-			atomic.StoreInt32(&i.fd, invalidDescriptor)
-			if err := i.epollclose(); err != nil {
-				// Panic? error?
-				panic(err)
-			}
-			close(esch)
-			return
+		case syscall.EINTR:
+			continue
+		default:
+			// In the current implementation we should never reach this line.
+			panic("notify: epoll_wait(2) error - " + err.Error())
 		}
 	}
 }
@@ -267,7 +286,7 @@ func (i *inotify) strip(es []*event) []*event {
 		} else {
 			e.path = filepath.Join(wd.path, e.path)
 		}
-		multi = append(multi, decode(e, Event(wd.mask))...)
+		multi = append(multi, decode(Event(wd.mask), e))
 		if e.event == 0 {
 			es[idx] = nil
 		}
@@ -277,7 +296,8 @@ func (i *inotify) strip(es []*event) []*event {
 	return es
 }
 
-// TODO(ppknap) : doc.
+// encode converts notify system-independent events to valid inotify mask
+// which can be passed to inotify_add_watch(2) function.
 func encode(e Event) uint32 {
 	if e&Create != 0 {
 		e = (e ^ Create) | InCreate | InMovedTo
@@ -294,14 +314,18 @@ func encode(e Event) uint32 {
 	return uint32(e)
 }
 
-// TODO(ppknap) : doc.
-func decode(e *event, mask Event) (multi []*event) {
-	if syse := uint32(mask) & e.sys.Mask; syse != 0 {
-		multi = append(multi, &event{sys: syscall.InotifyEvent{
+// decode uses internally stored mask to distinguish whether system-independent
+// or system-dependent event is requested. The first one is created by modifying
+// `e` argument. decode method sets e.event value to 0 when an event should be
+// skipped. System-dependent event is set as the function's return value which
+// can be nil when the event should not be passed on.
+func decode(mask Event, e *event) (syse *event) {
+	if sysmask := uint32(mask) & e.sys.Mask; sysmask != 0 {
+		syse = &event{sys: syscall.InotifyEvent{
 			Wd:     e.sys.Wd,
 			Mask:   e.sys.Mask,
 			Cookie: e.sys.Cookie,
-		}, event: Event(syse), path: e.path})
+		}, event: Event(sysmask), path: e.path}
 	}
 	imask := encode(mask)
 	switch {
@@ -317,6 +341,8 @@ func decode(e *event, mask Event) (multi []*event) {
 	case mask&Rename != 0 &&
 		imask&uint32(InMovedFrom|InMoveSelf)&e.sys.Mask != 0:
 		e.event = Rename
+	default:
+		e.event = 0
 	}
 	return
 }
