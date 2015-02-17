@@ -28,22 +28,3 @@ Listens on filesystem changes and forwards received events to user-defined handl
 *Documentation*
 
 [godoc.org/github.com/rjeczalik/notify/cmd/notify](https://godoc.org/github.com/rjeczalik/notify/cmd/notify)
-
-*Usage*
-
-```
-~ $ notify -c 'echo "Hello from handler! (event={{.Event}}, path={{.Path}})"'
-2015/02/17 01:17:40 received notify.Create: "/Users/rjeczalik/notify.tmp"
-Hello from handler! (event=create, path=/Users/rjeczalik/notify.tmp)
-...
-```
-```
-~ $ cat > handler <<EOF
-> echo "Hello from handler! (event={{.Event}}, path={{.Path}})"
-> EOF
-
-~ $ notify -f handler
-2015/02/17 01:22:26 received notify.Create: "/Users/rjeczalik/notify.tmp"
-Hello from handler! (event=create, path=/Users/rjeczalik/notify.tmp)
-...
-```

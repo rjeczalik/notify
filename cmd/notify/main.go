@@ -39,6 +39,26 @@
 // directory.
 //
 // If no handler is specified notify prints each event to os.Stdout.
+//
+// Example usage
+//
+// Executing event handler from command line:
+//
+//   ~ $ notify -c 'echo "Hello from handler! (event={{.Event}}, path={{.Path}})"'
+//   2015/02/17 01:17:40 received notify.Create: "/Users/rjeczalik/notify.tmp"
+//   Hello from handler! (event=create, path=/Users/rjeczalik/notify.tmp)
+//  ...
+//
+// Executing event handler from file:
+//
+//   ~ $ cat > handler <<EOF
+//   > echo "Hello from handler! (event={{.Event}}, path={{.Path}})"
+//   > EOF
+//
+//   ~ $ notify -f handler
+//   2015/02/17 01:22:26 received notify.Create: "/Users/rjeczalik/notify.tmp"
+//   Hello from handler! (event=create, path=/Users/rjeczalik/notify.tmp)
+//   ...
 package main
 
 import (
