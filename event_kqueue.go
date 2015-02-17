@@ -74,7 +74,7 @@ type event struct {
 	// e specifies type of a reported event.
 	e Event
 	// kq specifies event's additional information.
-	kq KqEvent
+	kq Kevent
 }
 
 // Event returns type of a reported event.
@@ -87,11 +87,11 @@ func (e *event) Path() string { return e.p }
 func (e *event) Sys() interface{} { return e.kq }
 
 func isdir(ei EventInfo) (bool, error) {
-	return ei.Sys().(KqEvent).FI.IsDir(), nil
+	return ei.Sys().(Kevent).FI.IsDir(), nil
 }
 
-// KqEvent represents a single event.
-type KqEvent struct {
-	Kq *syscall.Kevent_t // Kq is a kqueue specific structure.
-	FI os.FileInfo       // FI describes file/dir.
+// Kevent represents a single event.
+type Kevent struct {
+	Kevent *syscall.Kevent_t // Kevent is a kqueue specific structure.
+	FI     os.FileInfo       // FI describes file/dir.
 }

@@ -131,7 +131,7 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 		// Write is reported also for Remove on directory. Because of that
 		// we have to filter it out explicitly.
 		evn = append(evn, event{w.p,
-			e & ^Write & ^NoteWrite, KqEvent{&kevn, w.fi}})
+			e & ^Write & ^NoteWrite, Kevent{&kevn, w.fi}})
 		k.del(w)
 		return
 	}
@@ -140,12 +140,12 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 			p := filepath.Join(w.p, fi.Name())
 			switch err := k.singlewatch(p, w.eDir, false, fi); {
 			case os.IsNotExist(err) && ((w.eDir & Remove) != 0):
-				evn = append(evn, event{p, Remove, KqEvent{nil, fi}})
+				evn = append(evn, event{p, Remove, Kevent{nil, fi}})
 			case err == errAlreadyWatched:
 			case err != nil:
 				dbg.Printf("kqueue: watching %q failed: %q", p, err)
 			case (w.eDir & Create) != 0:
-				evn = append(evn, event{p, Create, KqEvent{nil, fi}})
+				evn = append(evn, event{p, Create, Kevent{nil, fi}})
 			}
 			return nil
 		}); {
@@ -161,7 +161,7 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 }
 
 func (*kqueue) file(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
-	evn = append(evn, event{w.p, e, KqEvent{&kevn, w.fi}})
+	evn = append(evn, event{w.p, e, Kevent{&kevn, w.fi}})
 	return
 }
 
