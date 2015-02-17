@@ -85,7 +85,7 @@ func (e Event) String() string {
 //    http://man7.org/linux/man-pages/man7/inotify.7.html
 //
 // Under Darwin, DragonFlyBSD, FreeBSD, NetBSD, OpenBSD (kqueue) Sys() always
-// returns notify.Kevent value, which is defined as:
+// returns a non-nil *notify.Kevent value, which is defined as:
 //
 //   type Kevent struct {
 //     Kevent *syscall.Kevent_t // Kevent is a kqueue specific structure.
