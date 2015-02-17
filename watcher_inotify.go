@@ -68,12 +68,12 @@ func newWatcher(c chan<- EventInfo) *inotify {
 	return i
 }
 
-// Watch implements notify.Watcher interface.
+// Watch implements notify.watcher interface.
 func (i *inotify) Watch(path string, e Event) error {
 	return i.watch(path, e)
 }
 
-// Rewatch implements notify.Watcher interface.
+// Rewatch implements notify.watcher interface.
 func (i *inotify) Rewatch(path string, _, newevent Event) error {
 	return i.watch(path, newevent)
 }
@@ -123,8 +123,7 @@ func (i *inotify) lazyinit() error {
 			}
 			i.fd = int32(fd)
 			if err = i.epollinit(); err != nil {
-				// Ignore errors returned from epollclose and close(2).
-				_, _ = i.epollclose(), syscall.Close(int(fd))
+				_, _ = i.epollclose(), syscall.Close(int(fd)) // Ignore errors.
 				i.fd = invalidDescriptor
 				return err
 			}
@@ -153,19 +152,17 @@ func (i *inotify) epollinit() (err error) {
 	i.epes = []syscall.EpollEvent{
 		{ // inotify file descriptor.
 			Events: syscall.EPOLLIN,
-			Fd:     int32(i.fd),
+			Fd:     i.fd,
 		},
 		{ // read end of the pipe used to stop event loop.
-			Events: syscall.EPOLLIN | syscall.EPOLLONESHOT,
+			Events: syscall.EPOLLIN,
 			Fd:     int32(i.pipefd[0]),
 		},
 	}
-	if err = syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd),
-		&i.epes[0]); err != nil {
+	if err = syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd), &i.epes[0]); err != nil {
 		return
 	}
-	return syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, i.pipefd[0],
-		&i.epes[1])
+	return syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, i.pipefd[0], &i.epes[1])
 }
 
 // epollclose closes the file descriptor created by the call to epoll_create(2)
@@ -205,13 +202,11 @@ func (i *inotify) loop(esch chan<- []*event) {
 			case int32(i.pipefd[0]):
 				i.Lock()
 				defer i.Unlock()
-				if err = syscall.Close(int(fd)); err != nil &&
-					err != syscall.EINTR { // Ignore EINTR error.
+				if err = syscall.Close(int(fd)); err != nil && err != syscall.EINTR {
 					panic("notify: close(2) error - " + err.Error())
 				}
 				atomic.StoreInt32(&i.fd, invalidDescriptor)
 				if err = i.epollclose(); err != nil && err != syscall.EINTR {
-					// epollclose method calls syscall.Close function.
 					panic("notify: epollclose error - " + err.Error())
 				}
 				close(esch)
@@ -219,8 +214,7 @@ func (i *inotify) loop(esch chan<- []*event) {
 			}
 		case syscall.EINTR:
 			continue
-		default:
-			// In the current implementation we should never reach this line.
+		default: // We should never reach this line.
 			panic("notify: epoll_wait(2) error - " + err.Error())
 		}
 	}
@@ -246,11 +240,14 @@ func (i *inotify) read() (es []*event) {
 			path = string(bytes.TrimRight(i.buffer[pos:endpos], "\x00"))
 			pos = endpos
 		}
-		es = append(es, &event{sys: syscall.InotifyEvent{
-			Wd:     sys.Wd,
-			Mask:   sys.Mask,
-			Cookie: sys.Cookie,
-		}, path: path})
+		es = append(es, &event{
+			sys: syscall.InotifyEvent{
+				Wd:     sys.Wd,
+				Mask:   sys.Mask,
+				Cookie: sys.Cookie,
+			},
+			path: path,
+		})
 	}
 	return
 }
@@ -329,17 +326,13 @@ func decode(mask Event, e *event) (syse *event) {
 	}
 	imask := encode(mask)
 	switch {
-	case mask&Create != 0 &&
-		imask&uint32(InCreate|InMovedTo)&e.sys.Mask != 0:
+	case mask&Create != 0 && imask&uint32(InCreate|InMovedTo)&e.sys.Mask != 0:
 		e.event = Create
-	case mask&Remove != 0 &&
-		imask&uint32(InDelete|InDeleteSelf)&e.sys.Mask != 0:
+	case mask&Remove != 0 && imask&uint32(InDelete|InDeleteSelf)&e.sys.Mask != 0:
 		e.event = Remove
-	case mask&Write != 0 &&
-		imask&uint32(InModify)&e.sys.Mask != 0:
+	case mask&Write != 0 && imask&uint32(InModify)&e.sys.Mask != 0:
 		e.event = Write
-	case mask&Rename != 0 &&
-		imask&uint32(InMovedFrom|InMoveSelf)&e.sys.Mask != 0:
+	case mask&Rename != 0 && imask&uint32(InMovedFrom|InMoveSelf)&e.sys.Mask != 0:
 		e.event = Rename
 	default:
 		e.event = 0
@@ -347,7 +340,7 @@ func decode(mask Event, e *event) (syse *event) {
 	return
 }
 
-// Unwatch implements notify.Watcher interface.
+// Unwatch implements notify.watcher interface.
 func (i *inotify) Unwatch(path string) (err error) {
 	iwd := int32(-1)
 	i.RLock()
@@ -361,8 +354,8 @@ func (i *inotify) Unwatch(path string) (err error) {
 	if iwd < 0 {
 		return errors.New("notify: file/dir " + path + " is unwatched")
 	}
-	if _, err = syscall.InotifyRmWatch(int(atomic.LoadInt32(&i.fd)),
-		uint32(iwd)); err != nil {
+	fd := atomic.LoadInt32(&i.fd)
+	if _, err = syscall.InotifyRmWatch(int(fd), uint32(iwd)); err != nil {
 		return
 	}
 	i.Lock()
@@ -371,22 +364,25 @@ func (i *inotify) Unwatch(path string) (err error) {
 	return nil
 }
 
+// Close implements notify.watcher interface. It removes all existing watch
+// descriptors and wakes up producer goroutine by sending to the write end of
+// the pipe. The function waits for a signal from producer which means that all
+// operations on current monitoring instance are done.
 func (i *inotify) Close() (err error) {
 	i.Lock()
 	if fd := atomic.LoadInt32(&i.fd); fd == invalidDescriptor {
 		i.Unlock()
 		return nil
 	}
-	for iwdkey := range i.m {
-		if _, e := syscall.InotifyRmWatch(int(i.fd),
-			uint32(iwdkey)); e != nil && err == nil {
+	for iwd := range i.m {
+		if _, e := syscall.InotifyRmWatch(int(i.fd), uint32(iwd)); e != nil && err == nil {
 			err = e
 		}
-		delete(i.m, iwdkey)
+		delete(i.m, iwd)
 	}
-	if _, e := syscall.Write(i.pipefd[1], []byte{0x00}); e != nil &&
-		err == nil {
+	if _, e := syscall.Write(i.pipefd[1], []byte{0x00}); e != nil && err == nil {
 		err = e
+		// TODO: nowait
 	}
 	i.Unlock()
 	i.wg.Wait()
