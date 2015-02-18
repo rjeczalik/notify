@@ -88,11 +88,11 @@ func (e Event) String() string {
 // returns a non-nil *notify.Kevent value, which is defined as:
 //
 //   type Kevent struct {
-//     Kevent *syscall.Kevent_t // Kevent is a kqueue specific structure.
-//  	 FI     os.FileInfo       // FI describes file/dir.
-// }
+//       Kevent *syscall.Kevent_t // Kevent is a kqueue specific structure
+//       FI     os.FileInfo       // FI describes file/dir
+//   }
 //
-// More information about *syscall.Kevent_t can be found at:
+// More information about syscall.Kevent_t can be found at:
 //
 //    https://www.freebsd.org/cgi/man.cgi?query=kqueue
 type EventInfo interface {

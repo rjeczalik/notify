@@ -7,11 +7,9 @@
 
 package notify
 
-import "errors"
-
 // Platform independent event values.
 const (
-	osSpecificCreate Event = iota
+	osSpecificCreate Event = 1 << iota
 	osSpecificRemove
 	osSpecificWrite
 	osSpecificRename
@@ -29,10 +27,8 @@ var ekind = map[Event]Event{}
 
 type event struct{}
 
-func (e *event) Event() Event     { return Error }
-func (e *event) Path() string     { return "" }
-func (e *event) Sys() interface{} { return nil }
+func (e *event) Event() (_ Event)     { return }
+func (e *event) Path() (_ string)     { return }
+func (e *event) Sys() (_ interface{}) { return }
 
-func isdir(EventInfo) (bool, error) {
-	return false, errors.New("notify: not implemented")
-}
+func isdir(EventInfo) (_ bool, _ error) { return }

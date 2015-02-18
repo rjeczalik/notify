@@ -7,7 +7,15 @@
 
 package notify
 
+type stub struct{ error }
+
 // NewWatcher stub.
-func newWatcher() watcher {
-	return nil
+func newWatcher(chan<- EventInfo) stub {
+	return stub{errors.New("notify: not implemented")}
 }
+
+// Following methods implement notify.watcher interface.
+func (s stub) Watch(string, Event) error          { return s }
+func (s stub) Rewatch(string, Event, Event) error { return s }
+func (s stub) Unwatch(string) (err error)         { return s }
+func (s stub) Close() error                       { return s }

@@ -23,9 +23,9 @@
 // means using platform-specific API calls for creating / initializing said watch.
 // For each watcher the API call is:
 //
+//   - FSEvents: FSEventStreamCreate
 //   - inotify:  notify_add_watch
 //   - kqueue:   kevent
-//   - FSEvents: FSEventStreamCreate
 //   - ReadDirectoryChangesW: CreateFile+ReadDirectoryChangesW
 //
 // To rewatch means to either shrink or expand an event set that was previously
