@@ -10,6 +10,7 @@ os:
 matrix:
   include:
    - os: osx
+     go: 1.4.1
      env:
       - GOFLAGS="-tags kqueue"
 
@@ -22,7 +23,6 @@ env:
 
 install:
  - if [ "$(curl -LIsS -w %{http_code} coveralls.io | tail -1)" = "200" ] && [ "$TRAVIS_OS_NAME" = "linux" ]; then export COVERALLS=1; fi
- - if [ "$TRAVIS_OS_NAME" = "osx" ]; then eval "$(gimme 1.4.1)"; export GOBIN=$HOME/bin; fi
  - go get golang.org/x/tools/cmd/vet
  - if [ "$COVERALLS" = "1" ]; then go get golang.org/x/tools/cmd/cover github.com/mattn/goveralls github.com/modocache/gover; fi
  - go get -t -v ./...
