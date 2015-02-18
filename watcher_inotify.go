@@ -340,9 +340,12 @@ func decode(mask Event, e *event) (syse *event) {
 	return
 }
 
-// Unwatch implements notify.watcher interface.
+// Unwatch implements notify.watcher interface. It looks for watch descriptor
+// related to registered path and if found, calls inotify_rm_watch(2) function.
+// This method is allowed to return EINVAL error when concurrently requested to
+// delete identical path.
 func (i *inotify) Unwatch(path string) (err error) {
-	iwd := int32(-1)
+	iwd := int32(invalidDescriptor)
 	i.RLock()
 	for iwdkey, wd := range i.m {
 		if wd.path == path {
@@ -351,8 +354,8 @@ func (i *inotify) Unwatch(path string) (err error) {
 		}
 	}
 	i.RUnlock()
-	if iwd < 0 {
-		return errors.New("notify: file/dir " + path + " is unwatched")
+	if iwd == invalidDescriptor {
+		return errNotWatched
 	}
 	fd := atomic.LoadInt32(&i.fd)
 	if _, err = syscall.InotifyRmWatch(int(fd), uint32(iwd)); err != nil {
@@ -365,9 +368,9 @@ func (i *inotify) Unwatch(path string) (err error) {
 }
 
 // Close implements notify.watcher interface. It removes all existing watch
-// descriptors and wakes up producer goroutine by sending to the write end of
-// the pipe. The function waits for a signal from producer which means that all
-// operations on current monitoring instance are done.
+// descriptors and wakes up producer goroutine by sending data to the write end
+// of the pipe. The function waits for a signal from producer which means that
+// all operations on current monitoring instance are done.
 func (i *inotify) Close() (err error) {
 	i.Lock()
 	if fd := atomic.LoadInt32(&i.fd); fd == invalidDescriptor {
@@ -380,11 +383,15 @@ func (i *inotify) Close() (err error) {
 		}
 		delete(i.m, iwd)
 	}
-	if _, e := syscall.Write(i.pipefd[1], []byte{0x00}); e != nil && err == nil {
-		err = e
-		// TODO: nowait
+	switch _, errwrite := syscall.Write(i.pipefd[1], []byte{0x00}); {
+	case errwrite != nil && err == nil:
+		err = errwrite
+		fallthrough
+	case errwrite != nil:
+		i.Unlock()
+	default:
+		i.Unlock()
+		i.wg.Wait()
 	}
-	i.Unlock()
-	i.wg.Wait()
 	return
 }

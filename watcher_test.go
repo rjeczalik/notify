@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // +build darwin linux freebsd dragonfly netbsd openbsd windows
-// +build kqueue
 
 package notify
 
