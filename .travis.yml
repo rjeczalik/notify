@@ -1,7 +1,7 @@
 language: go
 
 go:
- - 1.4.1
+ - 1.4.2
 
 os:
  - linux
@@ -10,7 +10,7 @@ os:
 matrix:
   include:
    - os: osx
-     go: 1.4.1
+     go: 1.4.2
      env:
       - GOFLAGS="-tags kqueue"
 
