@@ -20,6 +20,14 @@ func icreate(w *W, path string) WCase {
 	return cas
 }
 
+func iremove(w *W, path string) WCase {
+	cas := remove(w, path)
+	cas.Events = append(cas.Events,
+		&Call{P: path, E: InDelete},
+	)
+	return cas
+}
+
 func iopen(w *W, path string) WCase {
 	return WCase{
 		Action: func() {
@@ -88,7 +96,6 @@ func irename(w *W, path string) WCase {
 			&Call{P: path + ext, E: InMovedTo},
 			&Call{P: path, E: InOpen},
 			&Call{P: path, E: InAccess},
-			&Call{P: path, E: InAccess},
 			&Call{P: path, E: InCreate},
 		},
 	}
@@ -117,6 +124,7 @@ func TestWatcherInotify(t *testing.T) {
 		iopen(w, "src/github.com/rjeczalik/fs/fs.go"),
 		iwrite(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 		iread(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
+		iremove(w, "src/github.com/ppknap/link/README.md"),
 		irename(w, "src/github.com/rjeczalik/fs/LICENSE"),
 	}
 

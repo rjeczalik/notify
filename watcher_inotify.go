@@ -252,7 +252,9 @@ func (i *inotify) read() (es []*event) {
 	return
 }
 
-// TODO(ppknap) : doc.
+// send is a consumer function which sends events to event dispatcher channel.
+// It is run in a separate goroutine in order to not block loop method when
+// possibly expensive write operations are performed on inotify map.
 func (i *inotify) send(esch <-chan []*event) {
 	for es := range esch {
 		for _, e := range i.strip(es) {
