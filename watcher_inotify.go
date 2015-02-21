@@ -38,15 +38,15 @@ type watched struct {
 
 // inotify implements Watcher interface.
 type inotify struct {
-	sync.RWMutex
-	m      map[int32]*watched
-	fd     int32
-	pipefd []int
-	epfd   int
-	epes   []syscall.EpollEvent
-	buffer [eventBufferSize]byte
-	wg     sync.WaitGroup
-	c      chan<- EventInfo
+	sync.RWMutex                       // protects inotify.m map.
+	m            map[int32]*watched    // watch descriptor to watched object.
+	fd           int32                 // inotify file descriptor.
+	pipefd       []int                 // pipe's read and write descriptors.
+	epfd         int                   // epoll descriptor.
+	epes         []syscall.EpollEvent  // epoll events.
+	buffer       [eventBufferSize]byte // inotify event buffer.
+	wg           sync.WaitGroup        // wait group used to close main loop.
+	c            chan<- EventInfo      // event dispatcher channel.
 }
 
 // NewWatcher creates new non-recursive inotify backed by inotify.
@@ -78,7 +78,9 @@ func (i *inotify) Rewatch(path string, _, newevent Event) error {
 	return i.watch(path, newevent)
 }
 
-// TODO : pknap
+// watch adds a new watcher to the set of watched objects or modifies the existing
+// one. If called for the first time, this function initializes inotify filesystem
+// monitor and starts producer-consumers goroutines.
 func (i *inotify) watch(path string, e Event) (err error) {
 	if e&^(All|Event(syscall.IN_ALL_EVENTS)) != 0 {
 		return errors.New("notify: unknown event")
@@ -150,14 +152,8 @@ func (i *inotify) epollinit() (err error) {
 		return
 	}
 	i.epes = []syscall.EpollEvent{
-		{ // inotify file descriptor.
-			Events: syscall.EPOLLIN,
-			Fd:     i.fd,
-		},
-		{ // read end of the pipe used to stop event loop.
-			Events: syscall.EPOLLIN,
-			Fd:     int32(i.pipefd[0]),
-		},
+		{Events: syscall.EPOLLIN, Fd: i.fd},
+		{Events: syscall.EPOLLIN, Fd: int32(i.pipefd[0])},
 	}
 	if err = syscall.EpollCtl(i.epfd, syscall.EPOLL_CTL_ADD, int(i.fd), &i.epes[0]); err != nil {
 		return
@@ -199,15 +195,16 @@ func (i *inotify) loop(esch chan<- []*event) {
 			switch epes[0].Fd {
 			case fd:
 				esch <- i.read()
+				epes[0].Fd = 0
 			case int32(i.pipefd[0]):
 				i.Lock()
 				defer i.Unlock()
 				if err = syscall.Close(int(fd)); err != nil && err != syscall.EINTR {
-					panic("notify: close(2) error - " + err.Error())
+					panic("notify: close(2) error " + err.Error())
 				}
 				atomic.StoreInt32(&i.fd, invalidDescriptor)
 				if err = i.epollclose(); err != nil && err != syscall.EINTR {
-					panic("notify: epollclose error - " + err.Error())
+					panic("notify: epollclose error " + err.Error())
 				}
 				close(esch)
 				return
@@ -215,19 +212,16 @@ func (i *inotify) loop(esch chan<- []*event) {
 		case syscall.EINTR:
 			continue
 		default: // We should never reach this line.
-			panic("notify: epoll_wait(2) error - " + err.Error())
+			panic("notify: epoll_wait(2) error " + err.Error())
 		}
 	}
 }
 
-// TODO(ppknap) : doc.
+// read reads events from an inotify file descriptor. It does not handle errors
+// returned from read(2) function since they are not critical to watcher logic.
 func (i *inotify) read() (es []*event) {
 	n, err := syscall.Read(int(i.fd), i.buffer[:])
-	switch {
-	case err != nil || n < 0:
-		// Panic? error?
-		panic(err)
-	case n < syscall.SizeofInotifyEvent:
+	if err != nil || n < syscall.SizeofInotifyEvent {
 		return
 	}
 	var sys *syscall.InotifyEvent
@@ -257,7 +251,7 @@ func (i *inotify) read() (es []*event) {
 // possibly expensive write operations are performed on inotify map.
 func (i *inotify) send(esch <-chan []*event) {
 	for es := range esch {
-		for _, e := range i.strip(es) {
+		for _, e := range i.transform(es) {
 			if e != nil {
 				i.c <- e
 			}
@@ -266,8 +260,11 @@ func (i *inotify) send(esch <-chan []*event) {
 	i.wg.Done()
 }
 
-// TODO(ppknap) : doc.
-func (i *inotify) strip(es []*event) []*event {
+// transform prepares events read from inotify file descriptor for sending to
+// user. It removes invalid events and these which are no longer present in
+// inotify map. This method may also split one raw event into two different ones
+// when system-dependent result is required.
+func (i *inotify) transform(es []*event) []*event {
 	var multi []*event
 	i.RLock()
 	for idx, e := range es {
@@ -357,7 +354,7 @@ func (i *inotify) Unwatch(path string) (err error) {
 	}
 	i.RUnlock()
 	if iwd == invalidDescriptor {
-		return errNotWatched
+		return errors.New("notify: path " + path + " is already watched")
 	}
 	fd := atomic.LoadInt32(&i.fd)
 	if _, err = syscall.InotifyRmWatch(int(fd), uint32(iwd)); err != nil {

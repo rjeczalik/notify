@@ -8,7 +8,6 @@ package notify
 
 import "testing"
 
-// rcreate TODO
 func rcreate(w *W, path string) WCase {
 	cas := create(w, path)
 	cas.Events = append(cas.Events,
@@ -17,7 +16,6 @@ func rcreate(w *W, path string) WCase {
 	return cas
 }
 
-// rremove TODO
 func rremove(w *W, path string) WCase {
 	cas := remove(w, path)
 	cas.Events = append(cas.Events,
@@ -26,7 +24,6 @@ func rremove(w *W, path string) WCase {
 	return cas
 }
 
-// rrename TODO
 func rrename(w *W, oldpath, newpath string) WCase {
 	cas := rename(w, oldpath, newpath)
 	cas.Events = append(cas.Events,
