@@ -5,13 +5,13 @@ os: Windows Server 2012 R2
 clone_folder: c:\projects\src\github.com\rjeczalik\notify
 
 environment:
+ PATH: c:\projects\bin;c:\go-x64\bin;%PATH%
+ GOROOT: c:\go-x64
  GOPATH: c:\projects
- NOTIFY_DEBUG: XD
+ NOTIFY_DEBUG: 1
  NOTIFY_TIMEOUT: 5s
 
 install:
- - set PATH=%GOPATH%\bin;%PATH%
- - cd %APPVEYOR_BUILD_FOLDER%
  - go version
  - go get golang.org/x/tools/cmd/vet
  - go get -v -t ./...
