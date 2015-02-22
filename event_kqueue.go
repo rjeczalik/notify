@@ -86,9 +86,7 @@ func (e *event) Path() string { return e.p }
 // Sys returns platform specific object describing reported event.
 func (e *event) Sys() interface{} { return &e.kq }
 
-func isdir(ei EventInfo) (bool, error) {
-	return ei.Sys().(*Kevent).FI.IsDir(), nil
-}
+func (e *event) isDir() (bool, error) { return e.kq.FI.IsDir(), nil }
 
 // Kevent represents a single event.
 type Kevent struct {

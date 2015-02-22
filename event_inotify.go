@@ -6,10 +6,7 @@
 
 package notify
 
-import (
-	"os"
-	"syscall"
-)
+import "syscall"
 
 // Platform independent event values.
 const (
@@ -78,17 +75,7 @@ type event struct {
 	event Event
 }
 
-func (e *event) Event() Event     { return e.event }
-func (e *event) Path() string     { return e.path }
-func (e *event) Sys() interface{} { return &e.sys }
-
-func isdir(ei EventInfo) (bool, error) {
-	if _, ok := ei.Sys().(syscall.InotifyEvent); ok {
-		return ei.Sys().(syscall.InotifyEvent).Mask&syscall.IN_ISDIR != 0, nil
-	}
-	fi, err := os.Stat(ei.Path())
-	if err != nil {
-		return false, err
-	}
-	return fi.IsDir(), nil
-}
+func (e *event) Event() Event         { return e.event }
+func (e *event) Path() string         { return e.path }
+func (e *event) Sys() interface{}     { return &e.sys }
+func (e *event) isDir() (bool, error) { return e.sys.Mask&syscall.IN_ISDIR != 0, nil }

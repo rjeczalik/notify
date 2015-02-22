@@ -92,11 +92,11 @@ func (e *event) Event() Event     { return e.e }
 func (e *event) Path() string     { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
 func (e *event) Sys() interface{} { return e.ftype }
 
-func isdir(ei EventInfo) (bool, error) {
-	if ftype, ok := ei.Sys().(uint8); ok && ftype != fTypeUnknown {
-		return ftype == fTypeDirectory, nil
+func (e *event) isDir() (bool, error) {
+	if e.ftype != fTypeUnknown {
+		return e.ftype == fTypeDirectory, nil
 	}
-	fi, err := os.Stat(ei.Path())
+	fi, err := os.Stat(e.Path())
 	if err != nil {
 		return false, err
 	}

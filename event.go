@@ -4,7 +4,10 @@
 
 package notify
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Event represents the type of filesystem action.
 //
@@ -101,6 +104,18 @@ type EventInfo interface {
 	Sys() interface{} // underlying data source (can return nil)
 }
 
+type isDirer interface {
+	isDir() (bool, error)
+}
+
+var _ fmt.Stringer = (*event)(nil)
+var _ isDirer = (*event)(nil)
+
+// String implements fmt.Stringer interface.
+func (e *event) String() string {
+	return e.Event().String() + `: "` + e.Path() + `"`
+}
+
 var estr = map[Event]string{
 	Create: "notify.Create",
 	Remove: "notify.Remove",
@@ -117,11 +132,6 @@ var estr = map[Event]string{
 	//
 	// Yup, here the diff have Recursive event inside. Go figure.
 	recursive: "recursive",
-}
-
-// String implements fmt.Stringer interface.
-func (e *event) String() string {
-	return e.Event().String() + `: "` + e.Path() + `"`
 }
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to
