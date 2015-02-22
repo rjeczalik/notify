@@ -6,25 +6,19 @@ package notify
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 )
 
-func min(i, j int) int {
-	if i > j {
-		return j
-	}
-	return i
-}
-
-// Skip TODO
+// skip TODO(rjeczalik)
 var skip = errors.New("skip")
 
-// WalkPathFunc TODO
+// walkPathFunc TODO(rjeczalik)
 type walkPathFunc func(nd node, isbase bool) error
 
-// WalkFunc TODO
+// walkFunc TODO(rjeczalik)
 type walkFunc func(node) error
 
 func errnotexist(name string) error {
@@ -35,14 +29,14 @@ func errnotexist(name string) error {
 	}
 }
 
-// Node TODO
+// node TODO(rjeczalik)
 type node struct {
 	Name  string
 	Watch watchpoint
 	Child map[string]node
 }
 
-// child TODO
+// child TODO(rjeczalik)
 func (nd node) child(name string) node {
 	if name == "" {
 		return nd
@@ -63,6 +57,7 @@ func (nd node) child(name string) node {
 	return child
 }
 
+// newnode TODO(rjeczalik)
 func newnode(name string) node {
 	return node{
 		Name:  name,
@@ -71,6 +66,7 @@ func newnode(name string) node {
 	}
 }
 
+// addchild TODO(rjeczalik)
 func (nd node) addchild(name, base string) node {
 	child, ok := nd.Child[base]
 	if !ok {
@@ -80,7 +76,7 @@ func (nd node) addchild(name, base string) node {
 	return child
 }
 
-// Add TODO
+// Add TODO(rjeczalik)
 func (nd node) Add(name string) node {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -93,12 +89,8 @@ func (nd node) Add(name string) node {
 	return nd.addchild(name, name[i:])
 }
 
-// AddDir TODO
-func (nd node) AddDir(dir string, fn walkFunc) error {
-	nd = nd.Add(dir)
-	if nd.Child == nil { // TODO(rjeczalik): add IsZero
-		return errnotexist(dir)
-	}
+// AddDir TODO(rjeczalik)
+func (nd node) AddDir(fn walkFunc) error {
 	stack := []node{nd}
 Traverse:
 	for n := len(stack); n != 0; n = len(stack) {
@@ -112,17 +104,12 @@ Traverse:
 		}
 		// TODO(rjeczalik): tolerate open failures - add failed names to
 		// AddDirError and notify users which names are not added to the tree.
-		f, err := os.Open(nd.Name)
-		if err != nil {
-			return err
-		}
-		fi, err := f.Readdir(0)
-		f.Close()
+		fi, err := ioutil.ReadDir(nd.Name)
 		if err != nil {
 			return err
 		}
 		for _, fi := range fi {
-			if fi.IsDir() {
+			if fi.Mode()&(os.ModeSymlink|os.ModeDir) == os.ModeDir {
 				name := filepath.Join(nd.Name, fi.Name())
 				stack = append(stack, nd.addchild(name, name[len(nd.Name)+1:]))
 			}
@@ -131,7 +118,7 @@ Traverse:
 	return nil
 }
 
-// Get TODO
+// Get TODO(rjeczalik)
 func (nd node) Get(name string) (node, error) {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -282,7 +269,7 @@ func (r root) Add(name string) node {
 
 // WalkDir TODO
 func (r root) AddDir(dir string, fn walkFunc) error {
-	return r.addroot(dir).AddDir(dir, fn)
+	return r.Add(dir).AddDir(fn)
 }
 
 // Del TODO

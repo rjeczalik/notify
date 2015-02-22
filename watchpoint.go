@@ -34,12 +34,11 @@ var rec = func() (ch chan<- EventInfo) {
 }()
 
 // Diff TODO(rjeczalik)
-func (wp watchpoint) Diff(e Event) eventDiff {
-	e &^= recursive
-	if wp[nil]&e == e {
+func (wp watchpoint) dryAdd(ch chan<- EventInfo, e Event) eventDiff {
+	if e &^= recursive; wp[ch]&e == e {
 		return none
 	}
-	total := wp[nil] &^ recursive
+	total := wp[ch] &^ recursive
 	return eventDiff{total, total | e}
 }
 

@@ -329,16 +329,16 @@ func EqualEventInfo(want, got EventInfo) error {
 // EqualCall TODO(rjeczalik)
 func EqualCall(want, got Call) error {
 	if want.F != got.F {
-		return fmt.Errorf("want F=%v; got %v (P=%q)", want.F, got.F, want.P)
+		return fmt.Errorf("want F=%v; got %v (want.P=%q, got.P=%q)", want.F, got.F, want.P, got.P)
 	}
 	if got.E != want.E {
-		return fmt.Errorf("want E=%v; got %v (P=%q)", want.E, got.E, want.P)
+		return fmt.Errorf("want E=%v; got %v (want.P=%q, got.P=%q)", want.E, got.E, want.P, got.P)
 	}
 	if got.NE != want.NE {
-		return fmt.Errorf("want NE=%v; got %v (P=%q)", want.NE, got.NE, want.P)
+		return fmt.Errorf("want NE=%v; got %v (want.P=%q, got.P=%q)", want.NE, got.NE, want.P, got.P)
 	}
 	if want.C != got.C {
-		return fmt.Errorf("want C=%p; got %p (P=%q)", want.C, got.C, want.P)
+		return fmt.Errorf("want C=%p; got %p (want.P=%q, got.P=%q)", want.C, got.C, want.P)
 	}
 	if want := filepath.FromSlash(want.P); !strings.HasSuffix(got.P, want) {
 		return fmt.Errorf("want P=%s; got %s", want, got.P)
@@ -570,11 +570,12 @@ type Call struct {
 	S  interface{}    // when Call is used as EventInfo, S is a value of Sys()
 }
 
-// Call implements an EventInfo interface.
-func (c *Call) Event() Event     { return c.E }
-func (c *Call) Path() string     { return c.P }
-func (c *Call) String() string   { return fmt.Sprintf("%#v", c) }
-func (c *Call) Sys() interface{} { return c.S }
+// Call implements the EventInfo interface.
+func (c *Call) Event() Event         { return c.E }
+func (c *Call) Path() string         { return c.P }
+func (c *Call) String() string       { return fmt.Sprintf("%#v", c) }
+func (c *Call) Sys() interface{}     { return c.S }
+func (c *Call) isDir() (bool, error) { return false, nil }
 
 // Spy is a mock for Watcher interface, which records every call.
 type Spy []Call
@@ -674,7 +675,13 @@ func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
 	n.w.Watcher = fn(n.spy)
 	n.w.C = c
 	n.c = c
-	n.notifier = newNotifier(n.w.watcher(), n.w.c())
+	// TODO(rjeczalik): remove this hack when nonrecursiveTree is ready
+	// n.notifier = newNotifier(n.w.watcher(), n.w.c())
+	if rw, ok := n.w.watcher().(recursiveWatcher); ok {
+		n.notifier = newRecursiveTree(rw, n.w.c())
+	} else {
+		n.notifier = newNonrecursiveTree(n.w.watcher(), n.w.c())
+	}
 	return n
 }
 
@@ -685,19 +692,15 @@ func NewNotifyTest(t *testing.T, tree string) *N {
 	return n
 }
 
-// NewTreeTest TODO(rjeczalik)
-func NewTreeTest(t *testing.T, tree string) *N {
-	fn := func(spy *Spy) watcher {
-		return struct {
-			watcher
-		}{spy}
-	}
-	return newTreeN(t, tree, fn)
-}
-
 // NewRecursiveTreeTest TODO(rjeczalik)
 func NewRecursiveTreeTest(t *testing.T, tree string) *N {
 	fn := func(spy *Spy) watcher { return spy }
+	return newTreeN(t, tree, fn)
+}
+
+// NewNonrecursiveTreeTest TODO(rjeczalik)
+func NewNonrecursiveTreeTest(t *testing.T, tree string) *N {
+	fn := func(spy *Spy) watcher { return struct{ watcher }{spy} }
 	return newTreeN(t, tree, fn)
 }
 
@@ -781,9 +784,9 @@ func (n *N) ExpectRecordedCalls(cases []RCase) {
 			n.t.Fatalf("%s: want len(record)=%d; got %d [%+v] (i=%d)", caller(),
 				len(cas.Record), len(record), record, i)
 		}
-		for k := range cas.Record {
-			if err := EqualCall(cas.Record[k], record[k]); err != nil {
-				n.t.Fatalf("%s: %v (i=%d)", caller(), err, i)
+		for j := range cas.Record {
+			if err := EqualCall(cas.Record[j], record[j]); err != nil {
+				n.t.Fatalf("%s: %v (i=%d, j=%d)", caller(), err, i, j)
 			}
 		}
 	}

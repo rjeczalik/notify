@@ -363,6 +363,9 @@ func (t *bigTree) unregister(nd node, c chan<- EventInfo, e Event) eventDiff {
 
 // TODO(rjeczalik): Transfer file watchpoint to its directory one?
 //
+// TODO(rjeczalik): remove bigtree implmenetation and replace it with either
+// recursiveTree or nonrecursiveTree one.
+//
 // TODO(rjeczalik): check if any of the parents are being watched recursively
 // and the event set is sufficient.
 func (t *bigTree) watch(p string, c chan<- EventInfo, e Event) (err error) {

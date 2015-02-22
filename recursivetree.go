@@ -4,35 +4,7 @@
 
 package notify
 
-import (
-	"path/filepath"
-	"strings"
-	"sync"
-)
-
-const all = ^Event(0)
-
-// must panics if err is non-nil.
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-// cleanpath TODO(rjeczalik): move to util.go
-func cleanpath(path string) (realpath string, isrec bool, err error) {
-	if strings.HasSuffix(path, "...") {
-		isrec = true
-		path = path[:len(path)-3]
-	}
-	if path, err = filepath.Abs(path); err != nil {
-		return "", false, err
-	}
-	if path, err = canonical(path); err != nil {
-		return "", false, err
-	}
-	return path, isrec, nil
-}
+import "sync"
 
 // watchAdd TODO(rjeczalik)
 func watchAdd(nd node, c chan<- EventInfo, e Event) eventDiff {
@@ -90,6 +62,7 @@ func watchDel(nd node, c chan<- EventInfo, e Event) eventDiff {
 	if wp := nd.Child[""].Watch; len(wp) != 0 {
 		diffInactive := wp.Del(c, e)
 		e = wp.Total()
+		// TODO(rjeczalik): add e if e != all?
 		diff[0] |= diffInactive[0] | e
 		diff[1] |= diffInactive[1] | e
 		if diff[0] == diff[1] {
@@ -143,22 +116,22 @@ func newRecursiveTree(w recursiveWatcher, c chan EventInfo) *recursiveTree {
 		}{w.(watcher), w},
 		c: c,
 	}
-	go t.dispatch(c)
+	go t.dispatch()
 	return t
 }
 
 // dispatch TODO(rjeczalik)
-func (t *recursiveTree) dispatch(c <-chan EventInfo) {
-	for ei := range c {
+func (t *recursiveTree) dispatch() {
+	for ei := range t.c {
 		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
 		go func(ei EventInfo) {
-			var parent node
+			nd, ok := node{}, false
 			dir, base := split(ei.Path())
-			fn := func(nd node, isbase bool) error {
+			fn := func(it node, isbase bool) error {
 				if isbase {
-					parent = nd
+					nd = it
 				} else {
-					nd.Watch.Dispatch(ei, recursive)
+					it.Watch.Dispatch(ei, recursive)
 				}
 				return nil
 			}
@@ -169,12 +142,12 @@ func (t *recursiveTree) dispatch(c <-chan EventInfo) {
 				dbg.Print("dispatch did not reach leaf:", err)
 				return
 			}
+			// Notify parent watchpoint.
+			nd.Watch.Dispatch(ei, 0)
 			// If leaf watchpoint exists, notify it.
-			if nd, ok := parent.Child[base]; ok {
+			if nd, ok = nd.Child[base]; ok {
 				nd.Watch.Dispatch(ei, 0)
 			}
-			// Notify parent watchpoint.
-			parent.Watch.Dispatch(ei, 0)
 		}(ei)
 	}
 }
@@ -227,6 +200,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 			// the parent watchpoint already covers requested subtree with its
 			// eventset
 		case diff[0] == 0:
+			// TODO(rjeczalik): cleanup this panic after implementation is stable
 			panic("dangling watchpoint: " + parent.Name)
 		default:
 			if isrec || watchIsRecursive(parent) {
@@ -238,8 +212,9 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 				watchDel(parent, c, diff.Event())
 				return err
 			}
-			// TODO(rjeczalik): traverse tree instead; eventually track minimum
-			// subtree root per each chan
+			watchAdd(cur, c, eventset)
+			// TODO(rjeczalik): account top-most path for c
+			return nil
 		}
 		if !self {
 			watchAdd(cur, c, eventset)
@@ -302,7 +277,11 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		return err
 	}
 	// case 3: cur is new, alone node
-	if diff := watchAdd(cur, c, eventset); diff[0] == 0 {
+	switch diff := watchAdd(cur, c, eventset); {
+	case diff == none:
+		// TODO(rjeczalik): cleanup this panic after implementation is stable
+		panic("watch requested but no parent watchpoint found: " + cur.Name)
+	case diff[0] == 0:
 		if isrec {
 			err = t.w.RecursiveWatch(cur.Name, diff[1])
 		} else {
@@ -312,6 +291,9 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 			watchDel(cur, c, diff.Event())
 			return err
 		}
+	default:
+		// TODO(rjeczalik): cleanup this panic after implementation is stable
+		panic("watch requested but no parent watchpoint found: " + cur.Name)
 	}
 	return nil
 }
@@ -350,11 +332,13 @@ func (t *recursiveTree) Stop(c chan<- EventInfo) {
 			return nil
 		}
 		err = nonil(err, e, nd.Walk(fn))
+		// TODO(rjeczalik): if e != nil store dummy chan in nd.Watch just to
+		// retry un/rewatching next time and/or let the user handle the failure
+		// vie Error event?
 		return skip
 	}
 	t.rw.Lock()
-	// TODO(rjeczalik): use max root per c
-	e := t.root.Walk("", fn)
+	e := t.root.Walk("", fn) // TODO(rjeczalik): use max root per c
 	t.rw.Unlock()
 	if e != nil {
 		err = nonil(err, e)

@@ -386,9 +386,6 @@ func TestRecursiveTree(t *testing.T) {
 			},
 			Record: nil,
 		},
-		// TODO(rjeczalik): research if we can get rid of inactive watchpoints
-		// from "src/github.com/pblaszczyk/qttu/src" (debug tree structure).
-		// Those inactive watchpoints seem too excessive.
 		{
 			Call: Call{
 				F: FuncStop,
@@ -413,7 +410,7 @@ func TestRecursiveTreeWatchInactiveMerge(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(3)
+	ch := NewChans(1)
 
 	watches := [...]RCase{
 		// i=0

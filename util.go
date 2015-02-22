@@ -11,8 +11,34 @@ import (
 	"strings"
 )
 
+const all = ^Event(0)
 const sep = string(os.PathSeparator)
 
+// errDepth TODO(rjeczalik)
+var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
+
+func min(i, j int) int {
+	if i > j {
+		return j
+	}
+	return i
+}
+
+func max(i, j int) int {
+	if i < j {
+		return j
+	}
+	return i
+}
+
+// must panics if err is non-nil.
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// nonil gives first non-nil error from the given arguments.
 func nonil(err ...error) error {
 	for _, err := range err {
 		if err != nil {
@@ -22,7 +48,20 @@ func nonil(err ...error) error {
 	return nil
 }
 
-var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
+// cleanpath TODO(rjeczalik)
+func cleanpath(path string) (realpath string, isrec bool, err error) {
+	if strings.HasSuffix(path, "...") {
+		isrec = true
+		path = path[:len(path)-3]
+	}
+	if path, err = filepath.Abs(path); err != nil {
+		return "", false, err
+	}
+	if path, err = canonical(path); err != nil {
+		return "", false, err
+	}
+	return path, isrec, nil
+}
 
 // canonical resolves any symlink in the given path and returns it in a clean form.
 // It expects the path to be absolute. It fails to resolve circular symlinks by

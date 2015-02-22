@@ -141,3 +141,7 @@ func TestTreeLastIndexSep(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanpath(t *testing.T) {
+	t.Skip("TODO(rjeczalik)")
+}
