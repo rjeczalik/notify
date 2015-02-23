@@ -714,12 +714,12 @@ func (n *N) W() *W {
 }
 
 // Close TODO
-func (n *N) Close() (err error) {
-	if cl, ok := n.notifier.(io.Closer); ok {
-		os.RemoveAll(n.w.root)
-		return cl.Close()
+func (n *N) Close() error {
+	defer os.RemoveAll(n.w.root)
+	if err := n.notifier.(io.Closer).Close(); err != nil {
+		n.w.Fatalf("(notifier).Close()=%v", err)
 	}
-	return n.w.Close()
+	return nil
 }
 
 // Watch TODO(rjeczalik)
