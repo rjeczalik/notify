@@ -32,13 +32,13 @@ func (t *nonrecursiveTree) dispatch() {
 	for ei := range t.c {
 		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
 		go func(ei EventInfo) {
-			var parent node
+			nd, ok := node{}, false
 			dir, base := split(ei.Path())
-			fn := func(nd node, isbase bool) error {
+			fn := func(it node, isbase bool) error {
 				if isbase {
-					parent = nd
+					nd = it
 				} else {
-					nd.Watch.Dispatch(ei, recursive)
+					it.Watch.Dispatch(ei, recursive)
 				}
 				return nil
 			}
@@ -50,21 +50,12 @@ func (t *nonrecursiveTree) dispatch() {
 				return
 			}
 			// Notify parent watchpoint.
-			parent.Watch.Dispatch(ei, 0)
+			nd.Watch.Dispatch(ei, 0)
 			// If leaf watchpoint exists, notify it.
-			if nd, ok := parent.Child[base]; ok {
+			if nd, ok = nd.Child[base]; ok {
 				nd.Watch.Dispatch(ei, 0)
 				return
 			}
-			// TODO rm
-			if ei.Event() != Create {
-				return
-			}
-			if isdir, err := ei.(isDirer).isDir(); err != nil || !isdir {
-				return
-			}
-			parent.Watch.Dispatch(ei, internal)
-			dbg.Printf("watching ad-hoc newly created directory: %s", ei.Path())
 		}(ei)
 	}
 }
@@ -89,29 +80,37 @@ func (t *nonrecursiveTree) watchAdd(nd node, c chan<- EventInfo, e Event) eventD
 	return nd.Watch.Add(c, e)
 }
 
-// watchDel TODO(rjeczalik)
-func (t *nonrecursiveTree) watchDel(nd node, c chan<- EventInfo, e Event) eventDiff {
-	rec, ok := nd.Watch[t.rec]
+// watchDelMin TODO(rjeczalik)
+func (t *nonrecursiveTree) watchDelMin(min Event, nd node, c chan<- EventInfo, e Event) eventDiff {
+	old, ok := nd.Watch[t.rec]
 	if ok {
-		delete(nd.Watch, t.rec)
+		nd.Watch[t.rec] = min
 	}
 	diff := nd.Watch.Del(c, e)
 	if ok {
-		switch rec &^= diff.Event(); {
-		case !nd.Watch.IsRecursive():
-			// no recursive watchpoint anymore
-		case rec|recursive == recursive:
-			// no more events, only internal ones
+		switch old &^= diff[0] &^ diff[1]; {
+		case old|recursive == recursive:
+			delete(nd.Watch, t.rec)
+			if set, ok := nd.Watch[nil]; ok && len(nd.Watch) == 1 && set == 0 {
+				delete(nd.Watch, nil)
+			}
 		default:
-			nd.Watch.Add(t.rec, rec)
+			nd.Watch.Add(t.rec, old|Create)
+			switch {
+			case diff == none:
+			case diff[1]|Create == diff[0]:
+				diff = none
+			default:
+				diff[1] |= Create
+			}
 		}
 	}
 	return diff
 }
 
-// watchRec TODO(rjeczalik)
-func (t *nonrecursiveTree) watchRec(nd node) Event {
-	return nd.Watch[t.rec]
+// watchDel TODO(rjeczalik)
+func (t *nonrecursiveTree) watchDel(nd node, c chan<- EventInfo, e Event) eventDiff {
+	return t.watchDelMin(0, nd, c, e)
 }
 
 // Watch TODO(rjeczalik)
@@ -165,6 +164,7 @@ func (t *nonrecursiveTree) watchrec(nd node, c chan<- EventInfo, e Event) error 
 	switch diff := nd.Watch.dryAdd(t.rec, e|Create); {
 	case diff == none:
 		t.watchAdd(nd, c, e)
+		nd.Watch.Add(t.rec, e|Create)
 		return nil
 	case diff[1] == 0:
 		// TODO(rjeczalik): cleanup this panic after implementation is stable
@@ -198,9 +198,56 @@ func (t *nonrecursiveTree) watchrec(nd node, c chan<- EventInfo, e Event) error 
 	return nil
 }
 
+type walkWatchpointFunc func(Event, node) error
+
+func (t *nonrecursiveTree) walkWatchpoint(nd node, fn walkWatchpointFunc) error {
+	type minode struct {
+		min Event
+		nd  node
+	}
+	mnd := minode{nd: nd}
+	stack := []minode{mnd}
+Traverse:
+	for n := len(stack); n != 0; n = len(stack) {
+		mnd, stack = stack[n-1], stack[:n-1]
+		// There must be no recursive watchpoints if the node has no watchpoints
+		// itself (every node in subtree rooted at recursive watchpoints must
+		// have at least nil (total) and t.rec watchpoints).
+		if len(mnd.nd.Watch) != 0 {
+			switch err := fn(mnd.min, mnd.nd); err {
+			case nil:
+			case skip:
+				continue Traverse
+			default:
+				return err
+			}
+		}
+		for _, nd := range mnd.nd.Child {
+			stack = append(stack, minode{mnd.nd.Watch[t.rec], nd})
+		}
+	}
+	return nil
+}
+
 // Stop TODO(rjeczalik)
 func (t *nonrecursiveTree) Stop(c chan<- EventInfo) {
-	// TODO
+	fn := func(min Event, nd node) error {
+		// TODO(rjeczalik): aggregate watcher errors and retry; in worst case
+		// forward to the user.
+		switch diff := t.watchDelMin(min, nd, c, all); {
+		case diff == none:
+			return nil
+		case diff[1] == 0:
+			t.w.Unwatch(nd.Name)
+		default:
+			t.w.Rewatch(nd.Name, diff[0], diff[1])
+		}
+		return nil
+	}
+	t.rw.Lock()
+	err := t.walkWatchpoint(t.root.nd, fn) // TODO(rjeczalik): store max root per c
+	t.rw.Unlock()
+	dbg.Printf("Stop(%p) error: %v\n", c, err)
 }
 
 // Close TODO(rjeczalik)

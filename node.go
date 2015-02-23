@@ -287,19 +287,19 @@ func (r root) Get(name string) (node, error) {
 	if err != nil {
 		return node{}, err
 	}
-	return nd.Get(name)
+	if nd.Name != name {
+		if nd, err = nd.Get(name); err != nil {
+			return node{}, err
+		}
+	}
+	return nd, nil
 }
 
 // Walk TODO
 func (r root) Walk(name string, fn walkFunc) error {
-	nd, err := r.root(name)
+	nd, err := r.Get(name)
 	if err != nil {
 		return err
-	}
-	if nd.Name != name {
-		if nd, err = nd.Get(name); err != nil {
-			return err
-		}
 	}
 	return nd.Walk(fn)
 }

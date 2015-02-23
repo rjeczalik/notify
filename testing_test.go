@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -577,6 +578,13 @@ func (c *Call) String() string       { return fmt.Sprintf("%#v", c) }
 func (c *Call) Sys() interface{}     { return c.S }
 func (c *Call) isDir() (bool, error) { return false, nil }
 
+type CallSlice []Call
+
+func (cs CallSlice) Len() int           { return len(cs) }
+func (cs CallSlice) Less(i, j int) bool { return cs[i].P < cs[j].P }
+func (cs CallSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
+func (cs CallSlice) Sort()              { sort.Sort(cs) }
+
 // Spy is a mock for Watcher interface, which records every call.
 type Spy []Call
 
@@ -784,6 +792,7 @@ func (n *N) ExpectRecordedCalls(cases []RCase) {
 			n.t.Fatalf("%s: want len(record)=%d; got %d [%+v] (i=%d)", caller(),
 				len(cas.Record), len(record), record, i)
 		}
+		CallSlice(record).Sort()
 		for j := range cas.Record {
 			if err := EqualCall(cas.Record[j], record[j]); err != nil {
 				n.t.Fatalf("%s: %v (i=%d, j=%d)", caller(), err, i, j)
@@ -897,4 +906,19 @@ func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 		}
 	}
 	n.expectDry(all, -1)
+}
+
+func (n *N) Walk(fn walkFunc) {
+	switch t := n.notifier.(type) {
+	case *recursiveTree:
+		if err := t.root.Walk("", fn); err != nil {
+			n.w.Fatal(err)
+		}
+	case *nonrecursiveTree:
+		if err := t.root.Walk("", fn); err != nil {
+			n.w.Fatal(err)
+		}
+	default:
+		n.t.Fatal("unknown tree type")
+	}
 }

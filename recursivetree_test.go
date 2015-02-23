@@ -379,6 +379,7 @@ func TestRecursiveTree(t *testing.T) {
 	n.ExpectTreeEvents(events[:], ch)
 
 	stops := [...]RCase{
+		// i=0
 		{
 			Call: Call{
 				F: FuncStop,

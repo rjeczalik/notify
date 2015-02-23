@@ -1,6 +1,9 @@
 package notify
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestNonrecursiveTree(t *testing.T) {
 	n := NewNonrecursiveTreeTest(t, "testdata/vfs.txt")
@@ -41,12 +44,12 @@ func TestNonrecursiveTree(t *testing.T) {
 				},
 				{
 					F: FuncWatch,
-					P: "src/github.com/rjeczalik/fs/cmd/mktree",
+					P: "src/github.com/rjeczalik/fs/cmd/gotree",
 					E: Create | Remove,
 				},
 				{
 					F: FuncWatch,
-					P: "src/github.com/rjeczalik/fs/cmd/gotree",
+					P: "src/github.com/rjeczalik/fs/cmd/mktree",
 					E: Create | Remove,
 				},
 			},
@@ -68,13 +71,13 @@ func TestNonrecursiveTree(t *testing.T) {
 				},
 				{
 					F:  FuncRewatch,
-					P:  "src/github.com/rjeczalik/fs/cmd/mktree",
+					P:  "src/github.com/rjeczalik/fs/cmd/gotree",
 					E:  Create | Remove,
 					NE: Create | Remove | Rename,
 				},
 				{
 					F:  FuncRewatch,
-					P:  "src/github.com/rjeczalik/fs/cmd/gotree",
+					P:  "src/github.com/rjeczalik/fs/cmd/mktree",
 					E:  Create | Remove,
 					NE: Create | Remove | Rename,
 				},
@@ -177,11 +180,6 @@ func TestNonrecursiveTree(t *testing.T) {
 					E: Create | Write,
 				},
 				{
-					F: FuncWatch,
-					P: "src/github.com/pblaszczyk/qttu/src",
-					E: Create | Write,
-				},
-				{
 					F:  FuncRewatch,
 					P:  "src/github.com/pblaszczyk/qttu/include",
 					E:  Create | Rename,
@@ -192,6 +190,11 @@ func TestNonrecursiveTree(t *testing.T) {
 					P:  "src/github.com/pblaszczyk/qttu/include/qttu",
 					E:  Create | Rename,
 					NE: Create | Rename | Write,
+				},
+				{
+					F: FuncWatch,
+					P: "src/github.com/pblaszczyk/qttu/src",
+					E: Create | Write,
 				},
 			},
 		},
@@ -280,4 +283,143 @@ func TestNonrecursiveTree(t *testing.T) {
 	}
 
 	n.ExpectTreeEvents(events[:], ch)
+
+	stops := [...]RCase{
+		// i=0
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[4],
+			},
+			Record: nil,
+		},
+		// i=1
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[3],
+			},
+			Record: []Call{
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/pblaszczyk/qttu",
+					E:  Create | Write | Remove,
+					NE: Create | Write,
+				},
+			},
+		},
+		// i=2
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[2],
+			},
+			Record: []Call{
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/rjeczalik/fs/cmd",
+					E:  Create | Remove | Rename,
+					NE: Create | Remove,
+				},
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/rjeczalik/fs/cmd/gotree",
+					E:  Create | Remove | Rename,
+					NE: Create | Remove,
+				},
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/rjeczalik/fs/cmd/mktree",
+					E:  Create | Remove | Rename | Write,
+					NE: Create | Remove,
+				},
+			},
+		},
+		// i=3
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[1],
+			},
+			Record: []Call{
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/pblaszczyk",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/pblaszczyk/qttu",
+				},
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/pblaszczyk/qttu/include",
+					E:  Create | Rename | Write,
+					NE: Create | Rename,
+				},
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/pblaszczyk/qttu/include/qttu",
+					E:  Create | Rename | Write,
+					NE: Create | Rename,
+				},
+				{
+					F:  FuncRewatch,
+					P:  "src/github.com/pblaszczyk/qttu/include/qttu/detail",
+					E:  Create | Rename | Write,
+					NE: Create | Rename,
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/pblaszczyk/qttu/src",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/rjeczalik/fs/cmd",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/rjeczalik/fs/cmd/gotree",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/rjeczalik/fs/cmd/mktree",
+				},
+			},
+		},
+		// i=4
+		{
+			Call: Call{
+				F: FuncStop,
+				C: ch[0],
+			},
+			Record: []Call{
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/pblaszczyk/qttu/include",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/pblaszczyk/qttu/include/qttu",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/pblaszczyk/qttu/include/qttu/detail",
+				},
+				{
+					F: FuncUnwatch,
+					P: "src/github.com/rjeczalik/fs/fs.go",
+				},
+			},
+		},
+	}
+
+	n.ExpectRecordedCalls(stops[:])
+
+	n.Walk(func(nd node) error {
+		if len(nd.Watch) != 0 {
+			return fmt.Errorf("unexpected watchpoint: name=%s, eventset=%v (len=%d)",
+				nd.Name, nd.Watch.Total(), len(nd.Watch))
+		}
+		return nil
+	})
 }
