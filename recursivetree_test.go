@@ -479,3 +479,48 @@ func TestRecursiveTreeWatchInactiveMerge(t *testing.T) {
 
 	n.ExpectTreeEvents(events[:], ch)
 }
+
+func TestRecursiveTree_Windows(t *testing.T) {
+	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
+	defer n.Close()
+
+	const ChangeFileName = Event(0x1)
+
+	ch := NewChans(1)
+
+	watches := [...]RCase{
+		// i=0
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs",
+				C: ch[0],
+				E: ChangeFileName,
+			},
+			Record: []Call{
+				{
+					F: FuncWatch,
+					P: "src/github.com/rjeczalik/fs",
+					E: ChangeFileName,
+				},
+			},
+		},
+	}
+
+	n.ExpectRecordedCalls(watches[:])
+
+	events := [...]TCase{
+		// i=0
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs", E: ChangeFileName},
+			Receiver: Chans{ch[0]},
+		},
+		// i=1
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/fs.go", E: ChangeFileName},
+			Receiver: Chans{ch[0]},
+		},
+	}
+
+	n.ExpectTreeEvents(events[:], ch)
+}
