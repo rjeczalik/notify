@@ -184,8 +184,7 @@ func (wd *watched) recreate(cph syscall.Handle) (err error) {
 		return
 	}
 	dirfilter := wd.filter & uint32(FileNotifyChangeDirName|Create|Remove)
-	if err = wd.updateGrip(1, cph, dirfilter == 0,
-		wd.filter|uint32(dirmarker)); err != nil {
+	if err = wd.updateGrip(1, cph, dirfilter == 0, wd.filter|uint32(dirmarker)); err != nil {
 		return
 	}
 	wd.filter &^= onlyMachineStates
@@ -274,6 +273,9 @@ func (r *readdcw) RecursiveWatch(path string, event Event) error {
 // already exists, function tries to rewatch it with new filters(NOT VALID). Moreover,
 // watch starts the main event loop goroutine when called for the first time.
 func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
+	if event&^(All|fileNotifyChangeAll) != 0 {
+		return errors.New("notify: unknown event")
+	}
 	r.Lock()
 	wd, ok := r.m[path]
 	r.Unlock()
@@ -305,8 +307,7 @@ func (r *readdcw) lazyinit() (err error) {
 		defer r.Unlock()
 		if atomic.LoadUintptr((*uintptr)(&r.cph)) == invalid {
 			cph := syscall.InvalidHandle
-			if cph, err = syscall.CreateIoCompletionPort(
-				cph, 0, 0, 0); err != nil {
+			if cph, err = syscall.CreateIoCompletionPort(cph, 0, 0, 0); err != nil {
 				return
 			}
 			r.cph, r.start = cph, true
@@ -321,8 +322,7 @@ func (r *readdcw) loop() {
 	var n, key uint32
 	var overlapped *syscall.Overlapped
 	for {
-		err := syscall.GetQueuedCompletionStatus(r.cph, &n, &key,
-			&overlapped, syscall.INFINITE)
+		err := syscall.GetQueuedCompletionStatus(r.cph, &n, &key, &overlapped, syscall.INFINITE)
 		if key == stateCPClose {
 			r.Lock()
 			handle := r.cph
@@ -376,10 +376,8 @@ func (r *readdcw) loopevent(n uint32, overEx *overlappedEx) {
 	events := []*event{}
 	var currOffset uint32
 	for {
-		raw := (*syscall.FileNotifyInformation)(unsafe.Pointer(
-			&overEx.parent.buffer[currOffset]))
-		name := syscall.UTF16ToString((*[syscall.MAX_PATH]uint16)(
-			unsafe.Pointer(&raw.FileName))[:raw.FileNameLength>>1])
+		raw := (*syscall.FileNotifyInformation)(unsafe.Pointer(&overEx.parent.buffer[currOffset]))
+		name := syscall.UTF16ToString((*[syscall.MAX_PATH]uint16)(unsafe.Pointer(&raw.FileName))[:raw.FileNameLength>>1])
 		events = append(events, &event{
 			pathw:  overEx.parent.pathw,
 			filter: overEx.parent.filter,
@@ -434,8 +432,10 @@ func (r *readdcw) RecursiveRewatch(oldpath, newpath string, oldevent,
 }
 
 // TODO : (pknap) doc.
-func (r *readdcw) rewatch(path string, oldevent, newevent uint32,
-	recursive bool) (err error) {
+func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool) (err error) {
+	if Event(newevent)&^(All|fileNotifyChangeAll) != 0 {
+		return errors.New("notify: unknown event")
+	}
 	var wd *watched
 	r.Lock()
 	if wd, err = r.nonStateWatched(path); err != nil {
@@ -517,8 +517,7 @@ func (r *readdcw) Close() (err error) {
 	r.start = false
 	r.Unlock()
 	r.wg.Add(1)
-	if e := syscall.PostQueuedCompletionStatus(r.cph, 0, stateCPClose,
-		nil); e != nil && err == nil {
+	if e := syscall.PostQueuedCompletionStatus(r.cph, 0, stateCPClose, nil); e != nil && err == nil {
 		return e
 	}
 	r.wg.Wait()
@@ -552,8 +551,7 @@ func decode(filter, action uint32) Event {
 func addrmv(filter uint32, e, syse Event) Event {
 	isdir := filter&uint32(dirmarker) != 0
 	switch {
-	case isdir && filter&uint32(FileNotifyChangeDirName) != 0 ||
-		!isdir && filter&uint32(FileNotifyChangeFileName) != 0:
+	case isdir && filter&uint32(FileNotifyChangeDirName) != 0 || !isdir && filter&uint32(FileNotifyChangeFileName) != 0:
 		return syse
 	case filter&uint32(e) != 0:
 		return e

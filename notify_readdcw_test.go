@@ -8,6 +8,34 @@ package notify
 
 import "testing"
 
+func TestNotifySystemSpecificEvent(t *testing.T) {
+	t.Skip("TODO(ppknap)")
+	n := NewNotifyTest(t, "testdata/vfs.txt")
+	defer n.Close()
+
+	ch := NewChans(1)
+
+	n.Watch("src/github.com/rjeczalik/fs", ch[0], FileNotifyChangeFileName)
+
+	cases := []NCase{
+		{
+			Event:    rremove(n.W(), "src/github.com/rjeczalik/fs/fs.go"),
+			Receiver: Chans{ch[0]},
+		},
+	}
+
+	n.ExpectNotifyEvents(cases, ch)
+}
+
+func TestUnknownEvent(t *testing.T) {
+	n := NewNotifyTest(t, "testdata/vfs.txt")
+	defer n.Close()
+
+	ch := NewChans(1)
+
+	n.WatchErr("src/github.com/rjeczalik/fs", ch[0], nil, FileActionAdded)
+}
+
 func TestNotifySystemAndGlobalMix(t *testing.T) {
 	t.Skip("TODO(ppknap)")
 	n := NewNotifyTest(t, "testdata/vfs.txt")
@@ -16,7 +44,7 @@ func TestNotifySystemAndGlobalMix(t *testing.T) {
 	ch := NewChans(2)
 
 	n.Watch("src/github.com/rjeczalik/fs", ch[0], Create)
-	n.Watch("src/github.com/rjeczalik/fs", ch[1], FileActionAdded)
+	n.Watch("src/github.com/rjeczalik/fs", ch[1], FileNotifyChangeFileName)
 
 	cases := []NCase{
 		{

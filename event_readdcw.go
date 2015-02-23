@@ -18,7 +18,6 @@ const (
 	osSpecificRemove
 	osSpecificWrite
 	osSpecificRename
-	// internal
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
 	// internal is used for watching for new directories within recursive subtrees
@@ -39,6 +38,8 @@ const (
 	FileNotifyChangeCreation   = Event(syscall.FILE_NOTIFY_CHANGE_CREATION)
 	FileNotifyChangeSecurity   = Event(syscallFileNotifyChangeSecurity)
 )
+
+const fileNotifyChangeAll = 0x17f // logical sum of all FileNotifyChange* events.
 
 // according to: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365465(v=vs.85).aspx
 // this flag should be declared in: http://golang.org/src/pkg/syscall/ztypes_windows.go

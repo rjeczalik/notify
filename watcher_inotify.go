@@ -38,15 +38,15 @@ type watched struct {
 
 // inotify implements Watcher interface.
 type inotify struct {
-	sync.RWMutex                       // protects inotify.m map.
-	m            map[int32]*watched    // watch descriptor to watched object.
-	fd           int32                 // inotify file descriptor.
-	pipefd       []int                 // pipe's read and write descriptors.
-	epfd         int                   // epoll descriptor.
-	epes         []syscall.EpollEvent  // epoll events.
-	buffer       [eventBufferSize]byte // inotify event buffer.
-	wg           sync.WaitGroup        // wait group used to close main loop.
-	c            chan<- EventInfo      // event dispatcher channel.
+	sync.RWMutex                       // protects inotify.m map
+	m            map[int32]*watched    // watch descriptor to watched object
+	fd           int32                 // inotify file descriptor
+	pipefd       []int                 // pipe's read and write descriptors
+	epfd         int                   // epoll descriptor
+	epes         []syscall.EpollEvent  // epoll events
+	buffer       [eventBufferSize]byte // inotify event buffer
+	wg           sync.WaitGroup        // wait group used to close main loop
+	c            chan<- EventInfo      // event dispatcher channel
 }
 
 // NewWatcher creates new non-recursive inotify backed by inotify.
