@@ -1,9 +1,6 @@
 package notify
 
-import (
-	"runtime"
-	"sync"
-)
+import "sync"
 
 // nonrecursiveTree TODO(rjeczalik)
 type nonrecursiveTree struct {
@@ -15,26 +12,31 @@ type nonrecursiveTree struct {
 }
 
 // newNonrecursiveTree TODO(rjeczalik)
-func newNonrecursiveTree(w watcher, c chan EventInfo) *nonrecursiveTree {
+func newNonrecursiveTree(w watcher, c, rec chan EventInfo) *nonrecursiveTree {
+	if rec == nil {
+		rec = make(chan EventInfo, buffer)
+	}
 	t := &nonrecursiveTree{
 		root: root{nd: newnode("")},
 		w:    w,
 		c:    c,
-		rec:  make(chan EventInfo, max(cap(c), 2*runtime.NumCPU())),
+		rec:  rec,
 	}
-	go t.dispatch()
-	go t.internal()
+	go t.dispatch(c)
+	go t.internal(rec)
 	return t
 }
 
 // dispatch TODO(rjeczalik)
-func (t *nonrecursiveTree) dispatch() {
-	for ei := range t.c {
+func (t *nonrecursiveTree) dispatch(c <-chan EventInfo) {
+	for ei := range c {
 		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
 		go func(ei EventInfo) {
-			nd, ok := node{}, false
+			var nd node
+			var isrec bool
 			dir, base := split(ei.Path())
 			fn := func(it node, isbase bool) error {
+				isrec = isrec || it.Watch.IsRecursive()
 				if isbase {
 					nd = it
 				} else {
@@ -43,37 +45,62 @@ func (t *nonrecursiveTree) dispatch() {
 				return nil
 			}
 			t.rw.RLock()
-			defer t.rw.RUnlock()
 			// Notify recursive watchpoints found on the path.
 			if err := t.root.WalkPath(dir, fn); err != nil {
 				dbg.Print("dispatch did not reach leaf:", err)
+				t.rw.RUnlock()
 				return
 			}
 			// Notify parent watchpoint.
 			nd.Watch.Dispatch(ei, 0)
+			isrec = isrec || nd.Watch.IsRecursive()
 			// If leaf watchpoint exists, notify it.
-			if nd, ok = nd.Child[base]; ok {
+			if nd, ok := nd.Child[base]; ok {
+				isrec = isrec || nd.Watch.IsRecursive()
 				nd.Watch.Dispatch(ei, 0)
+			}
+			t.rw.RUnlock()
+			// If the event describes newly leaf directory created within
+			if !isrec || ei.Event() != Create {
 				return
 			}
+			if ok, err := ei.(isDirer).isDir(); !ok || err != nil {
+				return
+			}
+			t.rec <- ei
 		}(ei)
 	}
 }
 
 // internal TODO(rjeczalik)
-func (t *nonrecursiveTree) internal() {
-	for ei := range t.rec {
+func (t *nonrecursiveTree) internal(rec <-chan EventInfo) {
+	for ei := range rec {
+		var nd node
+		var eset = internal
 		t.rw.Lock()
-		dbg.Printf("(*nonrecursiveTree).internal()=%v\n", ei)
-		// TODO
+		t.root.WalkPath(ei.Path(), func(it node, _ bool) error {
+			if e := it.Watch[t.rec]; e != 0 && e > eset {
+				eset = e
+			}
+			nd = it
+			return nil
+		})
+		if eset == internal {
+			t.rw.Unlock()
+			continue
+		}
+		err := nd.Add(ei.Path()).AddDir(t.recFunc(eset))
 		t.rw.Unlock()
+		if err != nil {
+			dbg.Printf("internal(%p) error: %v", rec, err)
+		}
 	}
 }
 
 // watchAdd TODO(rjeczalik)
 func (t *nonrecursiveTree) watchAdd(nd node, c chan<- EventInfo, e Event) eventDiff {
 	if e&recursive != 0 {
-		diff := nd.Watch.Add(t.rec, e|Create)
+		diff := nd.Watch.Add(t.rec, e|Create|omit)
 		nd.Watch.Add(c, e)
 		return diff
 	}
@@ -89,7 +116,7 @@ func (t *nonrecursiveTree) watchDelMin(min Event, nd node, c chan<- EventInfo, e
 	diff := nd.Watch.Del(c, e)
 	if ok {
 		switch old &^= diff[0] &^ diff[1]; {
-		case old|recursive == recursive:
+		case old|internal == internal:
 			delete(nd.Watch, t.rec)
 			if set, ok := nd.Watch[nil]; ok && len(nd.Watch) == 1 && set == 0 {
 				delete(nd.Watch, nil)
@@ -126,14 +153,14 @@ func (t *nonrecursiveTree) Watch(path string, c chan<- EventInfo, events ...Even
 	if err != nil {
 		return err
 	}
-	eventset := joinevents(events)
+	eset := joinevents(events)
 	t.rw.Lock()
 	defer t.rw.Unlock()
 	nd := t.root.Add(path)
 	if isrec {
-		return t.watchrec(nd, c, eventset|recursive)
+		return t.watchrec(nd, c, eset|recursive)
 	}
-	return t.watch(nd, c, eventset)
+	return t.watch(nd, c, eset)
 }
 
 func (t *nonrecursiveTree) watch(nd node, c chan<- EventInfo, e Event) (err error) {
@@ -143,7 +170,7 @@ func (t *nonrecursiveTree) watch(nd node, c chan<- EventInfo, e Event) (err erro
 		return nil
 	case diff[1] == 0:
 		// TODO(rjeczalik): cleanup this panic after implementation is stable
-		panic("eventset is empty: " + nd.Name)
+		panic("eset is empty: " + nd.Name)
 	case diff[0] == 0:
 		err = t.w.Watch(nd.Name, diff[1])
 	default:
@@ -156,6 +183,22 @@ func (t *nonrecursiveTree) watch(nd node, c chan<- EventInfo, e Event) (err erro
 	return nil
 }
 
+func (t *nonrecursiveTree) recFunc(e Event) walkFunc {
+	return func(nd node) error {
+		switch diff := nd.Watch.Add(t.rec, e|omit|Create); {
+		case diff == none:
+		case diff[1] == 0:
+			// TODO(rjeczalik): cleanup this panic after implementation is stable
+			panic("eset is empty: " + nd.Name)
+		case diff[0] == 0:
+			t.w.Watch(nd.Name, diff[1])
+		default:
+			t.w.Rewatch(nd.Name, diff[0], diff[1])
+		}
+		return nil
+	}
+}
+
 func (t *nonrecursiveTree) watchrec(nd node, c chan<- EventInfo, e Event) error {
 	var traverse func(walkFunc) error
 	// Non-recursive tree listens on Create event for every recursive
@@ -164,11 +207,11 @@ func (t *nonrecursiveTree) watchrec(nd node, c chan<- EventInfo, e Event) error 
 	switch diff := nd.Watch.dryAdd(t.rec, e|Create); {
 	case diff == none:
 		t.watchAdd(nd, c, e)
-		nd.Watch.Add(t.rec, e|Create)
+		nd.Watch.Add(t.rec, e|omit|Create)
 		return nil
 	case diff[1] == 0:
 		// TODO(rjeczalik): cleanup this panic after implementation is stable
-		panic("eventset is empty: " + nd.Name)
+		panic("eset is empty: " + nd.Name)
 	case diff[0] == 0:
 		// TODO(rjeczalik): BFS into directories and skip subtree as soon as first
 		// recursive watchpoint is encountered.
@@ -178,20 +221,7 @@ func (t *nonrecursiveTree) watchrec(nd node, c chan<- EventInfo, e Event) error 
 	}
 	// TODO(rjeczalik): account every path that failed to be (re)watched
 	// and retry.
-	fn := func(nd node) error {
-		switch diff := nd.Watch.Add(t.rec, e|Create); {
-		case diff == none:
-		case diff[1] == 0:
-			// TODO(rjeczalik): cleanup this panic after implementation is stable
-			panic("eventset is empty: " + nd.Name)
-		case diff[0] == 0:
-			t.w.Watch(nd.Name, diff[1])
-		default:
-			t.w.Rewatch(nd.Name, diff[0], diff[1])
-		}
-		return nil
-	}
-	if err := traverse(fn); err != nil {
+	if err := traverse(t.recFunc(e)); err != nil {
 		return err
 	}
 	t.watchAdd(nd, c, e)

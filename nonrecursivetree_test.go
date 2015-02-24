@@ -423,3 +423,117 @@ func TestNonrecursiveTree(t *testing.T) {
 		return nil
 	})
 }
+
+func TestNonrecursiveTreeInternal(t *testing.T) {
+	n, c := NewNonrecursiveTreeTestC(t, "testdata/vfs.txt")
+	defer n.Close()
+
+	ch := NewChans(5)
+
+	watches := [...]RCase{
+		// i=0
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs/cmd/...",
+				C: ch[0],
+				E: Remove,
+			},
+			Record: []Call{
+				{
+					F: FuncWatch,
+					P: "src/github.com/rjeczalik/fs/cmd",
+					E: Create | Remove,
+				},
+				{
+					F: FuncWatch,
+					P: "src/github.com/rjeczalik/fs/cmd/gotree",
+					E: Create | Remove,
+				},
+				{
+					F: FuncWatch,
+					P: "src/github.com/rjeczalik/fs/cmd/mktree",
+					E: Create | Remove,
+				},
+			},
+		},
+		// i=1
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/ppknap/link/include/coost/...",
+				C: ch[1],
+				E: Create,
+			},
+			Record: []Call{
+				{
+					F: FuncWatch,
+					P: "src/github.com/ppknap/link/include/coost",
+					E: Create,
+				},
+				{
+					F: FuncWatch,
+					P: "src/github.com/ppknap/link/include/coost/link",
+					E: Create,
+				},
+				{
+					F: FuncWatch,
+					P: "src/github.com/ppknap/link/include/coost/link/detail",
+					E: Create,
+				},
+				{
+					F: FuncWatch,
+					P: "src/github.com/ppknap/link/include/coost/link/detail/stdhelpers",
+					E: Create,
+				},
+			},
+		},
+	}
+
+	n.ExpectRecordedCalls(watches[:])
+
+	events := [...]TCase{
+		// i=0
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/dir", E: Create, Dir: true},
+			Receiver: Chans{c},
+		},
+		// i=1
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/dir/another", E: Create, Dir: true},
+			Receiver: Chans{c},
+		},
+		// i=2
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/file", E: Create, Dir: false},
+			Receiver: nil,
+		},
+		// i=3
+		{
+			Event:    Call{P: "src/github.com/ppknap/link/include/coost/dir", E: Create, Dir: true},
+			Receiver: Chans{ch[1], c},
+		},
+		// i=4
+		{
+			Event:    Call{P: "src/github.com/ppknap/link/include/coost/dir/another", E: Create, Dir: true},
+			Receiver: Chans{ch[1], c},
+		},
+		// i=5
+		{
+			Event:    Call{P: "src/github.com/ppknap/link/include/coost/file", E: Create, Dir: false},
+			Receiver: Chans{ch[1]},
+		},
+		// i=6
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/mktree", E: Remove},
+			Receiver: Chans{ch[0]},
+		},
+		// i=7
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/rmtree", E: Create, Dir: true},
+			Receiver: Chans{c},
+		},
+	}
+
+	n.ExpectTreeEvents(events[:], ch)
+}

@@ -2,6 +2,8 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
+// +build ignore
+
 package notify
 
 import (
@@ -153,7 +155,6 @@ func (tf TreeFixture) TestCalls(t *testing.T, cases []CallCase) {
 		dbg.Printf("[TREEFIXTURE] TestCalls (len(cases)=%d, typ=%v)",
 			len(cs), typ)
 		for i, cas := range cs {
-			var record []Call
 			// Invoke call and record underlying calls.
 			if err := tree.Invoke(cas.Call); err != nil {
 				t.Fatalf("want Tree.%s(...)=nil; got %v (i=%d, typ=%v)",
@@ -165,6 +166,7 @@ func (tf TreeFixture) TestCalls(t *testing.T, cases []CallCase) {
 				continue
 			}
 			// Find expected records for typ Tree.
+			var record []Call
 			if rec, ok := cas.Record[typ]; ok {
 				record = rec
 			} else {

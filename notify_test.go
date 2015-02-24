@@ -58,10 +58,12 @@ func TestNotifyExample(t *testing.T) {
 
 	// ...or using Call structures.
 	stops := [...]Call{
+		// i=0
 		{
 			F: FuncStop,
 			C: ch[0],
 		},
+		// i=1
 		{
 			F: FuncStop,
 			C: ch[1],
@@ -71,18 +73,22 @@ func TestNotifyExample(t *testing.T) {
 	n.Call(stops[:]...)
 
 	cases = []NCase{
+		// i=0
 		{
 			Event:    write(n.W(), "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 			Receiver: nil,
 		},
+		// i=1
 		{
 			Event:    write(n.W(), "src/github.com/pblaszczyk/qttu/README.md", []byte("XD")),
 			Receiver: nil,
 		},
+		// i=2
 		{
 			Event:    create(n.W(), "src/github.com/pblaszczyk/qttu/src/.main.cc.swr"),
 			Receiver: nil,
 		},
+		// i=3
 		{
 			Event:    remove(n.W(), "src/github.com/rjeczalik/fs/cmd/gotree/main.go"),
 			Receiver: Chans{ch[2]},

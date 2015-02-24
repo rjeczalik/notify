@@ -2,46 +2,21 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-// BUG(rjeczalik): Notify does not automagically set a watch for newly
-// created directory within recursively watched path for inotify and kqueue. (#5)
+// BUG(rjeczalik): Notify does not collect watchpoints, when underlying watches
+// were removed by their os-specific watcher implementations. Instead users are
+// advised to listen on persistant paths to have guarantee they receive events
+// for the whole lifetime of their applications (to discuss see #69).
 
-// BUG(rjeczalik): Notify does not gracefully handle rewatching directories,
-// that were deleted but their watchpoints were not cleaned by the user. (#69)
+// BUG(ppknap): Linux (inotify) does not support watcher behavior masks like
+// InOneshot, InOnlydir etc. Instead users are advised to perform the filtering
+// themselves (to discuss see #71).
 
-// BUG(ppknap): Linux(inotify) does not support watcher behavior masks like
-// InOneshot, InOnlydir etc. (#71)
+// BUG(you): Notify  was not tested for short path name support under Windows
+// (ReadDirectoryChangesW).
 
 package notify
 
-import "sync"
-
-type notifier interface {
-	Watch(string, chan<- EventInfo, ...Event) error
-	Stop(chan<- EventInfo)
-}
-
-func newNotifier(w watcher, c chan EventInfo) notifier {
-	if rw, ok := w.(recursiveWatcher); ok {
-		return newRecursiveTree(rw, c)
-	}
-	return newTree(w, c)
-}
-
-func initg() {
-	if g == nil {
-		c := make(chan EventInfo, 128)
-		g = newNotifier(newWatcher(c), c)
-	}
-}
-
-var once sync.Once
-var m sync.Mutex
-var g notifier
-
-func tree() notifier {
-	once.Do(initg)
-	return g
-}
+var defaultTree = newTree()
 
 // Watch sets up a watchpoint on path listening for events given by the events
 // argument.
@@ -79,10 +54,7 @@ func tree() notifier {
 // e.g. use persistant paths like %userprofile% or watch additionally parent
 // directory of a recursive watchpoint in order to receive delete events for it.
 func Watch(path string, c chan<- EventInfo, events ...Event) error {
-	m.Lock()
-	err := tree().Watch(path, c, events...)
-	m.Unlock()
-	return err
+	return defaultTree.Watch(path, c, events...)
 }
 
 // Stop removes all watchpoints registered for c. All underlying watches are
@@ -91,7 +63,5 @@ func Watch(path string, c chan<- EventInfo, events ...Event) error {
 // Stop does not close c. When Stop returns, it is guranteed that c will
 // receive no more signals.
 func Stop(c chan<- EventInfo) {
-	m.Lock()
-	tree().Stop(c)
-	m.Unlock()
+	defaultTree.Stop(c)
 }

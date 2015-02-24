@@ -7,7 +7,6 @@ package notify
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -339,7 +338,7 @@ func EqualCall(want, got Call) error {
 		return fmt.Errorf("want NE=%v; got %v (want.P=%q, got.P=%q)", want.NE, got.NE, want.P, got.P)
 	}
 	if want.C != got.C {
-		return fmt.Errorf("want C=%p; got %p (want.P=%q, got.P=%q)", want.C, got.C, want.P)
+		return fmt.Errorf("want C=%p; got %p (want.P=%q, got.P=%q)", want.C, got.C, want.P, got.P)
 	}
 	if want := filepath.FromSlash(want.P); !strings.HasSuffix(got.P, want) {
 		return fmt.Errorf("want P=%s; got %s", want, got.P)
@@ -504,6 +503,15 @@ const (
 // Chans TODO
 type Chans []chan EventInfo
 
+// NewChans TODO
+func NewChans(n int) Chans {
+	ch := make([]chan EventInfo, n)
+	for i := range ch {
+		ch[i] = make(chan EventInfo, buffer)
+	}
+	return ch
+}
+
 // Foreach TODO
 func (c Chans) Foreach(fn func(chan<- EventInfo, node)) {
 	for i, ch := range c {
@@ -544,31 +552,17 @@ func (c Chans) Drain() (ei []EventInfo) {
 	return
 }
 
-func (c Chans) Debug() {
-	for i, c := range c {
-		fmt.Printf("ch[%d] = %p\n", i, c)
-	}
-}
-
-// NewChans TODO
-func NewChans(n int) Chans {
-	ch := make([]chan EventInfo, n)
-	for i := range ch {
-		ch[i] = make(chan EventInfo, buffer)
-	}
-	return ch
-}
-
 // Call represents single call to Watcher issued by the Tree
 // and recorded by a spy Watcher mock.
 type Call struct {
-	F  FuncType       //
-	C  chan EventInfo //
-	P  string         // regular Path argument and old path from RecursiveRewatch call
-	NP string         // new Path argument from RecursiveRewatch call
-	E  Event          // regular Event argument and old Event from a Rewatch call
-	NE Event          // new Event argument from Rewatch call
-	S  interface{}    // when Call is used as EventInfo, S is a value of Sys()
+	F   FuncType       // denotes type of function to call, for both watcher and notifier interface
+	C   chan EventInfo // user channel being an argument to either Watch or Stop function
+	P   string         // regular Path argument and old path from RecursiveRewatch call
+	NP  string         // new Path argument from RecursiveRewatch call
+	E   Event          // regular Event argument and old Event from a Rewatch call
+	NE  Event          // new Event argument from Rewatch call
+	S   interface{}    // when Call is used as EventInfo, S is a value of Sys()
+	Dir bool           // when Call is used as EventInfo, Dir is a value of isDir()
 }
 
 // Call implements the EventInfo interface.
@@ -576,10 +570,13 @@ func (c *Call) Event() Event         { return c.E }
 func (c *Call) Path() string         { return c.P }
 func (c *Call) String() string       { return fmt.Sprintf("%#v", c) }
 func (c *Call) Sys() interface{}     { return c.S }
-func (c *Call) isDir() (bool, error) { return false, nil }
+func (c *Call) isDir() (bool, error) { return c.Dir, nil }
 
+// CallSlice is a conveniance wrapper for a slice of Call values, which allows
+// to sort them in ascending order.
 type CallSlice []Call
 
+// CallSlice implements sort.Interface inteface.
 func (cs CallSlice) Len() int           { return len(cs) }
 func (cs CallSlice) Less(i, j int) bool { return cs[i].P < cs[j].P }
 func (cs CallSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
@@ -646,19 +643,15 @@ type NCase struct {
 
 // N TODO(rjeczalik)
 type N struct {
-	// Notifier TODO(rjeczalik)
-	//
-	// TODO(rjeczalik): unexport
-	notifier notifier
-
 	// Timeout TODO(rjeczalik)
 	Timeout time.Duration
 
-	t   *testing.T
-	w   *W
-	spy *Spy
-	c   chan<- EventInfo
-	j   int // spy offset
+	t    *testing.T
+	tree tree
+	w    *W
+	spy  *Spy
+	c    chan EventInfo
+	j    int // spy offset
 
 	realroot string
 }
@@ -676,40 +669,65 @@ func newN(t *testing.T, tree string) *N {
 	return n
 }
 
-func newTreeN(t *testing.T, tree string, fn func(spy *Spy) watcher) *N {
+func newTreeN(t *testing.T, tree string) *N {
+	c := make(chan EventInfo, buffer)
 	n := newN(t, tree)
 	n.spy = &Spy{}
-	c := make(chan EventInfo, 512)
-	n.w.Watcher = fn(n.spy)
+	n.w.Watcher = n.spy
 	n.w.C = c
 	n.c = c
-	// TODO(rjeczalik): remove this hack when nonrecursiveTree is ready
-	// n.notifier = newNotifier(n.w.watcher(), n.w.c())
-	if rw, ok := n.w.watcher().(recursiveWatcher); ok {
-		n.notifier = newRecursiveTree(rw, n.w.c())
-	} else {
-		n.notifier = newNonrecursiveTree(n.w.watcher(), n.w.c())
-	}
 	return n
 }
 
 // NewNotifyTest TODO(rjeczalik)
 func NewNotifyTest(t *testing.T, tree string) *N {
 	n := newN(t, tree)
-	n.notifier = newNotifier(n.w.watcher(), n.w.c())
+	if rw, ok := n.w.watcher().(recursiveWatcher); ok {
+		n.tree = newRecursiveTree(rw, n.w.c())
+	} else {
+		n.tree = newNonrecursiveTree(n.w.watcher(), n.w.c(), nil)
+	}
 	return n
 }
 
 // NewRecursiveTreeTest TODO(rjeczalik)
 func NewRecursiveTreeTest(t *testing.T, tree string) *N {
-	fn := func(spy *Spy) watcher { return spy }
-	return newTreeN(t, tree, fn)
+	n := newTreeN(t, tree)
+	n.tree = newRecursiveTree(n.spy, n.c)
+	return n
 }
 
 // NewNonrecursiveTreeTest TODO(rjeczalik)
 func NewNonrecursiveTreeTest(t *testing.T, tree string) *N {
-	fn := func(spy *Spy) watcher { return struct{ watcher }{spy} }
-	return newTreeN(t, tree, fn)
+	n := newTreeN(t, tree)
+	n.tree = newNonrecursiveTree(n.spy, n.c, nil)
+	return n
+}
+
+// NewNonrecursiveTreeTestC TODO(rjeczalik)
+func NewNonrecursiveTreeTestC(t *testing.T, tree string) (*N, chan EventInfo) {
+	rec := make(chan EventInfo, buffer)
+	recinternal := make(chan EventInfo, buffer)
+	recuser := make(chan EventInfo, buffer)
+	go func() {
+		for ei := range rec {
+			select {
+			case recinternal <- ei:
+			default:
+				t.Fatalf("failed to send ei to recinternal: not ready")
+			}
+			select {
+			case recuser <- ei:
+			default:
+				t.Fatalf("failed to send ei to recuser: not ready")
+			}
+		}
+	}()
+	n := newTreeN(t, tree)
+	tr := newNonrecursiveTree(n.spy, n.c, recinternal)
+	tr.rec = rec
+	n.tree = tr
+	return n, recuser
 }
 
 func (n *N) timeout() time.Duration {
@@ -727,7 +745,7 @@ func (n *N) W() *W {
 // Close TODO
 func (n *N) Close() error {
 	defer os.RemoveAll(n.w.root)
-	if err := n.notifier.(io.Closer).Close(); err != nil {
+	if err := n.tree.Close(); err != nil {
 		n.w.Fatalf("(notifier).Close()=%v", err)
 	}
 	return nil
@@ -736,7 +754,7 @@ func (n *N) Close() error {
 // Watch TODO(rjeczalik)
 func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
 	path = filepath.Join(n.w.root, path)
-	if err := n.notifier.Watch(path, c, events...); err != nil {
+	if err := n.tree.Watch(path, c, events...); err != nil {
 		n.t.Errorf("Watch(%s, %p, %v)=%v", path, c, events, err)
 	}
 }
@@ -744,7 +762,7 @@ func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
 // WatchErr TODO(ppknap)
 func (n *N) WatchErr(path string, c chan<- EventInfo, err error, events ...Event) {
 	path = filepath.Join(n.w.root, path)
-	switch e := n.notifier.Watch(path, c, events...); {
+	switch e := n.tree.Watch(path, c, events...); {
 	case err == nil && e == nil:
 		n.t.Errorf("Watch(%s, %p, %v)=nil", path, c, events)
 	case err != nil && e != err:
@@ -754,7 +772,7 @@ func (n *N) WatchErr(path string, c chan<- EventInfo, err error, events ...Event
 
 // Stop TODO(rjeczalik)
 func (n *N) Stop(c chan<- EventInfo) {
-	n.notifier.Stop(c)
+	n.tree.Stop(c)
 }
 
 // Call TODO(rjeczalik)
@@ -909,7 +927,7 @@ func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 }
 
 func (n *N) Walk(fn walkFunc) {
-	switch t := n.notifier.(type) {
+	switch t := n.tree.(type) {
 	case *recursiveTree:
 		if err := t.root.Walk("", fn); err != nil {
 			n.w.Fatal(err)

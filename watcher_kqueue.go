@@ -43,7 +43,7 @@ func (k *kqueue) Close() (err error) {
 			err = e
 		}
 	}
-	if e = syscall.Close(k.fd); e != nil && err == nil {
+	if e := error(syscall.Close(k.fd)); e != nil && err == nil {
 		dbg.Printf("kqueue: closing kqueu fd failed: %q", e)
 		err = e
 	}

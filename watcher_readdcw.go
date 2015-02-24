@@ -245,7 +245,7 @@ type readdcw struct {
 }
 
 // NewWatcher creates new non-recursive watcher backed by ReadDirectoryChangesW.
-func newWatcher(c chan<- EventInfo) *readdcw {
+func newWatcher(c chan<- EventInfo) watcher {
 	r := &readdcw{
 		m:   make(map[string]*watched),
 		cph: syscall.InvalidHandle,

@@ -9,5 +9,5 @@ package notify
 //
 // Internal events must not be sent to user channels and vice versa.
 func matches(set, event Event) bool {
-	return (set&omit)^(event&omit) != omit && set&event == event
+	return (set&omit)^(event&omit) == 0 && set&event == event
 }
