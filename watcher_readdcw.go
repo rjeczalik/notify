@@ -127,7 +127,7 @@ func (g *grip) readDirChanges() error {
 func encode(filter uint32) uint32 {
 	e := Event(filter & (onlyNGlobalEvents | onlyNotifyChanges))
 	if e&dirmarker != 0 {
-		return uint32(FileNotifyChangeDirName)
+		return uint32(FileNotifyChangeDirName &^ actAll)
 	}
 	if e&Create != 0 {
 		e = (e ^ Create) | FileNotifyChangeFileName
@@ -142,7 +142,7 @@ func encode(filter uint32) uint32 {
 	if e&Rename != 0 {
 		e = (e ^ Rename) | FileNotifyChangeFileName
 	}
-	return uint32(e)
+	return uint32(e &^ actAll)
 }
 
 // watched is made in order to check whether an action comes from a directory or
@@ -273,7 +273,7 @@ func (r *readdcw) RecursiveWatch(path string, event Event) error {
 // already exists, function tries to rewatch it with new filters(NOT VALID). Moreover,
 // watch starts the main event loop goroutine when called for the first time.
 func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
-	if event&^(All|fileNotifyChangeAll) != 0 {
+	if event&^(All|fileNotifyChangeAndActionAll) != 0 {
 		return errors.New("notify: unknown event")
 	}
 	r.Lock()
@@ -433,7 +433,7 @@ func (r *readdcw) RecursiveRewatch(oldpath, newpath string, oldevent,
 
 // TODO : (pknap) doc.
 func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool) (err error) {
-	if Event(newevent)&^(All|fileNotifyChangeAll) != 0 {
+	if Event(newevent)&^(All|fileNotifyChangeAndActionAll) != 0 {
 		return errors.New("notify: unknown event")
 	}
 	var wd *watched

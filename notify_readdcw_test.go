@@ -9,7 +9,6 @@ package notify
 import "testing"
 
 func TestNotifySystemSpecificEvent(t *testing.T) {
-	t.Skip("TODO(ppknap)")
 	n := NewNotifyTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
@@ -33,7 +32,7 @@ func TestUnknownEvent(t *testing.T) {
 
 	ch := NewChans(1)
 
-	n.WatchErr("src/github.com/rjeczalik/fs", ch[0], nil, FileActionAdded)
+	n.WatchErr("src/github.com/rjeczalik/fs", ch[0], nil, Event(stateRewatch))
 }
 
 func TestNotifySystemAndGlobalMix(t *testing.T) {
