@@ -87,12 +87,12 @@ func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 // Dispatch TODO(rjeczalik)
 func (wp watchpoint) Dispatch(ei EventInfo, ctrl Event) {
 	event := ei.Event() | ctrl
-	if wp[nil]&event != event {
+	if !matches(wp[nil], event) {
 		return
 	}
 	for ch, e := range wp {
 		// TODO(rjeczalik): rm rec
-		if ch != nil && ch != rec && e&event == event {
+		if ch != nil && ch != rec && matches(e, event) {
 			select {
 			case ch <- ei:
 			default:
