@@ -16,9 +16,9 @@ const (
 	// internal
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive
-	// internal is used for watching for new directories within recursive subtrees
-	// by non-recrusive watchers
-	internal
+	// omit is used for dispatching internal events; only those events are sent
+	// for which both the event and the watchpoint has omit in theirs event sets.
+	omit
 )
 
 var osestr = map[Event]string{}

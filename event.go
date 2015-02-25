@@ -31,6 +31,8 @@ const (
 	All = Create | Remove | Write | Rename
 )
 
+const internal = recursive | omit
+
 // String implements fmt.Stringer interface.
 func (e Event) String() string {
 	var s []string
@@ -132,6 +134,7 @@ var estr = map[Event]string{
 	//
 	// Yup, here the diff have Recursive event inside. Go figure.
 	recursive: "recursive",
+	omit:      "omit",
 }
 
 // Kind gives generic event type of the EventInfo.Event(). The purpose is to

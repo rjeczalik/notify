@@ -14,9 +14,9 @@ const (
 	// internal = Event(0x100000)
 	// recursive is used to distinguish recursive eventsets from non-recursive ones
 	recursive = Event(0x200000)
-	// internal is used for watching for new directories within recursive subtrees
-	// by non-recrusive watchers
-	internal = Event(0x400000)
+	// omit is used for dispatching internal events; only those events are sent
+	// for which both the event and the watchpoint has omit in theirs event sets.
+	omit = Event(0x400000)
 )
 
 // FSEvents specific event values.
