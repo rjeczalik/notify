@@ -84,8 +84,8 @@ func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 }
 
 // Dispatch TODO(rjeczalik)
-func (wp watchpoint) Dispatch(ei EventInfo, internal Event) {
-	e := ei.Event() | internal
+func (wp watchpoint) Dispatch(ei EventInfo, extra Event) {
+	e := eventmask(ei, extra)
 	if !matches(wp[nil], e) {
 		return
 	}

@@ -11,8 +11,11 @@
 // InOneshot, InOnlydir etc. Instead users are advised to perform the filtering
 // themselves (to discuss see #71).
 
-// BUG(you): Notify  was not tested for short path name support under Windows
+// BUG(ppknap): Notify  was not tested for short path name support under Windows
 // (ReadDirectoryChangesW).
+
+// BUG(ppknap): Windows (ReadDirectoryChangesW) cannot recognize which notification
+// triggers FileActionModified event. (to discuss see #75).
 
 package notify
 

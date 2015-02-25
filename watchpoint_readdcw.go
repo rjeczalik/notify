@@ -6,6 +6,27 @@
 
 package notify
 
+// eventmask uses ei to create a new event which contains internal flags used by
+// notify package logic. If one of FileAction* masks is detected, this function
+// adds corresponding FileNotifyChange* values. This allows non registered
+// FileAction* events to be passed on.
+func eventmask(ei EventInfo, extra Event) (e Event) {
+	if e = ei.Event() | extra; e&fileActionAll != 0 {
+		if ev, ok := ei.(*event); ok {
+			switch ev.ftype {
+			case fTypeFile:
+				e |= FileNotifyChangeFileName
+			case fTypeDirectory:
+				e |= FileNotifyChangeDirName
+			case fTypeUnknown:
+				e |= fileNotifyChangeModified
+			}
+			return e &^ fileActionAll
+		}
+	}
+	return
+}
+
 // matches reports a match only when:
 //
 //   - for user events, when event is present in the given set
@@ -13,13 +34,5 @@ package notify
 //
 // Internal events must not be sent to user channels and vice versa.
 func matches(set, event Event) bool {
-	if (set&omit)^(event&omit) == omit {
-		// No match - one of set or event contains omit bit; meaning either
-		// user event is being dispatched to internal channel or internal
-		// event is being dispatched to user channel. This situation is always
-		// invalid.
-		return false
-	}
-	// TODO(ppknap): Here be the dragons.
-	return set&event == event
+	return (set&omit)^(event&omit) == 0 && (set&event == event || set&fileNotifyChangeModified&event != 0)
 }

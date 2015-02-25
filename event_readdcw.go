@@ -29,18 +29,20 @@ const (
 
 // ReadDirectoryChangesW filters.
 const (
-	FileNotifyChangeFileName   = actFRW | Event(syscall.FILE_NOTIFY_CHANGE_FILE_NAME)
-	FileNotifyChangeDirName    = actFRW | Event(syscall.FILE_NOTIFY_CHANGE_DIR_NAME)
-	FileNotifyChangeAttributes = actFMV | Event(syscall.FILE_NOTIFY_CHANGE_ATTRIBUTES)
-	FileNotifyChangeSize       = actFMV | Event(syscall.FILE_NOTIFY_CHANGE_SIZE)
-	FileNotifyChangeLastWrite  = actFMV | Event(syscall.FILE_NOTIFY_CHANGE_LAST_WRITE)
-	FileNotifyChangeLastAccess = actFMV | Event(syscall.FILE_NOTIFY_CHANGE_LAST_ACCESS)
-	FileNotifyChangeCreation   = actFMV | Event(syscall.FILE_NOTIFY_CHANGE_CREATION)
-	FileNotifyChangeSecurity   = actFMV | Event(syscallFileNotifyChangeSecurity)
+	FileNotifyChangeFileName   = Event(syscall.FILE_NOTIFY_CHANGE_FILE_NAME)
+	FileNotifyChangeDirName    = Event(syscall.FILE_NOTIFY_CHANGE_DIR_NAME)
+	FileNotifyChangeAttributes = Event(syscall.FILE_NOTIFY_CHANGE_ATTRIBUTES)
+	FileNotifyChangeSize       = Event(syscall.FILE_NOTIFY_CHANGE_SIZE)
+	FileNotifyChangeLastWrite  = Event(syscall.FILE_NOTIFY_CHANGE_LAST_WRITE)
+	FileNotifyChangeLastAccess = Event(syscall.FILE_NOTIFY_CHANGE_LAST_ACCESS)
+	FileNotifyChangeCreation   = Event(syscall.FILE_NOTIFY_CHANGE_CREATION)
+	FileNotifyChangeSecurity   = Event(syscallFileNotifyChangeSecurity)
 )
 
-// logical sum of all syscall.FILE_NOTIFY_CHANGE_* and FileAction* events.
-const fileNotifyChangeAndActionAll = Event(0x17f) | actAll
+const (
+	fileNotifyChangeAll      = 0x17f // logical sum of all FileNotifyChange* events.
+	fileNotifyChangeModified = fileNotifyChangeAll &^ (FileNotifyChangeFileName | FileNotifyChangeDirName)
+)
 
 // according to: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365465(v=vs.85).aspx
 // this flag should be declared in: http://golang.org/src/pkg/syscall/ztypes_windows.go
@@ -54,6 +56,8 @@ const (
 	FileActionRenamedOldName = Event(syscall.FILE_ACTION_RENAMED_OLD_NAME) << 15
 	FileActionRenamedNewName = Event(syscall.FILE_ACTION_RENAMED_NEW_NAME) << 16
 )
+
+const fileActionAll = 0x7f000 // logical sum of all FileAction* events.
 
 var osestr = map[Event]string{
 	FileNotifyChangeFileName:   "notify.FileNotifyChangeFileName",
@@ -71,12 +75,6 @@ var osestr = map[Event]string{
 	FileActionRenamedOldName: "notify.FileActionRenamedOldName",
 	FileActionRenamedNewName: "notify.FileActionRenamedNewName",
 }
-
-const (
-	actFRW = FileActionAdded | FileActionRemoved | FileActionRenamedOldName | FileActionRenamedNewName
-	actFMV = FileActionModified
-	actAll = actFRW | actFMV
-)
 
 var ekind = map[Event]Event{}
 
@@ -98,7 +96,7 @@ type event struct {
 
 func (e *event) Event() Event     { return e.e }
 func (e *event) Path() string     { return filepath.Join(syscall.UTF16ToString(e.pathw), e.name) }
-func (e *event) Sys() interface{} { return nil }
+func (e *event) Sys() interface{} { return e.ftype }
 
 func (e *event) isDir() (bool, error) {
 	if e.ftype != fTypeUnknown {

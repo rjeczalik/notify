@@ -100,6 +100,11 @@ func (e Event) String() string {
 // More information about syscall.Kevent_t can be found at:
 //
 //    https://www.freebsd.org/cgi/man.cgi?query=kqueue
+//
+// Under Windows (ReadDirectoryChangesW) Sys() always returns nil. The documentation
+// of watcher's WinAPI function can be found at:
+//
+//    https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 type EventInfo interface {
 	Event() Event     // event value for the filesystem action
 	Path() string     // real path of the file or directory

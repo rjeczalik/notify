@@ -14,13 +14,18 @@ func TestNotifySystemSpecificEvent(t *testing.T) {
 
 	ch := NewChans(1)
 
-	n.Watch("src/github.com/rjeczalik/fs", ch[0], FileNotifyChangeFileName)
+	n.Watch("src/github.com/rjeczalik/fs", ch[0], FileNotifyChangeFileName, FileNotifyChangeSize)
 
 	cases := []NCase{
 		{
 			Event:    rremove(n.W(), "src/github.com/rjeczalik/fs/fs.go"),
 			Receiver: Chans{ch[0]},
 		},
+		// Uncoment when TestNotifySystemAndGlobalMix test is fixed.
+		// {
+		// 	Event:    rwrite(n.W(), "src/github.com/rjeczalik/fs/README.md", []byte("XD")),
+		// 	Receiver: Chans{ch[0]},
+		// },
 	}
 
 	n.ExpectNotifyEvents(cases, ch)
@@ -32,7 +37,7 @@ func TestUnknownEvent(t *testing.T) {
 
 	ch := NewChans(1)
 
-	n.WatchErr("src/github.com/rjeczalik/fs", ch[0], nil, Event(stateRewatch))
+	n.WatchErr("src/github.com/rjeczalik/fs", ch[0], nil, FileActionAdded)
 }
 
 func TestNotifySystemAndGlobalMix(t *testing.T) {
@@ -40,10 +45,11 @@ func TestNotifySystemAndGlobalMix(t *testing.T) {
 	n := NewNotifyTest(t, "testdata/vfs.txt")
 	defer n.Close()
 
-	ch := NewChans(2)
+	ch := NewChans(3)
 
 	n.Watch("src/github.com/rjeczalik/fs", ch[0], Create)
 	n.Watch("src/github.com/rjeczalik/fs", ch[1], FileNotifyChangeFileName)
+	n.Watch("src/github.com/rjeczalik/fs", ch[2], FileNotifyChangeDirName)
 
 	cases := []NCase{
 		{

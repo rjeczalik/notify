@@ -6,6 +6,12 @@
 
 package notify
 
+// eventmask uses ei to create a new event which contains internal flags used by
+// notify package logic.
+func eventmask(ei EventInfo, extra Event) Event {
+	return ei.Event() | extra
+}
+
 // matches reports a match only when:
 //
 //   - for user events, when event is present in the given set
