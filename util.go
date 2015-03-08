@@ -14,7 +14,6 @@ import (
 const all = ^Event(0)
 const sep = string(os.PathSeparator)
 
-// errDepth TODO(rjeczalik)
 var errDepth = errors.New("exceeded allowed iteration count (circular symlink?)")
 
 func min(i, j int) int {
@@ -48,7 +47,6 @@ func nonil(err ...error) error {
 	return nil
 }
 
-// cleanpath TODO(rjeczalik)
 func cleanpath(path string) (realpath string, isrec bool, err error) {
 	if strings.HasSuffix(path, "...") {
 		isrec = true
@@ -66,8 +64,6 @@ func cleanpath(path string) (realpath string, isrec bool, err error) {
 // canonical resolves any symlink in the given path and returns it in a clean form.
 // It expects the path to be absolute. It fails to resolve circular symlinks by
 // maintaining a simple iteration limit.
-//
-// TODO(rjeczalik): replace with realpath?
 func canonical(p string) (string, error) {
 	p, err := filepath.Abs(p)
 	if err != nil {
@@ -98,7 +94,6 @@ func canonical(p string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
-// Joinevents TODO
 func joinevents(events []Event) (e Event) {
 	if len(events) == 0 {
 		e = All
@@ -124,7 +119,6 @@ func base(s string) string {
 	return s
 }
 
-// TODO(rjeczalik): split unix + windows
 func indexbase(root, name string) int {
 	if n, m := len(root), len(name); m >= n && name[:n] == root &&
 		(n == m || name[n] == os.PathSeparator) {
@@ -133,7 +127,6 @@ func indexbase(root, name string) int {
 	return -1
 }
 
-// IndexSep TODO
 func indexSep(s string) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == os.PathSeparator {
@@ -143,7 +136,6 @@ func indexSep(s string) int {
 	return -1
 }
 
-// LastIndexSep TODO
 func lastIndexSep(s string) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == os.PathSeparator {

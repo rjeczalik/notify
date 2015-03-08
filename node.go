@@ -12,13 +12,10 @@ import (
 	"sort"
 )
 
-// skip TODO(rjeczalik)
 var skip = errors.New("skip")
 
-// walkPathFunc TODO(rjeczalik)
 type walkPathFunc func(nd node, isbase bool) error
 
-// walkFunc TODO(rjeczalik)
 type walkFunc func(node) error
 
 func errnotexist(name string) error {
@@ -29,14 +26,12 @@ func errnotexist(name string) error {
 	}
 }
 
-// node TODO(rjeczalik)
 type node struct {
 	Name  string
 	Watch watchpoint
 	Child map[string]node
 }
 
-// child TODO(rjeczalik)
 func (nd node) child(name string) node {
 	if name == "" {
 		return nd
@@ -57,7 +52,6 @@ func (nd node) child(name string) node {
 	return child
 }
 
-// newnode TODO(rjeczalik)
 func newnode(name string) node {
 	return node{
 		Name:  name,
@@ -66,7 +60,6 @@ func newnode(name string) node {
 	}
 }
 
-// addchild TODO(rjeczalik)
 func (nd node) addchild(name, base string) node {
 	child, ok := nd.Child[base]
 	if !ok {
@@ -76,7 +69,6 @@ func (nd node) addchild(name, base string) node {
 	return child
 }
 
-// Add TODO(rjeczalik)
 func (nd node) Add(name string) node {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -89,7 +81,6 @@ func (nd node) Add(name string) node {
 	return nd.addchild(name, name[i:])
 }
 
-// AddDir TODO(rjeczalik)
 func (nd node) AddDir(fn walkFunc) error {
 	stack := []node{nd}
 Traverse:
@@ -118,7 +109,6 @@ Traverse:
 	return nil
 }
 
-// Get TODO(rjeczalik)
 func (nd node) Get(name string) (node, error) {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -137,7 +127,6 @@ func (nd node) Get(name string) (node, error) {
 	return nd, nil
 }
 
-// Del TODO: rework
 func (nd node) Del(name string) error {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -169,7 +158,6 @@ func (nd node) Del(name string) error {
 	return nil
 }
 
-// Walk TODO
 func (nd node) Walk(fn walkFunc) error {
 	stack := []node{nd}
 Traverse:
@@ -195,7 +183,6 @@ Traverse:
 	return nil
 }
 
-// WalkPath TODO
 func (nd node) WalkPath(name string, fn walkPathFunc) error {
 	i := indexbase(nd.Name, name)
 	if i == -1 {
@@ -233,12 +220,10 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 	}
 }
 
-// Root TODO
 type root struct {
 	nd node
 }
 
-// TODO(rjeczalik): split unix + windows
 func (r root) addroot(name string) node {
 	if vol := filepath.VolumeName(name); vol != "" {
 		root, ok := r.nd.Child[vol]
@@ -250,7 +235,6 @@ func (r root) addroot(name string) node {
 	return r.nd
 }
 
-// TODO(rjeczalik): split unix + windows
 func (r root) root(name string) (node, error) {
 	if vol := filepath.VolumeName(name); vol != "" {
 		nd, ok := r.nd.Child[vol]
@@ -262,17 +246,14 @@ func (r root) root(name string) (node, error) {
 	return r.nd, nil
 }
 
-// Add TODO
 func (r root) Add(name string) node {
 	return r.addroot(name).Add(name)
 }
 
-// WalkDir TODO
 func (r root) AddDir(dir string, fn walkFunc) error {
 	return r.Add(dir).AddDir(fn)
 }
 
-// Del TODO
 func (r root) Del(name string) error {
 	nd, err := r.root(name)
 	if err != nil {
@@ -281,7 +262,6 @@ func (r root) Del(name string) error {
 	return nd.Del(name)
 }
 
-// Get TODO
 func (r root) Get(name string) (node, error) {
 	nd, err := r.root(name)
 	if err != nil {
@@ -295,7 +275,6 @@ func (r root) Get(name string) (node, error) {
 	return nd, nil
 }
 
-// Walk TODO
 func (r root) Walk(name string, fn walkFunc) error {
 	nd, err := r.Get(name)
 	if err != nil {
@@ -304,7 +283,6 @@ func (r root) Walk(name string, fn walkFunc) error {
 	return nd.Walk(fn)
 }
 
-// Root TODO
 func (r root) WalkPath(name string, fn walkPathFunc) error {
 	nd, err := r.root(name)
 	if err != nil {
@@ -313,7 +291,6 @@ func (r root) WalkPath(name string, fn walkPathFunc) error {
 	return nd.WalkPath(name, fn)
 }
 
-// NodeSet TODO
 type nodeSet []node
 
 func (p nodeSet) Len() int           { return len(p) }
@@ -350,7 +327,6 @@ func (p *nodeSet) Del(nd node) {
 	}
 }
 
-// ChanNodesMap TODO
 type chanNodesMap map[chan<- EventInfo]*nodeSet
 
 func (m chanNodesMap) Add(c chan<- EventInfo, nd node) {

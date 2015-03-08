@@ -6,8 +6,6 @@ package notify
 
 import "errors"
 
-// TODO(rjeczalik): Rework inline doc.
-
 var (
 	errAlreadyWatched  = errors.New("path is already watched")
 	errNotWatched      = errors.New("path is not being watched")
@@ -49,7 +47,6 @@ type watcher interface {
 // RecursiveWatcher is an interface for a Watcher for those OS, which do support
 // recursive watching over directories.
 type recursiveWatcher interface {
-	// RecursiveWatch TODO
 	RecursiveWatch(path string, event Event) error
 
 	// RecursiveUnwatch removes a recursive watch-point given by the path. For

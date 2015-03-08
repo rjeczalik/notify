@@ -9,12 +9,11 @@ package notify
 // functions typically return the None value.
 type eventDiff [2]Event
 
-// Event TODO(rjeczalik)
 func (diff eventDiff) Event() Event {
 	return diff[1] &^ diff[0]
 }
 
-// Watchpoint TODO(rjeczalik)
+// Watchpoint
 //
 // The nil key holds total event set - logical sum for all registered events.
 // It speeds up computing EventDiff for Add method.
@@ -33,7 +32,6 @@ var rec = func() (ch chan<- EventInfo) {
 	return
 }()
 
-// Diff TODO(rjeczalik)
 func (wp watchpoint) dryAdd(ch chan<- EventInfo, e Event) eventDiff {
 	if e &^= internal; wp[ch]&e == e {
 		return none
@@ -42,8 +40,6 @@ func (wp watchpoint) dryAdd(ch chan<- EventInfo, e Event) eventDiff {
 	return eventDiff{total, total | e}
 }
 
-// Add TODO(rjeczalik)
-//
 // Add assumes neither c nor e are nil or zero values.
 func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] |= e
@@ -59,7 +55,6 @@ func (wp watchpoint) Add(c chan<- EventInfo, e Event) (diff eventDiff) {
 	return
 }
 
-// Del TODO(rjeczalik)
 func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	wp[c] &^= e
 	if wp[c] == 0 {
@@ -83,7 +78,6 @@ func (wp watchpoint) Del(c chan<- EventInfo, e Event) (diff eventDiff) {
 	return
 }
 
-// Dispatch TODO(rjeczalik)
 func (wp watchpoint) Dispatch(ei EventInfo, extra Event) {
 	e := eventmask(ei, extra)
 	if !matches(wp[nil], e) {
@@ -99,12 +93,10 @@ func (wp watchpoint) Dispatch(ei EventInfo, extra Event) {
 	}
 }
 
-// Total TODO(rjeczalik)
 func (wp watchpoint) Total() Event {
 	return wp[nil] &^ internal
 }
 
-// IsRecursive TODO(rjeczalik)
 func (wp watchpoint) IsRecursive() bool {
 	return wp[nil]&recursive != 0
 }

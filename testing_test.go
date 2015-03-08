@@ -27,7 +27,6 @@ import (
 //   - NOTIFY_TMP allows for changing location of temporary directory trees
 //     created for test purpose
 
-// wd TODO(rjeczalik)
 var wd = func() string {
 	s, err := os.Getwd()
 	if err != nil {
@@ -36,7 +35,6 @@ var wd = func() string {
 	return s
 }()
 
-// timeout TODO(rjeczalik)
 func timeout() time.Duration {
 	if s := os.Getenv("NOTIFY_TIMEOUT"); s != "" {
 		if t, err := time.ParseDuration(s); err == nil {
@@ -46,7 +44,6 @@ func timeout() time.Duration {
 	return 2 * time.Second
 }
 
-// vfs TODO(rjeczalik)
 func vfs() (string, string) {
 	if s := os.Getenv("NOTIFY_TMP"); s != "" {
 		return filepath.Split(s)
@@ -54,13 +51,11 @@ func vfs() (string, string) {
 	return "testdata", ""
 }
 
-// isDir TODO(rjeczalik)
 func isDir(path string) bool {
 	r := path[len(path)-1]
 	return r == '\\' || r == '/'
 }
 
-// tmpcreateall TODO(rjeczalik)
 func tmpcreateall(tmp string, path string) error {
 	isdir := isDir(path)
 	path = filepath.Join(tmp, filepath.FromSlash(path))
@@ -83,7 +78,6 @@ func tmpcreateall(tmp string, path string) error {
 	return nil
 }
 
-// tmpcreate TODO(rjeczalik)
 func tmpcreate(root, path string) (bool, error) {
 	isdir := isDir(path)
 	path = filepath.Join(root, filepath.FromSlash(path))
@@ -103,7 +97,6 @@ func tmpcreate(root, path string) (bool, error) {
 	return isdir, nil
 }
 
-// tmptree TODO(rjeczalik)
 func tmptree(root, list string) (string, error) {
 	f, err := os.Open(list)
 	if err != nil {
@@ -127,7 +120,6 @@ func tmptree(root, list string) (string, error) {
 	return root, nil
 }
 
-// callern TODO(rjeczalik)
 func callern(n int) string {
 	_, file, line, ok := runtime.Caller(n)
 	if !ok {
@@ -136,18 +128,15 @@ func callern(n int) string {
 	return filepath.Base(file) + ":" + strconv.Itoa(line)
 }
 
-// caller TODO(rjeczalik)
 func caller() string {
 	return callern(3)
 }
 
-// WCase TODO(rjeczalik)
 type WCase struct {
 	Action func()
 	Events []EventInfo
 }
 
-// String TODO(rjeczalik)
 func (cas WCase) String() string {
 	s := make([]string, 0, len(cas.Events))
 	for _, ei := range cas.Events {
@@ -156,7 +145,6 @@ func (cas WCase) String() string {
 	return strings.Join(s, ", ")
 }
 
-// W TODO(rjeczalik)
 type W struct {
 	Watcher watcher
 	C       chan EventInfo
@@ -166,7 +154,6 @@ type W struct {
 	root string
 }
 
-// newWatcherTest TODO(rjeczalik)
 func newWatcherTest(t *testing.T, tree string) *W {
 	root, err := tmptree("", filepath.FromSlash(tree))
 	if err != nil {
@@ -179,7 +166,6 @@ func newWatcherTest(t *testing.T, tree string) *W {
 	}
 }
 
-// NewWatcherTest TODO
 func NewWatcherTest(t *testing.T, tree string, events ...Event) *W {
 	w := newWatcherTest(t, tree)
 	if len(events) == 0 {
@@ -303,7 +289,6 @@ func (w *W) timeout() time.Duration {
 	return timeout()
 }
 
-// Close TODO
 func (w *W) Close() error {
 	defer os.RemoveAll(w.root)
 	if err := w.watcher().Close(); err != nil {
@@ -312,7 +297,6 @@ func (w *W) Close() error {
 	return nil
 }
 
-// Equal TODO
 func EqualEventInfo(want, got EventInfo) error {
 	if got.Event() != want.Event() {
 		return fmt.Errorf("want Event()=%v; got %v (path=%s)", want.Event(),
@@ -326,7 +310,6 @@ func EqualEventInfo(want, got EventInfo) error {
 	return nil
 }
 
-// EqualCall TODO(rjeczalik)
 func EqualCall(want, got Call) error {
 	if want.F != got.F {
 		return fmt.Errorf("want F=%v; got %v (want.P=%q, got.P=%q)", want.F, got.F, want.P, got.P)
@@ -349,7 +332,6 @@ func EqualCall(want, got Call) error {
 	return nil
 }
 
-// create TODO
 func create(w *W, path string) WCase {
 	return WCase{
 		Action: func() {
@@ -369,7 +351,6 @@ func create(w *W, path string) WCase {
 	}
 }
 
-// remove TODO
 func remove(w *W, path string) WCase {
 	return WCase{
 		Action: func() {
@@ -384,7 +365,6 @@ func remove(w *W, path string) WCase {
 	}
 }
 
-// rename TODO
 func rename(w *W, oldpath, newpath string) WCase {
 	return WCase{
 		Action: func() {
@@ -401,7 +381,6 @@ func rename(w *W, oldpath, newpath string) WCase {
 	}
 }
 
-// write TODO
 func write(w *W, path string, p []byte) WCase {
 	return WCase{
 		Action: func() {
@@ -425,7 +404,6 @@ func write(w *W, path string, p []byte) WCase {
 }
 
 func drainall(c chan EventInfo) (ei []EventInfo) {
-	// TODO(rjeczalik): remove
 	time.Sleep(50 * time.Millisecond)
 	for {
 		select {
@@ -440,7 +418,6 @@ func drainall(c chan EventInfo) (ei []EventInfo) {
 
 type WCaseFunc func(i int, cas WCase, ei EventInfo) error
 
-// ExpectAnyFunc TODO(rjeczalik)
 func (w *W) ExpectAnyFunc(cases []WCase, fn WCaseFunc) {
 	UpdateWait() // Wait some time before starting the test.
 Test:
@@ -482,7 +459,6 @@ Test:
 	}
 }
 
-// ExpectAny TODO(rjeczalik)
 func (w *W) ExpectAny(cases []WCase) {
 	w.ExpectAnyFunc(cases, nil)
 }
@@ -500,10 +476,8 @@ const (
 	FuncStop             = FuncType("Stop")
 )
 
-// Chans TODO
 type Chans []chan EventInfo
 
-// NewChans TODO
 func NewChans(n int) Chans {
 	ch := make([]chan EventInfo, n)
 	for i := range ch {
@@ -512,14 +486,12 @@ func NewChans(n int) Chans {
 	return ch
 }
 
-// Foreach TODO
 func (c Chans) Foreach(fn func(chan<- EventInfo, node)) {
 	for i, ch := range c {
 		fn(ch, node{Name: strconv.Itoa(i)})
 	}
 }
 
-// Drain TODO
 func (c Chans) Drain() (ei []EventInfo) {
 	n := len(c)
 	stop := make(chan struct{})
@@ -623,27 +595,22 @@ func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe Event) (_ error) {
 	return
 }
 
-// RCase TODO(rjeczalik)
 type RCase struct {
 	Call   Call
 	Record []Call
 }
 
-// TCase TODO(rjeczalik)
 type TCase struct {
 	Event    Call
 	Receiver Chans
 }
 
-// NCase TODO(rjeczalik)
 type NCase struct {
 	Event    WCase
 	Receiver Chans
 }
 
-// N TODO(rjeczalik)
 type N struct {
-	// Timeout TODO(rjeczalik)
 	Timeout time.Duration
 
 	t    *testing.T
@@ -679,7 +646,6 @@ func newTreeN(t *testing.T, tree string) *N {
 	return n
 }
 
-// NewNotifyTest TODO(rjeczalik)
 func NewNotifyTest(t *testing.T, tree string) *N {
 	n := newN(t, tree)
 	if rw, ok := n.w.watcher().(recursiveWatcher); ok {
@@ -690,21 +656,18 @@ func NewNotifyTest(t *testing.T, tree string) *N {
 	return n
 }
 
-// NewRecursiveTreeTest TODO(rjeczalik)
 func NewRecursiveTreeTest(t *testing.T, tree string) *N {
 	n := newTreeN(t, tree)
 	n.tree = newRecursiveTree(n.spy, n.c)
 	return n
 }
 
-// NewNonrecursiveTreeTest TODO(rjeczalik)
 func NewNonrecursiveTreeTest(t *testing.T, tree string) *N {
 	n := newTreeN(t, tree)
 	n.tree = newNonrecursiveTree(n.spy, n.c, nil)
 	return n
 }
 
-// NewNonrecursiveTreeTestC TODO(rjeczalik)
 func NewNonrecursiveTreeTestC(t *testing.T, tree string) (*N, chan EventInfo) {
 	rec := make(chan EventInfo, buffer)
 	recinternal := make(chan EventInfo, buffer)
@@ -737,12 +700,10 @@ func (n *N) timeout() time.Duration {
 	return n.w.timeout()
 }
 
-// W TODO(rjeczalik)
 func (n *N) W() *W {
 	return n.w
 }
 
-// Close TODO
 func (n *N) Close() error {
 	defer os.RemoveAll(n.w.root)
 	if err := n.tree.Close(); err != nil {
@@ -751,7 +712,6 @@ func (n *N) Close() error {
 	return nil
 }
 
-// Watch TODO(rjeczalik)
 func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
 	path = filepath.Join(n.w.root, path)
 	if err := n.tree.Watch(path, c, events...); err != nil {
@@ -759,7 +719,6 @@ func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
 	}
 }
 
-// WatchErr TODO(ppknap)
 func (n *N) WatchErr(path string, c chan<- EventInfo, err error, events ...Event) {
 	path = filepath.Join(n.w.root, path)
 	switch e := n.tree.Watch(path, c, events...); {
@@ -770,12 +729,10 @@ func (n *N) WatchErr(path string, c chan<- EventInfo, err error, events ...Event
 	}
 }
 
-// Stop TODO(rjeczalik)
 func (n *N) Stop(c chan<- EventInfo) {
 	n.tree.Stop(c)
 }
 
-// Call TODO(rjeczalik)
 func (n *N) Call(calls ...Call) {
 	for i := range calls {
 		switch calls[i].F {
@@ -789,14 +746,12 @@ func (n *N) Call(calls ...Call) {
 	}
 }
 
-// expectDry TODO(rjeczalik)
 func (n *N) expectDry(ch Chans, i int) {
 	if ei := ch.Drain(); len(ei) != 0 {
 		n.w.Fatalf("unexpected dangling events: %v (i=%d)", ei, i)
 	}
 }
 
-// ExpectRecordedCalls TODO(rjeczalik)
 func (n *N) ExpectRecordedCalls(cases []RCase) {
 	for i, cas := range cases {
 		dbg.Printf("ExpectRecordedCalls: i=%d\n", i)
@@ -850,7 +805,6 @@ func (n *N) collect(ch Chans) <-chan []EventInfo {
 	return done
 }
 
-// abs TODO(rjeczalik)
 func (n *N) abs(rel Call) *Call {
 	rel.P = filepath.Join(n.realroot, filepath.FromSlash(rel.P))
 	if !filepath.IsAbs(rel.P) {
@@ -859,7 +813,6 @@ func (n *N) abs(rel Call) *Call {
 	return &rel
 }
 
-// ExpectTreeEvents TODO(rjeczalik)
 func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
 		dbg.Printf("ExpectTreeEvents: i=%d\n", i)
@@ -888,7 +841,6 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	n.expectDry(all, -1)
 }
 
-// ExpectNotifyEvents TODO(rjeczalik)
 func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 	UpdateWait() // Wait some time before starting the test.
 	for i, cas := range cases {
