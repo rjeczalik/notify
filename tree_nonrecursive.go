@@ -250,7 +250,7 @@ Traverse:
 		if len(mnd.nd.Watch) != 0 {
 			switch err := fn(mnd.min, mnd.nd); err {
 			case nil:
-			case skip:
+			case errSkip:
 				continue Traverse
 			default:
 				return err

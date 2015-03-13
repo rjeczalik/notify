@@ -12,7 +12,7 @@ import (
 	"sort"
 )
 
-var skip = errors.New("skip")
+var errSkip = errors.New("notify: skip")
 
 type walkPathFunc func(nd node, isbase bool) error
 
@@ -88,7 +88,7 @@ Traverse:
 		nd, stack = stack[n-1], stack[:n-1]
 		switch err := fn(nd); err {
 		case nil:
-		case skip:
+		case errSkip:
 			continue Traverse
 		default:
 			return err
@@ -165,7 +165,7 @@ Traverse:
 		nd, stack = stack[n-1], stack[:n-1]
 		switch err := fn(nd); err {
 		case nil:
-		case skip:
+		case errSkip:
 			continue Traverse
 		default:
 			return err
@@ -192,7 +192,7 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 	for j := indexSep(name[i:]); j != -1; j = indexSep(name[i:]) {
 		switch err := fn(nd, false); err {
 		case nil:
-		case skip:
+		case errSkip:
 			return nil
 		default:
 			return err
@@ -204,7 +204,7 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 	}
 	switch err := fn(nd, false); err {
 	case nil:
-	case skip:
+	case errSkip:
 		return nil
 	default:
 		return err
@@ -213,7 +213,7 @@ func (nd node) WalkPath(name string, fn walkPathFunc) error {
 		return errnotexist(name)
 	}
 	switch err := fn(nd, true); err {
-	case nil, skip:
+	case nil, errSkip:
 		return nil
 	default:
 		return err

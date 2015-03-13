@@ -180,7 +180,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		if watchTotal(nd) != 0 {
 			parent = nd
 			self = isbase
-			return skip
+			return errSkip
 		}
 		return nil
 	})
@@ -230,7 +230,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 			return nil
 		}
 		children.Add(nd)
-		return skip
+		return errSkip
 	}
 	switch must(cur.Walk(fn)); len(children) {
 	case 0:
@@ -335,7 +335,7 @@ func (t *recursiveTree) Stop(c chan<- EventInfo) {
 		// TODO(rjeczalik): if e != nil store dummy chan in nd.Watch just to
 		// retry un/rewatching next time and/or let the user handle the failure
 		// vie Error event?
-		return skip
+		return errSkip
 	}
 	t.rw.Lock()
 	e := t.root.Walk("", fn) // TODO(rjeczalik): use max root per c

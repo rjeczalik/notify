@@ -557,7 +557,7 @@ func (cs CallSlice) Sort()              { sort.Sort(cs) }
 // Spy is a mock for Watcher interface, which records every call.
 type Spy []Call
 
-func (s Spy) Close() (_ error) { return }
+func (s *Spy) Close() (_ error) { return }
 
 func (s *Spy) Watch(p string, e Event) (_ error) {
 	dbg.Printf("%s: (*Spy).Watch(%q, %v)", caller(), p, e)
