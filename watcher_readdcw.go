@@ -397,18 +397,30 @@ func (r *readdcw) loopevent(n uint32, overEx *overlappedEx) {
 // TODO(pknap) : doc
 func (r *readdcw) send(es []*event) {
 	for _, e := range es {
-		if e.e = decode(e.filter, e.action); e.e == 0 {
+		var syse Event
+		if e.e, syse = decode(e.filter, e.action); e.e == 0 && syse == 0 {
 			continue
 		}
-		switch Event(e.action) {
-		case (FileActionAdded >> 12), (FileActionRemoved >> 12):
-			if e.filter&uint32(dirmarker) != 0 {
-				e.ftype = fTypeDirectory
-			} else {
-				e.ftype = fTypeFile
-			}
-		default:
+		switch {
+		case e.action == syscall.FILE_ACTION_MODIFIED:
 			e.ftype = fTypeUnknown
+		case e.filter&uint32(dirmarker) != 0:
+			e.ftype = fTypeDirectory
+		default:
+			e.ftype = fTypeFile
+		}
+		switch {
+		case e.e == 0:
+			e.e = syse
+		case syse != 0:
+			r.c <- &event{
+				pathw:  e.pathw,
+				name:   e.name,
+				ftype:  e.ftype,
+				action: e.action,
+				filter: e.filter,
+				e:      syse,
+			}
 		}
 		r.c <- e
 	}
@@ -528,36 +540,35 @@ func (r *readdcw) Close() (err error) {
 // returned from completion routine. Function may return Event(0) in case when
 // filter was replaced by a new value which does not contain fields that are
 // valid with passed action.
-func decode(filter, action uint32) Event {
+func decode(filter, action uint32) (Event, Event) {
 	switch action {
 	case syscall.FILE_ACTION_ADDED:
-		return addrmv(filter, Create, FileActionAdded)
+		return gensys(filter, Create, FileActionAdded)
 	case syscall.FILE_ACTION_REMOVED:
-		return addrmv(filter, Remove, FileActionRemoved)
+		return gensys(filter, Remove, FileActionRemoved)
 	case syscall.FILE_ACTION_MODIFIED:
-		return Write
+		return gensys(filter, Write, FileActionModified)
 	case syscall.FILE_ACTION_RENAMED_OLD_NAME:
-		return addrmv(filter, Rename, FileActionRenamedOldName)
+		return gensys(filter, Rename, FileActionRenamedOldName)
 	case syscall.FILE_ACTION_RENAMED_NEW_NAME:
-		return addrmv(filter, Rename, FileActionRenamedNewName)
+		return gensys(filter, Rename, FileActionRenamedNewName)
 	}
 	panic(`notify: cannot decode internal mask`)
 }
 
-// addrmv decides whether the Windows action or the system-independent event
-// should be returned. Since the grip's filter may be atomically changed during
-// watcher lifetime, it is possible that neither Windows nor notify masks are
-// present in variable memory.
-func addrmv(filter uint32, e, syse Event) Event {
+// gensys decides whether the Windows action, system-independent event or both
+// of them should be returned. Since the grip's filter may be atomically changed
+// during watcher lifetime, it is possible that neither Windows nor notify masks
+// are watched by the user when this function is called.
+func gensys(filter uint32, ge, se Event) (gene, syse Event) {
 	isdir := filter&uint32(dirmarker) != 0
-	switch {
-	case isdir && filter&uint32(FileNotifyChangeDirName) != 0 || !isdir && filter&uint32(FileNotifyChangeFileName) != 0:
-		return syse
-	case filter&uint32(e) != 0:
-		return e
-	default:
-		return Event(0)
+	if isdir && filter&uint32(FileNotifyChangeDirName) != 0 ||
+		!isdir && filter&uint32(FileNotifyChangeFileName) != 0 ||
+		filter&uint32(fileNotifyChangeModified) != 0 {
+		syse = se
 	}
+	if filter&uint32(ge) != 0 {
+		gene = ge
+	}
+	return
 }
-
-// TODO(pknap) : add system-dependent event decoder for FILE_ACTION_MODIFIED action.

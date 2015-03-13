@@ -21,11 +21,10 @@ func TestNotifySystemSpecificEvent(t *testing.T) {
 			Event:    rremove(n.W(), "src/github.com/rjeczalik/fs/fs.go"),
 			Receiver: Chans{ch[0]},
 		},
-		// Uncoment when TestNotifySystemAndGlobalMix test is fixed.
-		// {
-		// 	Event:    rwrite(n.W(), "src/github.com/rjeczalik/fs/README.md", []byte("XD")),
-		// 	Receiver: Chans{ch[0]},
-		// },
+		{
+			Event:    rwrite(n.W(), "src/github.com/rjeczalik/fs/README.md", []byte("XD")),
+			Receiver: Chans{ch[0]},
+		},
 	}
 
 	n.ExpectNotifyEvents(cases, ch)
@@ -41,7 +40,6 @@ func TestUnknownEvent(t *testing.T) {
 }
 
 func TestNotifySystemAndGlobalMix(t *testing.T) {
-	t.Skip("TODO(ppknap)")
 	n := NewNotifyTest(t, "testdata/vfs.txt")
 	defer n.Close()
 

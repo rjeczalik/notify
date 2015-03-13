@@ -713,6 +713,7 @@ func (n *N) Close() error {
 }
 
 func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {
+	UpdateWait() // we need to wait on Windows because of its asynchronous watcher.
 	path = filepath.Join(n.w.root, path)
 	if err := n.tree.Watch(path, c, events...); err != nil {
 		n.t.Errorf("Watch(%s, %p, %v)=%v", path, c, events, err)
