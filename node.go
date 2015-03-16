@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 )
 
 var errSkip = errors.New("notify: skip")
@@ -30,26 +29,6 @@ type node struct {
 	Name  string
 	Watch watchpoint
 	Child map[string]node
-}
-
-func (nd node) child(name string) node {
-	if name == "" {
-		return nd
-	}
-	if child, ok := nd.Child[name]; ok {
-		return child
-	}
-	child := node{
-		Name:  nd.Name + sep + name,
-		Watch: make(watchpoint),
-		Child: make(map[string]node),
-	}
-	// TODO(rjeczalik): Fix it better.
-	if name == filepath.VolumeName(name) {
-		child.Name = name
-	}
-	nd.Child[name] = child
-	return child
 }
 
 func newnode(name string) node {
@@ -289,58 +268,4 @@ func (r root) WalkPath(name string, fn walkPathFunc) error {
 		return err
 	}
 	return nd.WalkPath(name, fn)
-}
-
-type nodeSet []node
-
-func (p nodeSet) Len() int           { return len(p) }
-func (p nodeSet) Less(i, j int) bool { return p[i].Name < p[j].Name }
-func (p nodeSet) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-func (p nodeSet) Search(nd node) int {
-	return sort.Search(len(p), func(i int) bool { return p[i].Name >= nd.Name })
-}
-
-func (p *nodeSet) Names() (s []string) {
-	for i := range *p {
-		s = append(s, (*p)[i].Name)
-	}
-	return
-}
-
-func (p *nodeSet) Add(nd node) {
-	switch i := p.Search(nd); {
-	case i == len(*p):
-		*p = append(*p, nd)
-	case (*p)[i].Name == nd.Name:
-	default:
-		*p = append(*p, node{})
-		copy((*p)[i+1:], (*p)[i:])
-		(*p)[i] = nd
-	}
-}
-
-func (p *nodeSet) Del(nd node) {
-	if i, n := p.Search(nd), len(*p); i != n && (*p)[i].Name == nd.Name {
-		copy((*p)[i:], (*p)[i+1:])
-		*p = (*p)[:n-1]
-	}
-}
-
-type chanNodesMap map[chan<- EventInfo]*nodeSet
-
-func (m chanNodesMap) Add(c chan<- EventInfo, nd node) {
-	if nds, ok := m[c]; ok {
-		nds.Add(nd)
-	} else {
-		m[c] = &nodeSet{nd}
-	}
-}
-
-func (m chanNodesMap) Del(c chan<- EventInfo, nd node) {
-	if nds, ok := m[c]; ok {
-		if nds.Del(nd); len(*nds) == 0 {
-			delete(m, c)
-		}
-	}
 }

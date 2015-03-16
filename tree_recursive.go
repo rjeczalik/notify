@@ -224,12 +224,12 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	// case 2: cur is new parent
 	//
 	// Look for children nodes, unwatch n-1 of them and rewatch the last one.
-	children := nodeSet{}
+	var children []node
 	fn := func(nd node) error {
 		if len(nd.Watch) == 0 {
 			return nil
 		}
-		children.Add(nd)
+		children = append(children, nd)
 		return errSkip
 	}
 	switch must(cur.Walk(fn)); len(children) {
