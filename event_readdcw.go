@@ -76,8 +76,6 @@ var osestr = map[Event]string{
 	FileActionRenamedNewName: "notify.FileActionRenamedNewName",
 }
 
-var ekind = map[Event]Event{}
-
 const (
 	fTypeUnknown uint8 = iota
 	fTypeFile

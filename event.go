@@ -141,17 +141,3 @@ var estr = map[Event]string{
 	recursive: "recursive",
 	omit:      "omit",
 }
-
-// Kind gives generic event type of the EventInfo.Event(). The purpose is to
-// hint the notify runtime whether the event created a file or directory or it
-// deleted one. The possible values of Kind are Create or Remove, any other
-// value is ignored by the notify runtime.
-func kind(e Event) Event {
-	switch e {
-	case Create, Remove:
-		return e
-	default:
-		ev, _ := ekind[e]
-		return ev
-	}
-}

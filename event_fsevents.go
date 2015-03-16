@@ -60,8 +60,6 @@ var osestr = map[Event]string{
 	FSEventsIsSymlink:       "notify.FSEventsIsSymlink",
 }
 
-var ekind = map[Event]Event{}
-
 type event struct {
 	fse   FSEvent
 	event Event

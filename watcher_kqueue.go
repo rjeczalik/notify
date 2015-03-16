@@ -59,28 +59,44 @@ func (k *kqueue) sendEvents(evn []event) {
 	}
 }
 
-// mask converts requested events to kqueue representation.
-func mask(e Event) (o uint32) {
+// encode converts requested events to kqueue representation.
+func encode(e Event) (o uint32) {
 	o = uint32(e &^ Create)
-	for k, n := range ekind {
-		if e&n != 0 {
-			o = (o &^ uint32(n)) | uint32(k)
-		}
+	if e&Write != 0 {
+		o = (o &^ uint32(Write)) | uint32(NoteWrite)
+	}
+	if e&Rename != 0 {
+		o = (o &^ uint32(Rename)) | uint32(NoteRename)
+	}
+	if e&Remove != 0 {
+		o = (o &^ uint32(Remove)) | uint32(NoteDelete)
 	}
 	return
 }
 
-// unmask converts event received from kqueue to notify.Event
+// decode converts event received from kqueue to notify.Event
 // representation taking into account requested events (w).
-func unmask(o uint32, w Event) (e Event) {
-	for k, n := range ekind {
-		if o&uint32(k) != 0 {
-			if w&k != 0 {
-				e |= k
-			}
-			if w&n != 0 {
-				e |= n
-			}
+func decode(o uint32, w Event) (e Event) {
+	// TODO(someone) : fix me
+	if o&uint32(NoteWrite) != 0 {
+		if w&NoteWrite != 0 {
+			e |= NoteWrite
+		} else {
+			e |= Write
+		}
+	}
+	if o&uint32(NoteRename) != 0 {
+		if w&NoteRename != 0 {
+			e |= NoteRename
+		} else {
+			e |= Rename
+		}
+	}
+	if o&uint32(NoteDelete) != 0 {
+		if w&NoteDelete != 0 {
+			e |= NoteDelete
+		} else {
+			e |= Remove
 		}
 	}
 	e |= Event(o) & w
@@ -174,7 +190,7 @@ func (k *kqueue) process(kevn syscall.Kevent_t) (evn []event) {
 		dbg.Printf("kqueue: %v event for not registered fd", kevn)
 		return
 	}
-	e := unmask(kevn.Fflags, w.eDir|w.eNonDir)
+	e := decode(kevn.Fflags, w.eDir|w.eNonDir)
 	if w.fi.IsDir() {
 		evn = k.dir(*w, kevn, e)
 	} else {
@@ -278,7 +294,7 @@ func (k *kqueue) singlewatch(p string, e Event, direct bool,
 	var kevn [1]syscall.Kevent_t
 	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE,
 		syscall.EV_ADD|syscall.EV_CLEAR)
-	kevn[0].Fflags = mask(w.eDir | w.eNonDir)
+	kevn[0].Fflags = encode(w.eDir | w.eNonDir)
 	if _, err := syscall.Kevent(k.fd, kevn[:], nil, nil); err != nil {
 		return err
 	}

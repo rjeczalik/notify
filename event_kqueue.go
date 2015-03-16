@@ -61,12 +61,6 @@ var osestr = map[Event]string{
 	NoteRevoke: "notify.NoteRevoke",
 }
 
-var ekind = map[Event]Event{
-	NoteWrite:  Write,
-	NoteRename: Rename,
-	NoteDelete: Remove,
-}
-
 // event is a struct storing reported event's data.
 type event struct {
 	// p is an absolute path to file for which event is reported.

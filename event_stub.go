@@ -23,8 +23,6 @@ const (
 
 var osestr = map[Event]string{}
 
-var ekind = map[Event]Event{}
-
 type event struct{}
 
 func (e *event) Event() (_ Event)         { return }

@@ -63,12 +63,6 @@ const (
 	inOnlydir    = Event(syscall.IN_ONLYDIR)
 )
 
-var ekind = map[Event]Event{
-	InMovedFrom:  Create,
-	InMovedTo:    Remove,
-	InDeleteSelf: Remove,
-}
-
 type event struct {
 	sys   syscall.InotifyEvent
 	path  string
