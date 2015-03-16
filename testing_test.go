@@ -340,9 +340,9 @@ func create(w *W, path string) WCase {
 				w.Fatalf("tmpcreate(%q, %q)=%v", w.root, path, err)
 			}
 			if isdir {
-				dbg.Printf("[FS] os.Mkdir(%q)\n", path)
+				dbgprintf("[FS] os.Mkdir(%q)\n", path)
 			} else {
-				dbg.Printf("[FS] os.Create(%q)\n", path)
+				dbgprintf("[FS] os.Create(%q)\n", path)
 			}
 		},
 		Events: []EventInfo{
@@ -357,7 +357,7 @@ func remove(w *W, path string) WCase {
 			if err := os.RemoveAll(filepath.Join(w.root, filepath.FromSlash(path))); err != nil {
 				w.Fatal(err)
 			}
-			dbg.Printf("[FS] os.Remove(%q)\n", path)
+			dbgprintf("[FS] os.Remove(%q)\n", path)
 		},
 		Events: []EventInfo{
 			&Call{P: path, E: Remove},
@@ -373,7 +373,7 @@ func rename(w *W, oldpath, newpath string) WCase {
 			if err != nil {
 				w.Fatal(err)
 			}
-			dbg.Printf("[FS] os.Rename(%q, %q)\n", oldpath, newpath)
+			dbgprintf("[FS] os.Rename(%q, %q)\n", oldpath, newpath)
 		},
 		Events: []EventInfo{
 			&Call{P: newpath, E: Rename},
@@ -395,7 +395,7 @@ func write(w *W, path string, p []byte) WCase {
 			if err := nonil(f.Sync(), f.Close()); err != nil {
 				w.Fatalf("Sync(%q)/Close(%q)=%v", path, path, err)
 			}
-			dbg.Printf("[FS] Write(%q)\n", path)
+			dbgprintf("[FS] Write(%q)\n", path)
 		},
 		Events: []EventInfo{
 			&Call{P: path, E: Write},
@@ -422,7 +422,7 @@ func (w *W) ExpectAnyFunc(cases []WCase, fn WCaseFunc) {
 	UpdateWait() // Wait some time before starting the test.
 Test:
 	for i, cas := range cases {
-		dbg.Printf("ExpectAny: i=%d\n", i)
+		dbgprintf("ExpectAny: i=%d\n", i)
 		cas.Action()
 		Sync()
 		switch cas.Events {
@@ -433,11 +433,11 @@ Test:
 		default:
 			select {
 			case ei := <-w.C:
-				dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d)", ei.Path(),
+				dbgprintf("received: path=%q, event=%v, sys=%v (i=%d)", ei.Path(),
 					ei.Event(), ei.Sys(), i)
 				for j, want := range cas.Events {
 					if err := EqualEventInfo(want, ei); err != nil {
-						dbg.Print(err, j)
+						dbgprint(err, j)
 						continue
 					}
 					if fn != nil {
@@ -560,37 +560,37 @@ type Spy []Call
 func (s *Spy) Close() (_ error) { return }
 
 func (s *Spy) Watch(p string, e Event) (_ error) {
-	dbg.Printf("%s: (*Spy).Watch(%q, %v)", caller(), p, e)
+	dbgprintf("%s: (*Spy).Watch(%q, %v)", caller(), p, e)
 	*s = append(*s, Call{F: FuncWatch, P: p, E: e})
 	return
 }
 
 func (s *Spy) Unwatch(p string) (_ error) {
-	dbg.Printf("%s: (*Spy).Unwatch(%q)", caller(), p)
+	dbgprintf("%s: (*Spy).Unwatch(%q)", caller(), p)
 	*s = append(*s, Call{F: FuncUnwatch, P: p})
 	return
 }
 
 func (s *Spy) Rewatch(p string, olde, newe Event) (_ error) {
-	dbg.Printf("%s: (*Spy).Rewatch(%q, %v, %v)", caller(), p, olde, newe)
+	dbgprintf("%s: (*Spy).Rewatch(%q, %v, %v)", caller(), p, olde, newe)
 	*s = append(*s, Call{F: FuncRewatch, P: p, E: olde, NE: newe})
 	return
 }
 
 func (s *Spy) RecursiveWatch(p string, e Event) (_ error) {
-	dbg.Printf("%s: (*Spy).RecursiveWatch(%q, %v)", caller(), p, e)
+	dbgprintf("%s: (*Spy).RecursiveWatch(%q, %v)", caller(), p, e)
 	*s = append(*s, Call{F: FuncRecursiveWatch, P: p, E: e})
 	return
 }
 
 func (s *Spy) RecursiveUnwatch(p string) (_ error) {
-	dbg.Printf("%s: (*Spy).RecursiveUnwatch(%q)", caller(), p)
+	dbgprintf("%s: (*Spy).RecursiveUnwatch(%q)", caller(), p)
 	*s = append(*s, Call{F: FuncRecursiveUnwatch, P: p})
 	return
 }
 
 func (s *Spy) RecursiveRewatch(oldp, newp string, olde, newe Event) (_ error) {
-	dbg.Printf("%s: (*Spy).RecursiveRewatch(%q, %q, %v, %v)", caller(), oldp, newp, olde, newe)
+	dbgprintf("%s: (*Spy).RecursiveRewatch(%q, %q, %v, %v)", caller(), oldp, newp, olde, newe)
 	*s = append(*s, Call{F: FuncRecursiveRewatch, P: oldp, NP: newp, E: olde, NE: newe})
 	return
 }
@@ -755,7 +755,7 @@ func (n *N) expectDry(ch Chans, i int) {
 
 func (n *N) ExpectRecordedCalls(cases []RCase) {
 	for i, cas := range cases {
-		dbg.Printf("ExpectRecordedCalls: i=%d\n", i)
+		dbgprintf("ExpectRecordedCalls: i=%d\n", i)
 		n.Call(cas.Call)
 		record := (*n.spy)[n.j:]
 		if len(cas.Record) == 0 && len(record) == 0 {
@@ -816,7 +816,7 @@ func (n *N) abs(rel Call) *Call {
 
 func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 	for i, cas := range cases {
-		dbg.Printf("ExpectTreeEvents: i=%d\n", i)
+		dbgprintf("ExpectTreeEvents: i=%d\n", i)
 		// Ensure there're no dangling event left by previous test-case.
 		n.expectDry(all, i)
 		n.c <- n.abs(cas.Event)
@@ -845,7 +845,7 @@ func (n *N) ExpectTreeEvents(cases []TCase, all Chans) {
 func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 	UpdateWait() // Wait some time before starting the test.
 	for i, cas := range cases {
-		dbg.Printf("ExpectNotifyEvents: i=%d\n", i)
+		dbgprintf("ExpectNotifyEvents: i=%d\n", i)
 		cas.Event.Action()
 		Sync()
 		switch cas.Receiver {
@@ -857,11 +857,11 @@ func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 			case collected := <-ch:
 			Compare:
 				for j, ei := range collected {
-					dbg.Printf("received: path=%q, event=%v, sys=%v (i=%d, j=%d)", ei.Path(),
+					dbgprintf("received: path=%q, event=%v, sys=%v (i=%d, j=%d)", ei.Path(),
 						ei.Event(), ei.Sys(), i, j)
 					for _, want := range cas.Event.Events {
 						if err := EqualEventInfo(want, ei); err != nil {
-							dbg.Print(err, j)
+							dbgprint(err, j)
 							continue
 						}
 						continue Compare

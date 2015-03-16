@@ -123,7 +123,7 @@ func newRecursiveTree(w recursiveWatcher, c chan EventInfo) *recursiveTree {
 // dispatch TODO(rjeczalik)
 func (t *recursiveTree) dispatch() {
 	for ei := range t.c {
-		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
+		dbgprintf("dispatching %v on %q", ei.Event(), ei.Path())
 		go func(ei EventInfo) {
 			nd, ok := node{}, false
 			dir, base := split(ei.Path())
@@ -139,7 +139,7 @@ func (t *recursiveTree) dispatch() {
 			defer t.rw.RUnlock()
 			// Notify recursive watchpoints found on the path.
 			if err := t.root.WalkPath(dir, fn); err != nil {
-				dbg.Print("dispatch did not reach leaf:", err)
+				dbgprint("dispatch did not reach leaf:", err)
 				return
 			}
 			// Notify parent watchpoint.
@@ -343,7 +343,7 @@ func (t *recursiveTree) Stop(c chan<- EventInfo) {
 	if e != nil {
 		err = nonil(err, e)
 	}
-	dbg.Printf("Stop(%p) error: %v\n", c, err)
+	dbgprintf("Stop(%p) error: %v\n", c, err)
 }
 
 // Close TODO(rjeczalik)

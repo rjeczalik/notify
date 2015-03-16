@@ -112,7 +112,7 @@ func (w *watch) strip(base string, set uint32) uint32 {
 			set &^= write
 		}
 	}
-	dbg.Printf("split()=%v\n", Event(set))
+	dbgprintf("split()=%v\n", Event(set))
 	return set
 }
 
@@ -129,7 +129,7 @@ func (w *watch) Dispatch(ev []FSEvent) {
 		if !w.flushed {
 			continue
 		}
-		dbg.Printf("%v (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
+		dbgprintf("%v (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
 			ev[i].Path, i, ev[i].ID, len(ev))
 		if ev[i].Flags&failure != 0 {
 			// TODO(rjeczalik): missing error handling
@@ -155,7 +155,7 @@ func (w *watch) Dispatch(ev []FSEvent) {
 			continue
 		}
 		for _, e := range splitflags(e) {
-			dbg.Printf("%d: single event: %v", ev[i].ID, Event(e))
+			dbgprintf("%d: single event: %v", ev[i].ID, Event(e))
 			w.c <- &event{
 				fse:   ev[i],
 				event: Event(e),

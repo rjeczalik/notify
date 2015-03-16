@@ -19,7 +19,6 @@ env:
    - secure: JfdLa3hcnvIwT13kbH2fr4c+4V9H4yO4GZsqDckODmxILlEtKcCLM5eCi09D21uTuaMUfZDIFNPN4mpDhbeEoM6Aoro4Ht+mX0vlpFUOS5bRqhP0l59PKEXqKFfh2IIlqEOmQ9XU6XvqWezTirN1OFUPMIMO9qSM/HuKhbX5wJQ=
    - GOBIN=$HOME/bin
    - PATH=$HOME/bin:$PATH
-   - NOTIFY_DEBUG=1
 
 install:
  - if [ "$(curl -LIsS -w %{http_code} coveralls.io | tail -1)" = "200" ] && [ "$TRAVIS_OS_NAME" = "linux" ]; then export COVERALLS=1; fi

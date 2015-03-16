@@ -39,12 +39,12 @@ func (k *kqueue) Close() (err error) {
 	var e error
 	for _, w := range k.idLkp {
 		if e = k.unwatch(w.p, w.fi); e != nil && err == nil {
-			dbg.Printf("kqueue: unwatch %q failed: %q", w.p, e)
+			dbgprintf("kqueue: unwatch %q failed: %q", w.p, e)
 			err = e
 		}
 	}
 	if e := error(syscall.Close(k.fd)); e != nil && err == nil {
-		dbg.Printf("kqueue: closing kqueu fd failed: %q", e)
+		dbgprintf("kqueue: closing kqueu fd failed: %q", e)
 		err = e
 	}
 	k.idLkp, k.pthLkp = nil, nil
@@ -129,7 +129,7 @@ func (k *kqueue) monitor() {
 		switch n, err = syscall.Kevent(k.fd, nil, kevn[:], nil); {
 		case err == syscall.EINTR:
 		case err != nil:
-			dbg.Printf("kqueue: failed to read events: %q\n", err)
+			dbgprintf("kqueue: failed to read events: %q\n", err)
 		case int(kevn[0].Ident) == k.pipefds[0]:
 			k.s <- struct{}{}
 			return
@@ -159,7 +159,7 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 				evn = append(evn, event{p, Remove, Kevent{nil, fi}})
 			case err == errAlreadyWatched:
 			case err != nil:
-				dbg.Printf("kqueue: watching %q failed: %q", p, err)
+				dbgprintf("kqueue: watching %q failed: %q", p, err)
 			case (w.eDir & Create) != 0:
 				evn = append(evn, event{p, Create, Kevent{nil, fi}})
 			}
@@ -169,7 +169,7 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 		case os.IsNotExist(err):
 			return
 		case err != nil:
-			dbg.Printf("kqueue: dir processing failed: %q", err)
+			dbgprintf("kqueue: dir processing failed: %q", err)
 		default:
 		}
 	}
@@ -187,7 +187,7 @@ func (k *kqueue) process(kevn syscall.Kevent_t) (evn []event) {
 	w := k.idLkp[int(kevn.Ident)]
 	if w == nil {
 		k.Unlock()
-		dbg.Printf("kqueue: %v event for not registered fd", kevn)
+		dbgprintf("kqueue: %v event for not registered fd", kevn)
 		return
 	}
 	e := decode(kevn.Fflags, w.eDir|w.eNonDir)

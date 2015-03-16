@@ -34,7 +34,7 @@ func newNonrecursiveTree(w watcher, c, rec chan EventInfo) *nonrecursiveTree {
 // dispatch TODO(rjeczalik)
 func (t *nonrecursiveTree) dispatch(c <-chan EventInfo) {
 	for ei := range c {
-		dbg.Printf("dispatching %v on %q", ei.Event(), ei.Path())
+		dbgprintf("dispatching %v on %q", ei.Event(), ei.Path())
 		go func(ei EventInfo) {
 			var nd node
 			var isrec bool
@@ -51,7 +51,7 @@ func (t *nonrecursiveTree) dispatch(c <-chan EventInfo) {
 			t.rw.RLock()
 			// Notify recursive watchpoints found on the path.
 			if err := t.root.WalkPath(dir, fn); err != nil {
-				dbg.Print("dispatch did not reach leaf:", err)
+				dbgprint("dispatch did not reach leaf:", err)
 				t.rw.RUnlock()
 				return
 			}
@@ -96,7 +96,7 @@ func (t *nonrecursiveTree) internal(rec <-chan EventInfo) {
 		err := nd.Add(ei.Path()).AddDir(t.recFunc(eset))
 		t.rw.Unlock()
 		if err != nil {
-			dbg.Printf("internal(%p) error: %v", rec, err)
+			dbgprintf("internal(%p) error: %v", rec, err)
 		}
 	}
 }
@@ -281,7 +281,7 @@ func (t *nonrecursiveTree) Stop(c chan<- EventInfo) {
 	t.rw.Lock()
 	err := t.walkWatchpoint(t.root.nd, fn) // TODO(rjeczalik): store max root per c
 	t.rw.Unlock()
-	dbg.Printf("Stop(%p) error: %v\n", c, err)
+	dbgprintf("Stop(%p) error: %v\n", c, err)
 }
 
 // Close TODO(rjeczalik)

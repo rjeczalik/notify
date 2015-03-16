@@ -7,7 +7,6 @@ clone_folder: c:\projects\src\github.com\rjeczalik\notify
 environment:
  PATH: c:\projects\bin;%PATH%
  GOPATH: c:\projects
- NOTIFY_DEBUG: 1
  NOTIFY_TIMEOUT: 5s
 
 install:

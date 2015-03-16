@@ -21,7 +21,7 @@ func Sync() {
 	// to hack it.
 	// r, _, err := procSetSystemFileCacheSize.Call(none, none, 0)
 	// if r == 0 {
-	//   dbg.Print("SetSystemFileCacheSize error:", err)
+	//   dbgprint("SetSystemFileCacheSize error:", err)
 	// }
 }
 
