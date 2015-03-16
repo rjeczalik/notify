@@ -62,7 +62,7 @@ func (k *kqueue) sendEvents(evn []event) {
 // encode converts requested events to kqueue representation.
 func encode(e Event) (o uint32) {
 	o = uint32(e &^ Create)
-	if o&Write != 0 {
+	if e&Write != 0 {
 		o = (o &^ uint32(Write)) | uint32(NoteWrite)
 	}
 	if e&Rename != 0 {
