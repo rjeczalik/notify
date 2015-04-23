@@ -188,18 +188,18 @@ func (t *nonrecursiveTree) watch(nd node, c chan<- EventInfo, e Event) (err erro
 }
 
 func (t *nonrecursiveTree) recFunc(e Event) walkFunc {
-	return func(nd node) error {
+	return func(nd node) (err error) {
 		switch diff := nd.Watch.Add(t.rec, e|omit|Create); {
 		case diff == none:
 		case diff[1] == 0:
 			// TODO(rjeczalik): cleanup this panic after implementation is stable
 			panic("eset is empty: " + nd.Name)
 		case diff[0] == 0:
-			t.w.Watch(nd.Name, diff[1])
+			err = t.w.Watch(nd.Name, diff[1])
 		default:
-			t.w.Rewatch(nd.Name, diff[0], diff[1])
+			err = t.w.Rewatch(nd.Name, diff[0], diff[1])
 		}
-		return nil
+		return
 	}
 }
 
