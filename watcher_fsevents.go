@@ -129,8 +129,8 @@ func (w *watch) Dispatch(ev []FSEvent) {
 		if !w.flushed {
 			continue
 		}
-		dbgprintf("%v (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
-			ev[i].Path, i, ev[i].ID, len(ev))
+		dbgprintf("%v (0x%x) (%s, i=%d, ID=%d, len=%d)\n", Event(ev[i].Flags),
+			ev[i].Flags, ev[i].Path, i, ev[i].ID, len(ev))
 		if ev[i].Flags&failure != 0 {
 			// TODO(rjeczalik): missing error handling
 			panic("unhandled error: " + Event(ev[i].Flags).String())
