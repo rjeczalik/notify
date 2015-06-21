@@ -310,6 +310,14 @@ func EqualEventInfo(want, got EventInfo) error {
 	return nil
 }
 
+func HasEventInfo(want, got Event, p string) error {
+	if got&want != want {
+		return fmt.Errorf("want Event=%v; got %v (path=%s)", want,
+			got, p)
+	}
+	return nil
+}
+
 func EqualCall(want, got Call) error {
 	if want.F != got.F {
 		return fmt.Errorf("want F=%v; got %v (want.P=%q, got.P=%q)", want.F, got.F, want.P, got.P)
@@ -461,6 +469,53 @@ Test:
 
 func (w *W) ExpectAny(cases []WCase) {
 	w.ExpectAnyFunc(cases, nil)
+}
+
+func (w *W) aggregate(ei []EventInfo, pf string) (evs map[string]Event) {
+	evs = make(map[string]Event)
+	for _, cas := range ei {
+		p := cas.Path()
+		if pf != "" {
+			p = filepath.Join(pf, p)
+		}
+		evs[p] |= cas.Event()
+	}
+	return
+}
+
+func (w *W) ExpectAllFunc(cases []WCase) {
+	UpdateWait() // Wait some time before starting the test.
+	for i, cas := range cases {
+		exp := w.aggregate(cas.Events, w.root)
+		dbgprintf("ExpectAll: i=%d\n", i)
+		cas.Action()
+		Sync()
+		got := w.aggregate(drainall(w.C), "")
+		for ep, ee := range exp {
+			ge, ok := got[ep]
+			if !ok {
+				w.Fatalf("missing events for %q (%v)", ep, ee)
+				continue
+			}
+			delete(got, ep)
+			if err := HasEventInfo(ee, ge, ep); err != nil {
+				w.Fatalf("ExpectAll received an event which does not match "+
+					"the expected ones for %q: want %v; got %v", ep, ee, ge)
+				continue
+			}
+		}
+		if len(got) != 0 {
+			w.Fatalf("ExpectAll received unexpected events: %v", got)
+		}
+	}
+}
+
+// ExpectAll requires all requested events to be send.
+// It does not require events to be send in the same order or in the same
+// chunks (e.g. NoteWrite and NoteExtend reported as independent events are
+// treated the same as one NoteWrite|NoteExtend event).
+func (w *W) ExpectAll(cases []WCase) {
+	w.ExpectAllFunc(cases)
 }
 
 // FuncType represents enums for Watcher interface.

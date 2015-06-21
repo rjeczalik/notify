@@ -9,6 +9,7 @@ package notify
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -143,11 +144,33 @@ func (k *kqueue) dir(w watched, kevn syscall.Kevent_t, e Event) (evn []event) {
 	// If it's dir and delete we have to send it and continue, because
 	// other processing relies on opening (in this case not existing) dir.
 	// Events for contents of this dir are reported by kqueue.
-	if (Event(kevn.Fflags) & NoteDelete) != 0 {
+	// However events for rename must be generated for all monitored files
+	// inside of moved directory, because kqueue does not report it independently
+	// for each file descriptor being moved in result of move action on
+	// parent directory.
+	if (Event(kevn.Fflags) & (NoteDelete | NoteRename)) != 0 {
 		// Write is reported also for Remove on directory. Because of that
 		// we have to filter it out explicitly.
 		evn = append(evn, event{w.p,
 			e & ^Write & ^NoteWrite, Kevent{&kevn, w.fi}})
+		if Event(kevn.Fflags)&NoteRename != 0 {
+			for p, wt := range k.pthLkp {
+				// TODO: Change the way of storing paths in kqueue.
+				if strings.HasPrefix(p, w.p+string(os.PathSeparator)) {
+					if err := k.unwatch(p, wt.fi); err != nil && err != errNotWatched &&
+						!os.IsNotExist(err) {
+						dbgprintf("kqueue: failed stop watching moved file (%q): %q\n",
+							p, err)
+					}
+					if (w.eDir|w.eNonDir)&(NoteRename|Rename) != 0 {
+						evn = append(evn, event{
+							p, (w.eDir | w.eNonDir) & e &^ Write &^ NoteWrite,
+							Kevent{nil, wt.fi},
+						})
+					}
+				}
+			}
+		}
 		k.del(w)
 		return
 	}
@@ -196,7 +219,7 @@ func (k *kqueue) process(kevn syscall.Kevent_t) (evn []event) {
 	} else {
 		evn = k.file(*w, kevn, e)
 	}
-	if (Event(kevn.Fflags) & NoteDelete) != 0 {
+	if (Event(kevn.Fflags) & (NoteDelete | NoteRename)) != 0 {
 		k.del(*w)
 	}
 	k.Unlock()
