@@ -27,13 +27,14 @@ import (
 //   - NOTIFY_TMP allows for changing location of temporary directory trees
 //     created for test purpose
 
-var wd = func() string {
-	s, err := os.Getwd()
-	if err != nil {
-		panic(err)
+var wd string
+
+func init() {
+	var err error
+	if wd, err = os.Getwd(); err != nil {
+		panic("Getwd()=" + err.Error())
 	}
-	return s
-}()
+}
 
 func timeout() time.Duration {
 	if s := os.Getenv("NOTIFY_TIMEOUT"); s != "" {

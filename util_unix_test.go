@@ -92,3 +92,34 @@ func TestCanonicalCircular(t *testing.T) {
 		t.Fatalf("want canonical(%q)=os.PathError; got %T", tmp1, err)
 	}
 }
+
+// issue #83
+func TestCanonical_RelativeSymlink(t *testing.T) {
+	dir, err := ioutil.TempDir(wd, "")
+	if err != nil {
+		t.Fatalf("TempDir()=%v", err)
+	}
+	var (
+		path     = filepath.Join(dir, filepath.FromSlash("a/b/c/d/e/f"))
+		realpath = filepath.Join(dir, filepath.FromSlash("a/b/x/y/z/d/e/f"))
+		rel      = filepath.FromSlash("x/y/z/../z/../z")
+		chdir    = filepath.Join(dir, filepath.FromSlash("a/b"))
+	)
+	defer os.RemoveAll(dir)
+	if err = os.MkdirAll(realpath, 0755); err != nil {
+		t.Fatalf("MkdirAll()=%v", err)
+	}
+	if err := os.Chdir(chdir); err != nil {
+		t.Fatalf("Chdir()=%v", err)
+	}
+	if err := nonil(os.Symlink(rel, "c"), os.Chdir(wd)); err != nil {
+		t.Fatalf("Symlink()=%v", err)
+	}
+	got, err := canonical(path)
+	if err != nil {
+		t.Fatalf("canonical(%s)=%v", path, err)
+	}
+	if got != realpath {
+		t.Fatalf("want canonical()=%s; got %s", realpath, got)
+	}
+}

@@ -69,14 +69,14 @@ func canonical(p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for i, depth := 1, 1; i < len(p); i, depth = i+1, depth+1 {
+	for i, j, depth := 1, 0, 1; i < len(p); i, depth = i+1, depth+1 {
 		if depth > 128 {
 			return "", &os.PathError{Op: "canonical", Path: p, Err: errDepth}
 		}
-		if j := strings.IndexRune(p[i:], '/'); j == -1 {
-			i = len(p)
+		if j = strings.IndexRune(p[i:], '/'); j == -1 {
+			j, i = i, len(p)
 		} else {
-			i = i + j
+			j, i = i, i+j
 		}
 		fi, err := os.Lstat(p[:i])
 		if err != nil {
@@ -87,7 +87,11 @@ func canonical(p string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			p = "/" + s + p[i:]
+			if filepath.IsAbs(s) {
+				p = "/" + s + p[i:]
+			} else {
+				p = p[:j] + s + p[i:]
+			}
 			i = 1 // no guarantee s is canonical, start all over
 		}
 	}

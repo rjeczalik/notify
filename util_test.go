@@ -5,7 +5,6 @@
 package notify
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -30,10 +29,6 @@ func testCanonical(t *testing.T, cases []caseCanonical) {
 }
 
 func TestCanonicalNoSymlink(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("os.Getwd()=%v", err)
-	}
 	td := filepath.Join(wd, "testdata")
 	cases := [...]caseCanonical{
 		{".", wd},
