@@ -31,6 +31,10 @@ var defaultTree = newTree()
 // E.g. FSEvents reports a real path for every event, setting a watchpoint
 // on /tmp will report events with paths rooted at /private/tmp etc.
 //
+// The c almost always is a buffered channel. Watch will not block sending to c
+// - the caller must ensure that c has sufficient buffer space to keep up with
+// the expected event rate.
+//
 // It is allowed to pass the same channel multiple times with different event
 // list or different paths. Calling Watch with different event lists for a single
 // watchpoint expands its event set. The only way to shrink it, is to call
