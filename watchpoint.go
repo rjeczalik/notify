@@ -88,7 +88,7 @@ func (wp watchpoint) Dispatch(ei EventInfo, extra Event) {
 			select {
 			case ch <- ei:
 			default: // Drop event if receiver is too slow
-				dbgprint("dropped %s on %q: receiver too slow", ei.Event(), ei.Path())
+				dbgprintf("dropped %s on %q: receiver too slow", ei.Event(), ei.Path())
 			}
 		}
 	}
