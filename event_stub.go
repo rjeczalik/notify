@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // +build !darwin,!linux,!freebsd,!dragonfly,!netbsd,!openbsd,!windows
-// +build !kqueue
+// +build !kqueue,!solaris
 
 package notify
 
