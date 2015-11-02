@@ -145,7 +145,7 @@ func (i *inotify) lazyinit() error {
 // with inotify event queue and the read end of the pipe are added to epoll set.
 // Note that `fd` member must be set before this function is called.
 func (i *inotify) epollinit() (err error) {
-	if i.epfd, err = syscall.EpollCreate(2); err != nil {
+	if i.epfd, err = syscall.EpollCreate1(0); err != nil {
 		return
 	}
 	if err = syscall.Pipe(i.pipefd); err != nil {
