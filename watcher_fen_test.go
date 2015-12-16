@@ -48,29 +48,12 @@ func frename(w *W, path string, files []string) WCase {
 	return cas
 }
 
-/*func kqlink(w *W, path string) WCase {
-	const ext = ".notify"
-	return WCase{
-		Action: func() {
-			file := filepath.Join(w.root, path)
-			if err := os.Link(file, file+ext); err != nil {
-				w.Fatalf("Link(%q, %q)=%v", path, path+ext, err)
-			}
-		},
-		Events: []EventInfo{
-			&Call{P: path, E: NoteLink},
-			&Call{P: path + ext, E: osSpecificCreate},
-		},
-	}
-}*/
-
 var events = []Event{
 	FileModified,
 	FileAttrib,
 	FileRenameFrom,
 	osSpecificCreate,
 	FileDelete,
-	//NoteLink,
 }
 
 func TestWatcherFen(t *testing.T) {
@@ -97,7 +80,6 @@ func TestWatcherFen(t *testing.T) {
 		),
 		fwrite(w, "src/github.com/rjeczalik/fs/fs.go", []byte("XD")),
 		fremove(w, "src/github.com/ppknap/link/README.md", nil),
-		//kqlink(w, "src/github.com/rjeczalik/fs/LICENSE"),
 		frename(w, "src/github.com/rjeczalik/fs/fs.go", nil),
 		frename(w, "src/github.com/rjeczalik/fs/cmd/gotree", []string{
 			"src/github.com/rjeczalik/fs/cmd/gotree/go.go",

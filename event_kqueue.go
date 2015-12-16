@@ -6,10 +6,7 @@
 
 package notify
 
-import (
-	"os"
-	"syscall"
-)
+import "syscall"
 
 // TODO(pblaszczyk): ensure in runtime notify built-in event values do not
 // overlap with platform-defined ones.
@@ -59,31 +56,4 @@ var osestr = map[Event]string{
 	NoteLink:   "notify.NoteLink",
 	NoteRename: "notify.NoteRename",
 	NoteRevoke: "notify.NoteRevoke",
-}
-
-// event is a struct storing reported event's data.
-type event struct {
-	// p is an absolute path to file for which event is reported.
-	p string
-	// e specifies type of a reported event.
-	e Event
-	// kq specifies event's additional information.
-	kq Kevent
-}
-
-// Event returns type of a reported event.
-func (e *event) Event() Event { return e.e }
-
-// Path returns path to file/directory for which event is reported.
-func (e *event) Path() string { return e.p }
-
-// Sys returns platform specific object describing reported event.
-func (e *event) Sys() interface{} { return &e.kq }
-
-func (e *event) isDir() (bool, error) { return e.kq.FI.IsDir(), nil }
-
-// Kevent represents a single event.
-type Kevent struct {
-	Kevent *syscall.Kevent_t // Kevent is a kqueue specific structure.
-	FI     os.FileInfo       // FI describes file/dir.
 }

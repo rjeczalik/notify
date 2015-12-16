@@ -44,18 +44,3 @@ var osestr = map[Event]string{
 	Unmounted:      "notify.Unmounted",
 	MountedOver:    "notify.MountedOver",
 }
-
-type event struct {
-	p  string
-	e  Event
-	d  bool
-	pe *PortEvent
-}
-
-func (e *event) Event() Event { return e.e }
-
-func (e *event) Path() string { return e.p }
-
-func (e *event) Sys() interface{} { return e.pe }
-
-func (e *event) isDir() (bool, error) { return e.d, nil }
