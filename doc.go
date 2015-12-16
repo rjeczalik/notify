@@ -5,9 +5,9 @@
 // Package notify implements access to filesystem events.
 //
 // Notify is a high-level abstraction over filesystem watchers like inotify,
-// kqueue, FSEvents or ReadDirectoryChangesW. Watcher implementations are
+// kqueue, FSEvents, FEN or ReadDirectoryChangesW. Watcher implementations are
 // split into two groups: ones that natively support recursive notifications
-// (FSEvents and ReadDirectoryChangesW) and ones that do not (inotify and kqueue).
+// (FSEvents and ReadDirectoryChangesW) and ones that do not (inotify, kqueue, FEN).
 // For more details see watcher and recursiveWatcher interfaces in watcher.go
 // source file.
 //
@@ -27,6 +27,7 @@
 //   - inotify:  notify_add_watch
 //   - kqueue:   kevent
 //   - ReadDirectoryChangesW: CreateFile+ReadDirectoryChangesW
+//   - FEN:      port_get
 //
 // To rewatch means to either shrink or expand an event set that was previously
 // registered during watch operation for particular filesystem watch.
