@@ -7,104 +7,21 @@
 package notify
 
 import (
+	"fmt"
 	"os"
-	"sync"
 	"syscall"
 )
 
-func newTrg(c chan<- EventInfo) *trg {
-	return &trg{
-		idLkp:  make(map[int]*watched, 0),
-		pthLkp: make(map[string]*watched, 0),
-		c:      c,
-		s:      make(chan struct{}, 1),
+// newTrigger returns implementation of trigger.
+func newTrigger(pthLkp map[string]*watched) trigger {
+	return &kq{
+		pthLkp: pthLkp,
+		idLkp:  make(map[int]*watched),
 	}
 }
 
-func (t *trg) close() (err error) {
-	// trigger event used to interrupt Kevent call.
-	if _, err = syscall.Write(t.pipefds[1], []byte{0x00}); err != nil {
-		return
-	}
-	<-t.s
-	t.Lock()
-	var e error
-	for _, w := range t.idLkp {
-		if e = t.unwatch(w.p, w.fi); e != nil && err == nil {
-			dbgprintf("trg: unwatch %q failed: %q", w.p, e)
-			err = e
-		}
-	}
-	if e := error(syscall.Close(t.fd)); e != nil && err == nil {
-		dbgprintf("trg: closing kqueue fd failed: %q", e)
-		err = e
-	}
-	t.idLkp, t.pthLkp = nil, nil
-	t.Unlock()
-	return
-}
-
-// encode converts requested events to kqueue representation.
-func encode(e Event) (o int64) {
-	o = int64(e &^ Create)
-	if e&Write != 0 {
-		o = (o &^ int64(Write)) | int64(NoteWrite)
-	}
-	if e&Rename != 0 {
-		o = (o &^ int64(Rename)) | int64(NoteRename)
-	}
-	if e&Remove != 0 {
-		o = (o &^ int64(Remove)) | int64(NoteDelete)
-	}
-	return
-}
-
-var nat2not = map[Event]Event{
-	NoteWrite:  Write,
-	NoteRename: Rename,
-	NoteDelete: Remove,
-	NoteExtend: Event(0),
-	NoteAttrib: Event(0),
-	NoteRevoke: Event(0),
-	NoteLink:   Event(0),
-}
-
-func (t *trg) del(w *watched) {
-	syscall.Close(w.fd)
-	delete(t.idLkp, w.fd)
-	delete(t.pthLkp, w.p)
-}
-
-func (t *trg) monitor() {
-	var (
-		kevn [1]syscall.Kevent_t
-		n    int
-		err  error
-	)
-	for {
-		kevn[0] = syscall.Kevent_t{}
-		switch n, err = syscall.Kevent(t.fd, nil, kevn[:], nil); {
-		case err == syscall.EINTR:
-		case err != nil:
-			dbgprintf("trg: failed to read events: %q\n", err)
-		case int(kevn[0].Ident) == t.pipefds[0]:
-			t.s <- struct{}{}
-			return
-		case n > 0:
-			t.sendEvents(t.process(kevn[0]))
-		}
-	}
-}
-
-var (
-	nRename = NoteRename
-	nRemove = NoteDelete
-	nWrite  = NoteWrite
-	nDelRen = NoteDelete | NoteRename
-)
-
-type trg struct {
-	sync.Mutex
+// kq is a structure implementing trigger for kqueue.
+type kq struct {
 	// fd is a kqueue file descriptor
 	fd int
 	// pipefds are file descriptors used to stop `Kevent` call.
@@ -112,13 +29,9 @@ type trg struct {
 	// idLkp is a data structure mapping file descriptors with data about watching
 	// represented by them files/directories.
 	idLkp map[int]*watched
-	// pthLkp is a data structure mapping file names with data about watching
-	// represented by them files/directories.
+	// pthLkp is a structure mapping monitored files/dir with data about them,
+	// shared with parent trg structure
 	pthLkp map[string]*watched
-	// c is a channel used to pass events further.
-	c chan<- EventInfo
-	// s is a channel used to stop monitoring.
-	s chan struct{}
 }
 
 // watched is a data structure representing watched file/directory.
@@ -135,53 +48,20 @@ type watched struct {
 	eNonDir Event
 }
 
-// init initializes kqueue.
-func (t *trg) init() (err error) {
-	if t.fd, err = syscall.Kqueue(); err != nil {
-		return
-	}
-	// Creates pipe used to stop `Kevent` call by registering it,
-	// watching read end and writing to other end of it.
-	if err = syscall.Pipe(t.pipefds[:]); err != nil {
-		return
-	}
-	var kevn [1]syscall.Kevent_t
-	syscall.SetKevent(&kevn[0], t.pipefds[0], syscall.EVFILT_READ, syscall.EV_ADD)
-	_, err = syscall.Kevent(t.fd, kevn[:], nil, nil)
+// Stop implements trigger.
+func (k *kq) Stop() (err error) {
+	// trigger event used to interrupt Kevent call.
+	_, err = syscall.Write(k.pipefds[1], []byte{0x00})
 	return
 }
 
-func (t *trg) natwatch(fi os.FileInfo, w *watched, e int64) error {
-	var kevn [1]syscall.Kevent_t
-	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE,
-		syscall.EV_ADD|syscall.EV_CLEAR)
-	kevn[0].Fflags = uint32(e)
-
-	if _, err := syscall.Kevent(t.fd, kevn[:], nil, nil); err != nil {
-		return err
-	}
-	return nil
+// Close implements trigger.
+func (k *kq) Close() error {
+	return syscall.Close(k.fd)
 }
 
-func (t *trg) watched(n interface{}) (*watched, int64) {
-	kevn, ok := n.(syscall.Kevent_t)
-	if !ok {
-		panic("trg: invalid native type")
-	}
-	return t.idLkp[int(kevn.Ident)], int64(kevn.Fflags)
-}
-
-func (t *trg) natunwatch(w *watched) error {
-	var kevn [1]syscall.Kevent_t
-	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_DELETE)
-
-	if _, err := syscall.Kevent(t.fd, kevn[:], nil, nil); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (*trg) addwatch(p string, fi os.FileInfo) (*watched, error) {
+// NewWatched implements trigger.
+func (*kq) NewWatched(p string, fi os.FileInfo) (*watched, error) {
 	fd, err := syscall.Open(p, syscall.O_NONBLOCK|syscall.O_RDONLY, 0)
 	if err != nil {
 		return nil, err
@@ -189,6 +69,124 @@ func (*trg) addwatch(p string, fi os.FileInfo) (*watched, error) {
 	return &watched{fd: fd, p: p, fi: fi}, nil
 }
 
-func (t *trg) assign(w *watched) {
-	t.idLkp[w.fd], t.pthLkp[w.p] = w, w
+// Record implements trigger.
+func (k *kq) Record(w *watched) {
+	k.idLkp[w.fd], k.pthLkp[w.p] = w, w
+}
+
+// Del implements trigger.
+func (k *kq) Del(w *watched) {
+	syscall.Close(w.fd)
+	delete(k.idLkp, w.fd)
+	delete(k.pthLkp, w.p)
+}
+
+func inter2kq(n interface{}) syscall.Kevent_t {
+	kq, ok := n.(syscall.Kevent_t)
+	if !ok {
+		panic(fmt.Sprintf("kqueue: type should be Kevent_t, %T instead", n))
+	}
+	return kq
+}
+
+// Init implements trigger.
+func (k *kq) Init() (err error) {
+	if k.fd, err = syscall.Kqueue(); err != nil {
+		return
+	}
+	// Creates pipe used to stop `Kevent` call by registering it,
+	// watching read end and writing to other end of it.
+	if err = syscall.Pipe(k.pipefds[:]); err != nil {
+		return nonil(err, k.Close())
+	}
+	var kevn [1]syscall.Kevent_t
+	syscall.SetKevent(&kevn[0], k.pipefds[0], syscall.EVFILT_READ, syscall.EV_ADD)
+	if _, err = syscall.Kevent(k.fd, kevn[:], nil, nil); err != nil {
+		return nonil(err, k.Close())
+	}
+	return
+}
+
+// Unwatch implements trigger.
+func (k *kq) Unwatch(w *watched) (err error) {
+	var kevn [1]syscall.Kevent_t
+	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE, syscall.EV_DELETE)
+
+	_, err = syscall.Kevent(k.fd, kevn[:], nil, nil)
+	return
+}
+
+// Watch implements trigger.
+func (k *kq) Watch(fi os.FileInfo, w *watched, e int64) (err error) {
+	var kevn [1]syscall.Kevent_t
+	syscall.SetKevent(&kevn[0], w.fd, syscall.EVFILT_VNODE,
+		syscall.EV_ADD|syscall.EV_CLEAR)
+	kevn[0].Fflags = uint32(e)
+
+	_, err = syscall.Kevent(k.fd, kevn[:], nil, nil)
+	return
+}
+
+// Wait implements trigger.
+func (k *kq) Wait() (interface{}, error) {
+	var (
+		kevn [1]syscall.Kevent_t
+		err  error
+	)
+	kevn[0] = syscall.Kevent_t{}
+	_, err = syscall.Kevent(k.fd, nil, kevn[:], nil)
+
+	return kevn[0], err
+}
+
+// Watched implements trigger.
+func (k *kq) Watched(n interface{}) (*watched, int64, error) {
+	kevn, ok := n.(syscall.Kevent_t)
+	if !ok {
+		panic(fmt.Sprintf("kq: type should be syscall.Kevent_t, %T instead", kevn))
+	}
+	if _, ok = k.idLkp[int(kevn.Ident)]; !ok {
+		return nil, 0, errNotWatched
+	}
+	return k.idLkp[int(kevn.Ident)], int64(kevn.Fflags), nil
+}
+
+// IsStop implements trigger.
+func (k *kq) IsStop(n interface{}, err error) bool {
+	return int(inter2kq(n).Ident) == k.pipefds[0]
+}
+
+func init() {
+	encode = func(e Event) (o int64) {
+		// Create event is not supported by kqueue. Instead NoteWrite event will
+		// be registered. If this event will be reported on dir which is to be
+		// monitored for Create, dir will be rescanned and Create events will
+		// be generated and returned for new files. In case of files,
+		// if not requested NoteRename event is reported, it will be ignored.
+		o = int64(e &^ Create)
+		if e&Write != 0 {
+			o = (o &^ int64(Write)) | int64(NoteWrite)
+		}
+		if e&Rename != 0 {
+			o = (o &^ int64(Rename)) | int64(NoteRename)
+		}
+		if e&Remove != 0 {
+			o = (o &^ int64(Remove)) | int64(NoteDelete)
+		}
+		return
+	}
+	nat2not = map[Event]Event{
+		NoteWrite:  Write,
+		NoteRename: Rename,
+		NoteDelete: Remove,
+		NoteExtend: Event(0),
+		NoteAttrib: Event(0),
+		NoteRevoke: Event(0),
+		NoteLink:   Event(0),
+	}
+	not2nat = map[Event]Event{
+		Write:  NoteWrite,
+		Rename: NoteRename,
+		Remove: NoteDelete,
+	}
 }
