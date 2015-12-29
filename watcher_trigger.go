@@ -102,6 +102,7 @@ func newWatcher(c chan<- EventInfo) watcher {
 func (t *trg) Close() (err error) {
 	t.Lock()
 	if err = t.t.Stop(); err != nil {
+		t.Unlock()
 		return
 	}
 	<-t.s
