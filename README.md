@@ -16,3 +16,6 @@ Filesystem event notification library on steroids. (under active development)
 *Projects using notify*
 
 - [github.com/rjeczalik/cmd/notify](https://godoc.org/github.com/rjeczalik/cmd/notify)
+- [github.com/cortesi/devd](https://github.com/cortesi/devd)
+- [github.com/cortesi/modd](https://github.com/cortesi/modd)
+
