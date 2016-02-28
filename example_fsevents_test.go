@@ -9,7 +9,7 @@ package notify_test
 import (
 	"log"
 
-	"github.com/rjeczalik/notify"
+	"github.com/zillode/notify"
 )
 
 // This example shows how to use FSEvents-specifc event values.

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/rjeczalik/notify"
+	"github.com/zillode/notify"
 )
 
 // This is a basic example showing how to work with notify.Watch function.

@@ -10,7 +10,7 @@ import (
 	"log"
 	"syscall"
 
-	"github.com/rjeczalik/notify"
+	"github.com/zillode/notify"
 )
 
 // This example shows how to watch changes made on file-system by text editor
