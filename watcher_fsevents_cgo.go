@@ -6,14 +6,21 @@
 
 package notify
 
-// #include <CoreServices/CoreServices.h>
-//
-// typedef void (*CFRunLoopPerformCallBack)(void*);
-//
-// void gosource(void *);
-// void gostream(void*, void*, size_t, uintptr_t, uintptr_t, uintptr_t);
-//
-// #cgo LDFLAGS: -framework CoreServices
+/*
+#include <CoreServices/CoreServices.h>
+
+typedef void (*CFRunLoopPerformCallBack)(void*);
+
+void gosource(void *);
+void gostream(uintptr_t, uintptr_t, size_t, uintptr_t, uintptr_t, uintptr_t);
+
+static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintptr_t info, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
+	context->info = (void*) info;
+	return FSEventStreamCreate(NULL, (FSEventStreamCallback) gostream, context, paths, since, latency, flags);
+}
+
+#cgo LDFLAGS: -framework CoreServices
+*/
 import "C"
 
 import (
@@ -71,7 +78,7 @@ func gosource(unsafe.Pointer) {
 }
 
 //export gostream
-func gostream(_, ctx unsafe.Pointer, n C.size_t, paths, flags, ids uintptr) {
+func gostream(_, info uintptr, n C.size_t, paths, flags, ids uintptr) {
 	const (
 		offchar = unsafe.Sizeof((*C.char)(nil))
 		offflag = unsafe.Sizeof(C.FSEventStreamEventFlags(0))
@@ -94,18 +101,46 @@ func gostream(_, ctx unsafe.Pointer, n C.size_t, paths, flags, ids uintptr) {
 		}
 
 	}
-	(*(*streamFunc)(ctx))(ev)
+	streamFuncs.get(info)(ev)
 }
 
 // StreamFunc is a callback called when stream receives file events.
 type streamFunc func([]FSEvent)
+
+var streamFuncs = streamFuncRegistry{m: map[uintptr]streamFunc{}}
+
+type streamFuncRegistry struct {
+	mu sync.Mutex
+	m  map[uintptr]streamFunc
+	i  uintptr
+}
+
+func (r *streamFuncRegistry) get(id uintptr) streamFunc {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.m[id]
+}
+
+func (r *streamFuncRegistry) add(fn streamFunc) uintptr {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.i++
+	r.m[r.i] = fn
+	return r.i
+}
+
+func (r *streamFuncRegistry) delete(id uintptr) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.m, id)
+}
 
 // Stream represents single watch-point which listens for events scheduled by
 // the global runloop.
 type stream struct {
 	path string
 	ref  C.FSEventStreamRef
-	ctx  C.FSEventStreamContext
+	info uintptr
 }
 
 // NewStream creates a stream for given path, listening for file events and
@@ -113,9 +148,7 @@ type stream struct {
 func newStream(path string, fn streamFunc) *stream {
 	return &stream{
 		path: path,
-		ctx: C.FSEventStreamContext{
-			info: unsafe.Pointer(&fn),
-		},
+		info: streamFuncs.add(fn),
 	}
 }
 
@@ -128,8 +161,8 @@ func (s *stream) Start() error {
 	wg.Wait()
 	p := C.CFStringCreateWithCStringNoCopy(nil, C.CString(s.path), C.kCFStringEncodingUTF8, nil)
 	path := C.CFArrayCreate(nil, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
-	ref := C.FSEventStreamCreate(nil, (C.FSEventStreamCallback)(C.gostream),
-		&s.ctx, path, C.FSEventStreamEventId(atomic.LoadUint64(&since)), latency, flags)
+	ctx := C.FSEventStreamContext{}
+	ref := C.EventStreamCreate(&ctx, C.uintptr_t(s.info), path, C.FSEventStreamEventId(atomic.LoadUint64(&since)), latency, flags)
 	if ref == nilstream {
 		return errCreate
 	}
@@ -153,4 +186,5 @@ func (s *stream) Stop() {
 	C.FSEventStreamInvalidate(s.ref)
 	C.CFRunLoopWakeUp(runloop)
 	s.ref = nilstream
+	streamFuncs.delete(s.info)
 }
