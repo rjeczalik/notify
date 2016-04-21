@@ -21,6 +21,16 @@ package notify
 
 var defaultTree = newTree()
 
+// ignoreTest determines whether path should be ignored (return value true).
+var ignoreTest = func(path string) bool {
+	return false
+}
+
+// Exported function to set ignoreTest
+func SetIgnoreTest(newIgnoreTest func(string) bool) {
+	ignoreTest = newIgnoreTest
+}
+
 // Watch sets up a watchpoint on path listening for events given by the events
 // argument.
 //
@@ -60,8 +70,7 @@ var defaultTree = newTree()
 // mind this limitation while setting recursive watchpoints for your application,
 // e.g. use persistant paths like %userprofile% or watch additionally parent
 // directory of a recursive watchpoint in order to receive delete events for it.
-func Watch(path string, c chan<- EventInfo, ignoreTest func(string) bool,
-	events ...Event) error {
+func Watch(path string, c chan<- EventInfo, events ...Event) error {
 	return defaultTree.Watch(path, c, ignoreTest, events...)
 }
 
