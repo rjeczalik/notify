@@ -6,7 +6,10 @@
 
 package notify
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TODO(ppknap) : remove notify.Create event.
 func rcreate(w *W, path string) WCase {
@@ -61,6 +64,21 @@ func TestWatcherReadDirectoryChangesW(t *testing.T) {
 		rremove(w, "src/github.com/rjeczalik/fs/fs.go"),
 		rrename(w, "src/github.com/rjeczalik/fs/LICENSE", "src/github.com/rjeczalik/fs/COPYLEFT"),
 		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
+	}
+
+	w.ExpectAny(cases[:])
+}
+
+func TestMaxLongPath(t *testing.T) {
+	w := NewWatcherTest(t, "testdata/vfs.txt", events...)
+	defer w.Close()
+
+	// We want to support paths that are >260B (max: 32kiB).
+	var longFileName = strings.Repeat("x", 1024) + ".go"
+
+	cases := [...]WCase{
+		create(w, "src/github.com/rjeczalik/fs/"+longFileName),
+		remove(w, "src/github.com/rjeczalik/fs/"+longFileName),
 	}
 
 	w.ExpectAny(cases[:])
