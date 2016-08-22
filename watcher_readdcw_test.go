@@ -74,11 +74,11 @@ func TestMaxLongPath(t *testing.T) {
 	defer w.Close()
 
 	// We want to support paths that are >260B (max: 32kiB).
-	var longFileName = strings.Repeat("xxxxxx/", 50) + "y.go"
+	var longFileName = strings.Repeat("x", 1024) + ".go"
 
 	cases := [...]WCase{
-		create(w, "src/github.com/rjeczalik/fs/"+longFileName),
-		remove(w, "src/github.com/rjeczalik/fs/"+longFileName),
+		create(w, longFileName),
+		remove(w, longFileName),
 	}
 
 	w.ExpectAny(cases[:])
