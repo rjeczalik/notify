@@ -93,7 +93,7 @@ func (t *nonrecursiveTree) internal(rec <-chan EventInfo) {
 			t.rw.Unlock()
 			continue
 		}
-		err := nd.Add(ei.Path()).AddDir(t.recFunc(eset, func(_ string) bool {return false}))
+		err := nd.Add(ei.Path()).AddDir(t.recFunc(eset, nil))
 		t.rw.Unlock()
 		if err != nil {
 			dbgprintf("internal(%p) error: %v", rec, err)
@@ -189,11 +189,7 @@ func (t *nonrecursiveTree) watch(nd node, c chan<- EventInfo, e Event) (err erro
 }
 
 func (t *nonrecursiveTree) recFunc(e Event, doNotWatch func(string) bool) walkFunc {
-	return func(nd node) (err error) {
-		if doNotWatch(nd.Name) {
-			err = errSkip
-			return
-		}
+	addWatch := func(nd node) (err error) {
 		switch diff := nd.Watch.Add(t.rec, e|omit|Create); {
 		case diff == none:
 		case diff[1] == 0:
@@ -206,6 +202,15 @@ func (t *nonrecursiveTree) recFunc(e Event, doNotWatch func(string) bool) walkFu
 		}
 		return
 	}
+	if doNotWatch != nil {
+		return func(nd node) (err error) {
+			if doNotWatch(nd.Name) {
+				return errSkip
+			}
+			return addWatch(nd)
+		}
+	}
+	return addWatch
 }
 
 func (t *nonrecursiveTree) watchrec(nd node, c chan<- EventInfo, e Event,
