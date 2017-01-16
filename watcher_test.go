@@ -37,6 +37,8 @@ func TestWatcherCreate(t *testing.T) {
 
 	cases := [...]WCase{
 		create(w, "dir/"),
+		create(w, "dir/wk/"),
+		create(w, "dir/wk/s"),
 	}
 
 	w.ExpectAny(cases[:])
