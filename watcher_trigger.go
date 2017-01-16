@@ -420,7 +420,7 @@ func (t *trg) process(n interface{}) (evn []event) {
 			}
 		}
 	}
-	if e == Event(0) {
+	if e == Event(0) && (!w.fi.IsDir() || (ge&int64(not2nat[Write])) == 0) {
 		t.Unlock()
 		return
 	}

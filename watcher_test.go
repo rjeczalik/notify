@@ -30,3 +30,14 @@ func TestWatcher(t *testing.T) {
 
 	w.ExpectAny(cases[:])
 }
+
+func TestWatcherCreate(t *testing.T) {
+	w := NewWatcherTest(t, "testdata/vfs.txt", Create)
+	defer w.Close()
+
+	cases := [...]WCase{
+		create(w, "dir/"),
+	}
+
+	w.ExpectAny(cases[:])
+}
