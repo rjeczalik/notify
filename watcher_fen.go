@@ -130,16 +130,14 @@ func (f *fen) IsStop(n interface{}, err error) bool {
 }
 
 func init() {
-	encode = func(e Event) (o int64) {
+	encode = func(e Event, dir bool) (o int64) {
 		// Create event is not supported by FEN. Instead FileModified event will
 		// be registered. If this event will be reported on dir which is to be
 		// monitored for Create, dir will be rescanned and Create events will
 		// be generated and returned for new files. In case of files,
 		// if not requested FileModified event is reported, it will be ignored.
-		if e&Create != 0 {
-			o = (o &^ int64(Create)) | int64(FileModified)
-		}
-		if e&Write != 0 {
+		o = int64(e &^ Create)
+		if (e&Create != 0 && dir) || e&Write != 0 {
 			o = (o &^ int64(Write)) | int64(FileModified)
 		}
 		// Following events are 'exception events' and as such cannot be requested
