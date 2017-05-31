@@ -120,7 +120,7 @@ func (i *inotify) lazyinit() error {
 		i.Lock()
 		defer i.Unlock()
 		if atomic.LoadInt32(&i.fd) == invalidDescriptor {
-			fd, err := unix.InotifyInit()
+			fd, err := unix.InotifyInit1(unix.IN_CLOEXEC)
 			if err != nil {
 				return err
 			}
