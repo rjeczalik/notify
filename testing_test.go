@@ -52,13 +52,13 @@ func vfs() (string, string) {
 	return "testdata", ""
 }
 
-func isDir(path string) bool {
+func IsDir(path string) bool {
 	r := path[len(path)-1]
 	return r == '\\' || r == '/'
 }
 
 func tmpcreateall(tmp string, path string) error {
-	isdir := isDir(path)
+	isdir := IsDir(path)
 	path = filepath.Join(tmp, filepath.FromSlash(path))
 	if isdir {
 		if err := os.MkdirAll(path, 0755); err != nil {
@@ -80,7 +80,7 @@ func tmpcreateall(tmp string, path string) error {
 }
 
 func tmpcreate(root, path string) (bool, error) {
-	isdir := isDir(path)
+	isdir := IsDir(path)
 	path = filepath.Join(root, filepath.FromSlash(path))
 	if isdir {
 		if err := os.Mkdir(path, 0755); err != nil {
@@ -590,7 +590,7 @@ type Call struct {
 	E   Event          // regular Event argument and old Event from a Rewatch call
 	NE  Event          // new Event argument from Rewatch call
 	S   interface{}    // when Call is used as EventInfo, S is a value of Sys()
-	Dir bool           // when Call is used as EventInfo, Dir is a value of isDir()
+	Dir bool           // when Call is used as EventInfo, Dir is a value of IsDir()
 }
 
 // Call implements the EventInfo interface.
@@ -598,7 +598,7 @@ func (c *Call) Event() Event         { return c.E }
 func (c *Call) Path() string         { return c.P }
 func (c *Call) String() string       { return fmt.Sprintf("%#v", c) }
 func (c *Call) Sys() interface{}     { return c.S }
-func (c *Call) isDir() (bool, error) { return c.Dir, nil }
+func (c *Call) IsDir() (bool, error) { return c.Dir, nil }
 
 // CallSlice is a convenient wrapper for a slice of Call values, which allows
 // to sort them in ascending order.
