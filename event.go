@@ -111,12 +111,12 @@ type EventInfo interface {
 	Sys() interface{} // underlying data source (can return nil)
 }
 
-type isDirer interface {
-	isDir() (bool, error)
+type IsDirer interface {
+	IsDir() (bool, error)
 }
 
 var _ fmt.Stringer = (*event)(nil)
-var _ isDirer = (*event)(nil)
+var _ IsDirer = (*event)(nil)
 
 // String implements fmt.Stringer interface.
 func (e *event) String() string {

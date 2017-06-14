@@ -68,4 +68,4 @@ type event struct {
 func (ei *event) Event() Event         { return ei.event }
 func (ei *event) Path() string         { return ei.fse.Path }
 func (ei *event) Sys() interface{}     { return &ei.fse }
-func (ei *event) isDir() (bool, error) { return ei.fse.Flags&FSEventsIsDir != 0, nil }
+func (ei *event) IsDir() (bool, error) { return ei.fse.Flags&FSEventsIsDir != 0, nil }

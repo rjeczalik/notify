@@ -84,11 +84,11 @@ func TestIsDirCreateEvent(t *testing.T) {
 	}
 
 	fn := func(i int, _ WCase, ei EventInfo) error {
-		d, ok := ei.(isDirer)
+		d, ok := ei.(IsDirer)
 		if !ok {
-			return fmt.Errorf("received EventInfo does not implement isDirer")
+			return fmt.Errorf("received EventInfo does not implement IsDirer")
 		}
-		switch ok, err := d.isDir(); {
+		switch ok, err := d.IsDir(); {
 		case err != nil:
 			return err
 		case ok != dirs[i]:
