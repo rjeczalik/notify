@@ -6,7 +6,11 @@
 
 package notify
 
-import "testing"
+import (
+	"fmt"
+	"os"
+	"testing"
+)
 
 // NOTE Set DEBUG env var for extra debugging info.
 
@@ -29,4 +33,22 @@ func TestWatcher(t *testing.T) {
 	}
 
 	w.ExpectAny(cases[:])
+}
+
+func TestStopPathNotExists(t *testing.T) {
+	dir := "testdir"
+	os.Mkdir(dir, 0777)
+	defer os.Remove(dir)
+	eiChan := make(chan EventInfo)
+	if err := Watch(dir, eiChan, All); err != nil {
+		panic(fmt.Sprintln("failed setting up the initial watch:", err))
+	}
+	os.Remove(dir)
+	Stop(eiChan)
+	close(eiChan)
+	eiChan = make(chan EventInfo)
+	os.Mkdir(dir, 0777)
+	if err := Watch(dir, eiChan, All); err != nil {
+		t.Fatalf("failed setting up the second watch: %s", err)
+	}
 }
