@@ -277,23 +277,19 @@ func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
 		return errors.New("notify: unknown event")
 	}
 	r.Lock()
+	defer r.Unlock()
 	wd, ok := r.m[path]
-	r.Unlock()
 	if !ok {
 		if err = r.lazyinit(); err != nil {
 			return
 		}
-		r.Lock()
 		if wd, ok = r.m[path]; ok {
-			r.Unlock()
 			return
 		}
 		if wd, err = newWatched(r.cph, uint32(event), recursive, path); err != nil {
-			r.Unlock()
 			return
 		}
 		r.m[path] = wd
-		r.Unlock()
 	}
 	return nil
 }
@@ -350,6 +346,8 @@ func (r *readdcw) loop() {
 
 // TODO(pknap) : doc
 func (r *readdcw) loopstate(overEx *overlappedEx) {
+	r.Lock()
+	defer r.Unlock()
 	filter := atomic.LoadUint32(&overEx.parent.parent.filter)
 	if filter&onlyMachineStates == 0 {
 		return
@@ -357,13 +355,9 @@ func (r *readdcw) loopstate(overEx *overlappedEx) {
 	if overEx.parent.parent.count--; overEx.parent.parent.count == 0 {
 		switch filter & onlyMachineStates {
 		case stateRewatch:
-			r.Lock()
 			overEx.parent.parent.recreate(r.cph)
-			r.Unlock()
 		case stateUnwatch:
-			r.Lock()
 			delete(r.m, syscall.UTF16ToString(overEx.parent.pathw))
-			r.Unlock()
 		case stateCPClose:
 		default:
 			panic(`notify: windows loopstate logic error`)
@@ -450,8 +444,8 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	}
 	var wd *watched
 	r.Lock()
+	defer r.Unlock()
 	if wd, err = r.nonStateWatched(path); err != nil {
-		r.Unlock()
 		return
 	}
 	if wd.filter&(onlyNotifyChanges|onlyNGlobalEvents) != oldevent {
@@ -462,10 +456,8 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	if err = wd.closeHandle(); err != nil {
 		wd.filter = oldevent
 		wd.recursive = recursive
-		r.Unlock()
 		return
 	}
-	r.Unlock()
 	return
 }
 
@@ -497,17 +489,15 @@ func (r *readdcw) RecursiveUnwatch(path string) error {
 func (r *readdcw) unwatch(path string) (err error) {
 	var wd *watched
 	r.Lock()
+	defer r.Unlock()
 	if wd, err = r.nonStateWatched(path); err != nil {
-		r.Unlock()
 		return
 	}
 	wd.filter |= stateUnwatch
 	if err = wd.closeHandle(); err != nil {
 		wd.filter &^= stateUnwatch
-		r.Unlock()
 		return
 	}
-	r.Unlock()
 	return
 }
 
