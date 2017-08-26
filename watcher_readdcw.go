@@ -277,12 +277,14 @@ func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
 		return errors.New("notify: unknown event")
 	}
 	r.Lock()
-	defer r.Unlock()
 	wd, ok := r.m[path]
+	r.Unlock()
 	if !ok {
 		if err = r.lazyinit(); err != nil {
 			return
 		}
+		r.Lock()
+		defer r.Unlock()
 		if wd, ok = r.m[path]; ok {
 			return
 		}
