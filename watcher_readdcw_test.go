@@ -7,8 +7,6 @@
 package notify
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -72,7 +70,7 @@ func TestWatcherReadDirectoryChangesW(t *testing.T) {
 }
 
 func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
-	w := NewWatcherTest(t, "testdata/vfs.txt", All)
+	w := NewWatcherTest(t, "testdata/vfs.txt", events...)
 	defer w.Close()
 
 	rcreate(w, "trigger").Action()
@@ -89,6 +87,6 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 		rrename(w, "src/github.com/rjeczalik/fs/LICENSE", "src/github.com/rjeczalik/fs/COPYLEFT"),
 		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
 	}
-	w.RecursiveWatch("")
+	w.RecursiveWatch("", joinevents(events))
 	w.ExpectAny(cases[:])
 }
