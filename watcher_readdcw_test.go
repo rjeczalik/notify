@@ -65,3 +65,25 @@ func TestWatcherReadDirectoryChangesW(t *testing.T) {
 
 	w.ExpectAny(cases[:])
 }
+
+func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
+	w := NewWatcherTest(t, "testdata/vfs.txt", All)
+	defer w.Close()
+
+	triggerFile = filepath.Join(w.root, "trigger")
+	os.Create(triggerFile)
+	time.Sleep(time.Duration(100) * time.Millisecond)
+
+	w.RecursiveUnwatch(w.root)
+	os.Remove(triggerFile)
+
+	time.Sleep(time.Duration(100) * time.Millisecond)
+	cases := [...]WCase{
+		rcreate(w, "src/github.com/rjeczalik/fs/fs_windows.go"),
+		rcreate(w, "src/github.com/rjeczalik/fs/subdir/"),
+		rremove(w, "src/github.com/rjeczalik/fs/fs.go"),
+		rrename(w, "src/github.com/rjeczalik/fs/LICENSE", "src/github.com/rjeczalik/fs/COPYLEFT"),
+		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
+	}
+	w.ExpectAny(cases[:])
+}
