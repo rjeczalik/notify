@@ -75,12 +75,11 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 	w := NewWatcherTest(t, "testdata/vfs.txt", All)
 	defer w.Close()
 
-	triggerFile := filepath.Join(w.root, "trigger")
-	os.Create(triggerFile)
+	rcreate(w, "trigger").Action()
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
-	w.watcher().RecursiveUnwatch(w.root)
-	os.Remove(triggerFile)
+	w.RecursiveUnwatch("")
+	rremove(w, "trigger").Action()
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
 	cases := [...]WCase{
@@ -90,6 +89,6 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 		rrename(w, "src/github.com/rjeczalik/fs/LICENSE", "src/github.com/rjeczalik/fs/COPYLEFT"),
 		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
 	}
-	w.watcher().RecursiveWatch(w.root)
+	w.RecursiveWatch("")
 	w.ExpectAny(cases[:])
 }
