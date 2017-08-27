@@ -76,10 +76,11 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 	rcreate(w, "trigger").Action()
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
-	w.RecursiveUnwatch("")
 	rremove(w, "trigger").Action()
+	w.RecursiveUnwatch("")
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
+	drainall(w.C)
 	cases := [...]WCase{
 		rcreate(w, "src/github.com/rjeczalik/fs/fs_windows.go"),
 		rcreate(w, "src/github.com/rjeczalik/fs/subdir/"),
