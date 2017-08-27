@@ -345,11 +345,9 @@ func (r *readdcw) loop() {
 		} else {
 			r.loopevent(n, overEx)
 			if err = overEx.parent.readDirChanges(); err != nil {
-				dbgprintf("loop: readDirChanges failed:", err)
 				// TODO: error handling
 			}
 		}
-		r.loopstate(overEx)
 	}
 }
 
@@ -393,7 +391,6 @@ func (r *readdcw) loopevent(n uint32, overEx *overlappedEx) {
 			action: raw.Action,
 			name:   name,
 		})
-		dbgprintf("loopevent: event name: %s", name)
 		if raw.NextEntryOffset == 0 {
 			break
 		}
@@ -460,7 +457,7 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	}
 	var wd *watched
 	r.Lock()
-	if wd, err = r.nonStateWatchedLocked(path); err != nil {
+	if wd, err = r.nonStateWatched(path); err != nil {
 		r.Unlock()
 		return
 	}
@@ -480,7 +477,7 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 }
 
 // TODO : pknap
-func (r *readdcw) nonStateWatchedLocked(path string) (wd *watched, err error) {
+func (r *readdcw) nonStateWatched(path string) (wd *watched, err error) {
 	wd, ok := r.m[path]
 	if !ok || wd == nil {
 		err = errors.New(`notify: ` + path + ` path is unwatched`)
@@ -507,7 +504,7 @@ func (r *readdcw) RecursiveUnwatch(path string) error {
 func (r *readdcw) unwatch(path string) (err error) {
 	var wd *watched
 	r.Lock()
-	if wd, err = r.nonStateWatchedLocked(path); err != nil {
+	if wd, err = r.nonStateWatched(path); err != nil {
 		r.Unlock()
 		return
 	}
