@@ -7,8 +7,8 @@
 package notify
 
 import (
-	"filepath"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
