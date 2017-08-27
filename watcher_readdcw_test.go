@@ -6,7 +6,10 @@
 
 package notify
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // TODO(ppknap) : remove notify.Create event.
 func rcreate(w *W, path string) WCase {
@@ -63,5 +66,28 @@ func TestWatcherReadDirectoryChangesW(t *testing.T) {
 		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
 	}
 
+	w.ExpectAny(cases[:])
+}
+
+func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
+	w := NewWatcherTest(t, "testdata/vfs.txt", events...)
+	defer w.Close()
+
+	rcreate(w, "trigger").Action()
+	time.Sleep(time.Duration(100) * time.Millisecond)
+
+	rremove(w, "trigger").Action()
+	w.RecursiveUnwatch("")
+	time.Sleep(time.Duration(100) * time.Millisecond)
+
+	drainall(w.C)
+	cases := [...]WCase{
+		rcreate(w, "src/github.com/rjeczalik/fs/fs_windows.go"),
+		rcreate(w, "src/github.com/rjeczalik/fs/subdir/"),
+		rremove(w, "src/github.com/rjeczalik/fs/fs.go"),
+		rrename(w, "src/github.com/rjeczalik/fs/LICENSE", "src/github.com/rjeczalik/fs/COPYLEFT"),
+		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
+	}
+	w.RecursiveWatch("", joinevents(events))
 	w.ExpectAny(cases[:])
 }
