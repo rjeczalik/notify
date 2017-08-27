@@ -79,7 +79,7 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 	os.Create(triggerFile)
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
-	w.watcher.RecursiveUnwatch(w.root)
+	w.watcher().RecursiveUnwatch(w.root)
 	os.Remove(triggerFile)
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
@@ -90,6 +90,6 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 		rrename(w, "src/github.com/rjeczalik/fs/LICENSE", "src/github.com/rjeczalik/fs/COPYLEFT"),
 		rwrite(w, "src/github.com/rjeczalik/fs/cmd/gotree/go.go", []byte("XD")),
 	}
-	w.watcher.RecursiveWatch(w.root)
+	w.watcher().RecursiveWatch(w.root)
 	w.ExpectAny(cases[:])
 }
