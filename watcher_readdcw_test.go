@@ -6,7 +6,12 @@
 
 package notify
 
-import "testing"
+import (
+	"filepath"
+	"os"
+	"testing"
+	"time"
+)
 
 // TODO(ppknap) : remove notify.Create event.
 func rcreate(w *W, path string) WCase {
@@ -70,7 +75,7 @@ func TestWatcherReaddcwUnwatchChangeRace(t *testing.T) {
 	w := NewWatcherTest(t, "testdata/vfs.txt", All)
 	defer w.Close()
 
-	triggerFile = filepath.Join(w.root, "trigger")
+	triggerFile := filepath.Join(w.root, "trigger")
 	os.Create(triggerFile)
 	time.Sleep(time.Duration(100) * time.Millisecond)
 
