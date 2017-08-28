@@ -160,6 +160,10 @@ func newWatcherTest(t *testing.T, tree string) *W {
 	if err != nil {
 		t.Fatalf(`tmptree("", %q)=%v`, tree, err)
 	}
+	root, _, err = cleanpath(root)
+	if err != nil {
+		t.Fatalf(`cleanpath(%q)=%v`, root, err)
+	}
 	Sync()
 	return &W{
 		t:    t,
