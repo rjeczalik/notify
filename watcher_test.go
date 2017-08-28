@@ -7,7 +7,6 @@
 package notify
 
 import (
-	"fmt"
 	"os"
 	"testing"
 )
@@ -36,19 +35,16 @@ func TestWatcher(t *testing.T) {
 }
 
 func TestStopPathNotExists(t *testing.T) {
-	dir := "testdir"
-	os.Mkdir(dir, 0777)
-	defer os.Remove(dir)
-	eiChan := make(chan EventInfo)
-	if err := Watch(dir, eiChan, All); err != nil {
-		panic(fmt.Sprintln("failed setting up the initial watch:", err))
+	w := NewWatcherTest(t, "testdata/vfs.txt")
+	defer w.Close()
+	os.RemoveAll(w.root)
+	Sync()
+	if err := w.Watcher.Unwatch(w.root); err != nil {
+		t.Fatalf("Failed unwatching a removed dir: %v", err)
 	}
-	os.Remove(dir)
-	Stop(eiChan)
-	close(eiChan)
-	eiChan = make(chan EventInfo)
-	os.Mkdir(dir, 0777)
-	if err := Watch(dir, eiChan, All); err != nil {
-		t.Fatalf("failed setting up the second watch: %s", err)
+	if err := os.Mkdir(w.root, 0777); err != nil {
+		t.Fatalf("Failed creating root dir: %s", err)
 	}
+	Sync()
+	w.Watch("", All)
 }
