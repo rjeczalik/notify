@@ -6,7 +6,10 @@
 
 package notify
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 // NOTE Set DEBUG env var for extra debugging info.
 
@@ -29,4 +32,19 @@ func TestWatcher(t *testing.T) {
 	}
 
 	w.ExpectAny(cases[:])
+}
+
+func TestStopPathNotExists(t *testing.T) {
+	w := NewWatcherTest(t, "testdata/vfs.txt")
+	defer w.Close()
+	os.RemoveAll(w.root)
+	Sync()
+	if err := w.Watcher.Unwatch(w.root); err != nil {
+		t.Fatalf("Failed unwatching a removed dir: %v", err)
+	}
+	if err := os.Mkdir(w.root, 0777); err != nil {
+		t.Fatalf("Failed creating root dir: %s", err)
+	}
+	Sync()
+	w.Watch("", All)
 }
