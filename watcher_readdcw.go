@@ -349,6 +349,8 @@ func (r *readdcw) loop() {
 
 // TODO(pknap) : doc
 func (r *readdcw) loopstate(overEx *overlappedEx) {
+	r.Lock()
+	defer r.Unlock()
 	filter := atomic.LoadUint32(&overEx.parent.parent.filter)
 	if filter&onlyMachineStates == 0 {
 		return
@@ -356,13 +358,9 @@ func (r *readdcw) loopstate(overEx *overlappedEx) {
 	if overEx.parent.parent.count--; overEx.parent.parent.count == 0 {
 		switch filter & onlyMachineStates {
 		case stateRewatch:
-			r.Lock()
 			overEx.parent.parent.recreate(r.cph)
-			r.Unlock()
 		case stateUnwatch:
-			r.Lock()
 			delete(r.m, syscall.UTF16ToString(overEx.parent.pathw))
-			r.Unlock()
 		case stateCPClose:
 		default:
 			panic(`notify: windows loopstate logic error`)
