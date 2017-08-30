@@ -286,12 +286,16 @@ func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
 		r.Lock()
 		defer r.Unlock()
 		if wd, ok = r.m[path]; ok {
+			dbgprint("watch: exists already")
 			return
 		}
 		if wd, err = newWatched(r.cph, uint32(event), recursive, path); err != nil {
 			return
 		}
 		r.m[path] = wd
+		dbgprint("watch: new watch added")
+	} else {
+		dbgprint("watch: exists already")
 	}
 	return nil
 }
@@ -356,8 +360,10 @@ func (r *readdcw) loopstate(overEx *overlappedEx) {
 	if overEx.parent.parent.count--; overEx.parent.parent.count == 0 {
 		switch filter & onlyMachineStates {
 		case stateRewatch:
+			dbgprint("loopstate rewatch")
 			overEx.parent.parent.recreate(r.cph)
 		case stateUnwatch:
+			dbgprint("loopstate unwatch")
 			delete(r.m, syscall.UTF16ToString(overEx.parent.pathw))
 		case stateCPClose:
 		default:
