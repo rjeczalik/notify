@@ -284,16 +284,14 @@ func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
 			return
 		}
 		r.Lock()
+		defer r.Unlock()
 		if wd, ok = r.m[path]; ok {
-			r.Unlock()
 			return
 		}
 		if wd, err = newWatched(r.cph, uint32(event), recursive, path); err != nil {
-			r.Unlock()
 			return
 		}
 		r.m[path] = wd
-		r.Unlock()
 	}
 	return nil
 }
@@ -447,8 +445,8 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	}
 	var wd *watched
 	r.Lock()
+	defer r.Unlock()
 	if wd, err = r.nonStateWatched(path); err != nil {
-		r.Unlock()
 		return
 	}
 	if wd.filter&(onlyNotifyChanges|onlyNGlobalEvents) != oldevent {
@@ -459,10 +457,8 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	if err = wd.closeHandle(); err != nil {
 		wd.filter = oldevent
 		wd.recursive = recursive
-		r.Unlock()
 		return
 	}
-	r.Unlock()
 	return
 }
 
@@ -494,14 +490,13 @@ func (r *readdcw) RecursiveUnwatch(path string) error {
 func (r *readdcw) unwatch(path string) (err error) {
 	var wd *watched
 	r.Lock()
+	defer r.Unlock()
 	if wd, err = r.nonStateWatched(path); err != nil {
-		r.Unlock()
 		return
 	}
 	wd.filter |= stateUnwatch
 	if err = wd.closeHandle(); err != nil {
 		wd.filter &^= stateUnwatch
-		r.Unlock()
 		return
 	}
 	if _, attrErr := syscall.GetFileAttributes(&wd.pathw[0]); attrErr != nil {
@@ -510,13 +505,11 @@ func (r *readdcw) unwatch(path string) (err error) {
 				dbgprint("unwatch: posting")
 				if err = syscall.PostQueuedCompletionStatus(r.cph, 0, 0, (*syscall.Overlapped)(unsafe.Pointer(g.ovlapped))); err != nil {
 					wd.filter &^= stateUnwatch
-					r.Unlock()
 					return
 				}
 			}
 		}
 	}
-	r.Unlock()
 	return
 }
 
