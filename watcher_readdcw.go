@@ -504,6 +504,18 @@ func (r *readdcw) unwatch(path string) (err error) {
 		r.Unlock()
 		return
 	}
+	if _, attrErr := syscall.GetFileAttributes(&wd.pathw[0]); attrErr != nil {
+		for _, g := range wd.digrip {
+			if g != nil {
+				dbgprint("unwatch: posting")
+				if err = syscall.PostQueuedCompletionStatus(r.cph, 0, 0, (*syscall.Overlapped)(unsafe.Pointer(g.ovlapped))); err != nil {
+					wd.filter &^= stateUnwatch
+					r.Unlock()
+					return
+				}
+			}
+		}
+	}
 	r.Unlock()
 	return
 }
