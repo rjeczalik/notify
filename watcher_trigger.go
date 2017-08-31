@@ -23,6 +23,7 @@
 package notify
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,6 +117,9 @@ func (t *trg) Close() (err error) {
 	if e = t.t.Close(); e != nil {
 		dbgprintf("trg: closing native watch failed: %q\n", e)
 		err = nonil(err, e)
+	}
+	if remaining := len(t.pthLkp); remaining != 0 {
+		err = nonil(err, fmt.Errorf("Not all watches were removed: len(t.pthLkp) == %v", len(t.pthLkp)))
 	}
 	t.Unlock()
 	return
