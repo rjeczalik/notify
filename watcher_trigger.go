@@ -179,7 +179,7 @@ func decode(o int64, w Event) (e Event) {
 func (t *trg) watch(p string, e Event, fi os.FileInfo) error {
 	if err := t.singlewatch(p, e, dir, fi); err != nil {
 		if err != errAlreadyWatched {
-			return nil
+			return err
 		}
 	}
 	if fi.IsDir() {
