@@ -57,6 +57,19 @@ type trigger interface {
 	IsStop(n interface{}, err error) bool
 }
 
+// trgWatched is a the base data structure representing watched file/directory.
+// The platform specific full data structure (watched) must embed this type.
+type trgWatched struct {
+	// p is a path to watched file/directory.
+	p string
+	// fi provides information about watched file/dir.
+	fi os.FileInfo
+	// eDir represents events watched directly.
+	eDir Event
+	// eNonDir represents events watched indirectly.
+	eNonDir Event
+}
+
 // encode Event to native representation. Implementation is to be provided by
 // platform specific implementation.
 var encode func(Event, bool) int64
