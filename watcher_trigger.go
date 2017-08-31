@@ -365,7 +365,7 @@ func (t *trg) singleunwatch(p string, direct mode) error {
 	}
 	if w.eNonDir|w.eDir != 0 {
 		mod := dir
-		if w.eNonDir == 0 {
+		if w.eNonDir != 0 {
 			mod = ndir
 		}
 		if err := t.singlewatch(p, w.eNonDir|w.eDir, mod,
