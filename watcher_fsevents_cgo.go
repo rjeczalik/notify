@@ -29,7 +29,6 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 )
 
@@ -78,7 +77,6 @@ func init() {
 
 //export gosource
 func gosource(unsafe.Pointer) {
-	time.Sleep(time.Second)
 	wg.Done()
 }
 
