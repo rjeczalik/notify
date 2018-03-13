@@ -9,7 +9,7 @@ package notify_test
 import (
 	"log"
 
-	"github.com/zillode/notify"
+	"github.com/Zillode/notify"
 )
 
 // This example shows how to watch directory-name changes in the working directory subtree.
