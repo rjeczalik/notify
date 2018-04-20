@@ -946,11 +946,11 @@ func (n *N) ExpectNotifyEvents(cases []NCase, all Chans) {
 func (n *N) Walk(fn walkFunc) {
 	switch t := n.tree.(type) {
 	case *recursiveTree:
-		if err := t.root.Walk("", fn); err != nil {
+		if err := t.root.Walk("", fn, nil); err != nil {
 			n.w.Fatal(err)
 		}
 	case *nonrecursiveTree:
-		if err := t.root.Walk("", fn); err != nil {
+		if err := t.root.Walk("", fn, nil); err != nil {
 			n.w.Fatal(err)
 		}
 	default:
