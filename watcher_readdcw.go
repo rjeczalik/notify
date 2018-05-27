@@ -235,7 +235,7 @@ func (wd *watched) closeHandle() (err error) {
 				break // Already closed.
 			}
 
-			e := syscall.CloseHandle(g.handle)
+			e := syscall.CloseHandle(handle)
 			if e != nil && err == nil {
 				err = e
 			}
