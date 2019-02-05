@@ -48,9 +48,7 @@ var wg sync.WaitGroup      // used to wait until the runloop starts
 // started and is ready via the wg. It also serves purpose of a dummy source,
 // thanks to it the runloop does not return as it also has at least one source
 // registered.
-var source = C.CFRunLoopSourceCreate(C.kCFAllocatorDefault, 0, &C.CFRunLoopSourceContext{
-	perform: (C.CFRunLoopPerformCallBack)(C.gosource),
-})
+var source = C.CFRunLoopSourceCreate(C.kCFAllocatorDefault, 0, &C.CFRunLoopSourceContext{perform: (C.CFRunLoopPerformCallBack)(C.gosource)})
 
 // Errors returned when FSEvents functions fail.
 var (
