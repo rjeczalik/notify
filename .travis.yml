@@ -12,7 +12,6 @@ os:
 matrix:
   include:
    - os: osx
-     go: 1.7.5
      env:
       - GOFLAGS="-tags kqueue"
   allow_failures:
