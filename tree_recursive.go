@@ -350,6 +350,5 @@ func (t *recursiveTree) Stop(c chan<- EventInfo) {
 func (t *recursiveTree) Close() error {
 	err := t.w.Close()
 	close(t.c)
-	close(t.rec)
 	return err
 }
