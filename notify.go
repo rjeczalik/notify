@@ -72,3 +72,7 @@ func Watch(path string, c chan<- EventInfo, events ...Event) error {
 func Stop(c chan<- EventInfo) {
 	defaultTree.Stop(c)
 }
+
+func Close() {
+	defaultTree.Close()
+}
