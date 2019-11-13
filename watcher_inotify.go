@@ -51,7 +51,7 @@ type inotify struct {
 }
 
 // NewWatcher creates new non-recursive inotify backed by inotify.
-func newWatcher(c chan<- EventInfo) watcher {
+func newWatcher(c chan<- EventInfo) *inotify {
 	i := &inotify{
 		m:      make(map[int32]*watched),
 		fd:     invalidDescriptor,
