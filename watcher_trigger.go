@@ -2,7 +2,7 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-// +build darwin,kqueue dragonfly freebsd netbsd openbsd solaris
+// +build darwin,kqueue darwin,!cgo dragonfly freebsd netbsd openbsd solaris
 
 // watcher_trigger is used for FEN and kqueue which behave similarly:
 // only files and dirs can be watched directly, but not files inside dirs.
