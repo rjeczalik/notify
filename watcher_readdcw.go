@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018 The Notify Authors. All rights reserved.
+// Copyright (c) 2014-2020 The Notify Authors. All rights reserved.
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
@@ -358,7 +358,10 @@ func (r *readdcw) loop() {
 			continue
 		}
 		overEx := (*overlappedEx)(unsafe.Pointer(overlapped))
-		if n != 0 {
+		if overEx == nil || overEx.parent == nil {
+			dbgprintf("incomplete completion status transferred=%d, overlapped=%#v, key=%#b", n, overEx, key)
+			continue
+		} else if n != 0 {
 			r.loopevent(n, overEx)
 		}
 		if err = overEx.parent.readDirChanges(); err != nil {
