@@ -151,6 +151,9 @@ func (t *trg) singlewatch(p string, e Event, direct mode, fi os.FileInfo) (err e
 	w, ok := t.pthLkp[p]
 	if !ok {
 		if w, err = t.t.NewWatched(p, fi); err != nil {
+			if err == errSkip {
+				err = nil
+			}
 			return
 		}
 	}
