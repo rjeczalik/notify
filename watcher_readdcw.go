@@ -8,6 +8,7 @@ package notify
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -587,7 +588,7 @@ func decode(filter, action uint32) (Event, Event) {
 	case syscall.FILE_ACTION_RENAMED_NEW_NAME:
 		return gensys(filter, Rename, FileActionRenamedNewName)
 	}
-	panic(`notify: cannot decode internal mask`)
+	panic(fmt.Sprintln(`notify: cannot decode internal mask:`, action))
 }
 
 // gensys decides whether the Windows action, system-independent event or both
