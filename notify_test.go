@@ -6,7 +6,13 @@
 
 package notify
 
-import "testing"
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
 
 func TestNotifyExample(t *testing.T) {
 	n := NewNotifyTest(t, "testdata/vfs.txt")
@@ -100,4 +106,50 @@ func TestNotifyExample(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	t.Skip("TODO(rjeczalik)")
+}
+
+func TestRenameInRoot(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "notify_test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	c := make(chan EventInfo, 100)
+	first := filepath.Join(tmpDir, "foo")
+	second := filepath.Join(tmpDir, "bar")
+	file := filepath.Join(second, "file")
+
+	mustT(t, os.Mkdir(first, 0777))
+
+	if err := Watch(tmpDir+"/...", c, All); err != nil {
+		t.Fatal(err)
+	}
+	defer Stop(c)
+
+	mustT(t, os.Rename(first, second))
+	time.Sleep(50 * time.Millisecond) // Need some time to process rename.
+	fd, err := os.Create(file)
+	mustT(t, err)
+	fd.Close()
+
+	timeout := time.After(time.Second)
+	for {
+		select {
+		case ev := <-c:
+			if ev.Path() == file {
+				return
+			}
+			t.Log(ev.Path())
+		case <-timeout:
+			t.Fatal("timed out before receiving event")
+		}
+	}
+}
+
+func mustT(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
