@@ -122,13 +122,13 @@ func (nd node) Del(name string) error {
 			return errnotexist(name[:i+j])
 		}
 		stack = append(stack, nd)
+		i += j + 1
 	}
-	if nd, ok = nd.Child[name[i:]]; !ok {
+	if _, ok = nd.Child[name[i:]]; !ok {
 		return errnotexist(name)
 	}
-	nd.Child = nil
-	nd.Watch = nil
-	for name, i = base(nd.Name), len(stack); i != 0; name, i = base(nd.Name), i-1 {
+	delete(nd.Child, name[i:])
+	for name, i = name[i:], len(stack); i != 0; name, i = base(nd.Name), i-1 {
 		nd = stack[i-1]
 		if nd := nd.Child[name]; len(nd.Watch) > 1 || len(nd.Child) != 0 {
 			break
