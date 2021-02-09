@@ -93,7 +93,10 @@ func (t *nonrecursiveTree) internal(rec <-chan EventInfo) {
 			t.rw.Unlock()
 			continue
 		}
-		err := nd.Add(ei.Path()).AddDir(t.recFunc(eset))
+		if ei.Path() != nd.Name {
+			nd = nd.Add(ei.Path())
+		}
+		err := nd.AddDir(t.recFunc(eset))
 		t.rw.Unlock()
 		if err != nil {
 			dbgprintf("internal(%p) error: %v", rec, err)
