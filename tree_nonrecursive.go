@@ -65,7 +65,7 @@ func (t *nonrecursiveTree) dispatch(c <-chan EventInfo) {
 			}
 			t.rw.RUnlock()
 			// If the event describes newly leaf directory created within
-			if !isrec || ei.Event() != Create {
+			if !isrec || ei.Event()&(Create|Remove) == 0 {
 				return
 			}
 			if ok, err := ei.(isDirer).isDir(); !ok || err != nil {
@@ -79,9 +79,23 @@ func (t *nonrecursiveTree) dispatch(c <-chan EventInfo) {
 // internal TODO(rjeczalik)
 func (t *nonrecursiveTree) internal(rec <-chan EventInfo) {
 	for ei := range rec {
+		t.rw.Lock()
+		if ei.Event() == Remove {
+			nd, err := t.root.Get(ei.Path())
+			if err != nil {
+				t.rw.Unlock()
+				continue
+			}
+			t.walkWatchpoint(nd, func(_ Event, nd node) error {
+				t.w.Unwatch(nd.Name)
+				return nil
+			})
+			t.root.Del(ei.Path())
+			t.rw.Unlock()
+			continue
+		}
 		var nd node
 		var eset = internal
-		t.rw.Lock()
 		t.root.WalkPath(ei.Path(), func(it node, _ bool) error {
 			if e := it.Watch[t.rec]; e != 0 && e > eset {
 				eset = e
@@ -93,7 +107,10 @@ func (t *nonrecursiveTree) internal(rec <-chan EventInfo) {
 			t.rw.Unlock()
 			continue
 		}
-		err := nd.Add(ei.Path()).AddDir(t.recFunc(eset))
+		if ei.Path() != nd.Name {
+			nd = nd.Add(ei.Path())
+		}
+		err := nd.AddDir(t.recFunc(eset))
 		t.rw.Unlock()
 		if err != nil {
 			dbgprintf("internal(%p) error: %v", rec, err)

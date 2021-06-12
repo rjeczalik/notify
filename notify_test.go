@@ -147,6 +147,68 @@ func TestRenameInRoot(t *testing.T) {
 	}
 }
 
+func TestRecreated(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "notify_test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dir := filepath.Join(tmpDir, "folder")
+	file := filepath.Join(dir, "file")
+
+	// Start watching
+	eventChan := make(chan EventInfo, 1000)
+	mustT(t, Watch(tmpDir+"/...", eventChan, All))
+	defer Stop(eventChan)
+
+	recreateFolder := func() {
+		// Give the sync some time to process events
+		_ = os.RemoveAll(dir)
+		mustT(t, os.Mkdir(dir, 0777))
+		time.Sleep(100 * time.Millisecond)
+
+		// Create a file
+		mustT(t, ioutil.WriteFile(file, []byte("abc"), 0666))
+	}
+	timeout := time.After(5 * time.Second)
+	checkCreated := func() {
+		for {
+			select {
+			case ev := <-eventChan:
+				t.Log(ev.Path(), ev.Event())
+				if ev.Path() == file && ev.Event() == Create {
+					return
+				}
+			case <-timeout:
+				t.Fatal("timed out before receiving event")
+			}
+		}
+	}
+
+	// 1. Create a folder and a file within it
+	// This will create a node in the internal tree for the subfolder test/folder
+	// Will create a new inotify watch for the folder
+	t.Log("######## First ########")
+	recreateFolder()
+	checkCreated()
+
+	// 2. Create a folder and a file within it again
+	// This will set the events for the subfolder test/folder in the internal tree
+	// Will create a new inotify watch for the folder because events differ
+	t.Log("######## Second ########")
+	recreateFolder()
+	checkCreated()
+
+	// 3. Create a folder and a file within it yet again
+	// This time no new inotify watch will be created, because the events
+	// and node already exist in the internal tree and all subsequent events
+	// are lost, hence there is no event for the created file here anymore
+	t.Log("######## Third ########")
+	recreateFolder()
+	checkCreated()
+}
+
 func mustT(t testing.TB, err error) {
 	t.Helper()
 	if err != nil {
