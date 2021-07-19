@@ -47,6 +47,10 @@ func watchCopy(src, dst node) {
 	}
 	if wpsrc := src.Child[""].Watch; len(wpsrc) != 0 {
 		wpdst := dst.Child[""].Watch
+		if wpdst == nil {
+			wpdst = make(watchpoint)
+			dst.Child[""] = node{Watch: wpdst}
+		}
 		for c, e := range wpsrc {
 			if c == nil {
 				continue
@@ -226,7 +230,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	// Look for children nodes, unwatch n-1 of them and rewatch the last one.
 	var children []node
 	fn := func(nd node) error {
-		if len(nd.Watch) == 0 {
+		if watchTotal(nd) == 0 {
 			return nil
 		}
 		children = append(children, nd)

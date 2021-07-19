@@ -147,6 +147,27 @@ func TestRenameInRoot(t *testing.T) {
 	}
 }
 
+func prepareTestDir(t *testing.T) string {
+	tmpDir, err := ioutil.TempDir("", "notify_test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	// resolve paths on OSX
+	s, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create test dir
+	err = os.MkdirAll(filepath.Join(s, "a/b/c"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	return s
+}
+
 func mustWatch(t *testing.T, path string) chan EventInfo {
 	c := make(chan EventInfo, 1)
 	err := Watch(path+"...", c, All)
@@ -157,29 +178,56 @@ func mustWatch(t *testing.T, path string) chan EventInfo {
 	return c
 }
 
-func TestStopChild(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "notify_test-")
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestAddParentAfterStop(t *testing.T) {
+	tmpDir := prepareTestDir(t)
 	defer os.RemoveAll(tmpDir)
 
-	// create test dir
-	err = os.MkdirAll(filepath.Join(tmpDir, "a/b/c"), 0755)
-	if err != nil {
-		t.Fatal(err)
+	// watch a child and parent path across multiple channels.
+	// this can happen in any order.
+	ch1 := mustWatch(t, filepath.Join(tmpDir, "a/b"))
+	ch2 := mustWatch(t, filepath.Join(tmpDir, "a/b/c"))
+	defer Stop(ch2)
+
+	// unwatch ./a/b -- this is what causes the panic on the next line.
+	// note that this also fails if we notify.Stop(ch1) instead.
+	Stop(ch1)
+	
+	// add parent watchpoint
+	ch3 := mustWatch(t, filepath.Join(tmpDir, "a"))
+	defer Stop(ch3)
+
+	// fire an event
+	filePath := filepath.Join(tmpDir, "a/b/c/d")
+	go func() { _ = ioutil.WriteFile(filePath, []byte("X"), 0664) }()
+
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case ev := <-ch2:
+			t.Log(ev.Path(), ev.Event())
+			if ev.Path() == filePath && (ev.Event() == Create || ev.Event() == Write) {
+				return
+			}
+		case <-timeout:
+			t.Fatal("timed out before receiving event")
+		}
 	}
+}
+
+func TestStopChild(t *testing.T) {
+	tmpDir := prepareTestDir(t)
+	defer os.RemoveAll(tmpDir)
 
 	// watch a child and parent path across multiple channels.
 	// this can happen in any order.
 	ch1 := mustWatch(t, filepath.Join(tmpDir, "a"))
+	defer Stop(ch1)
 	ch2 := mustWatch(t, filepath.Join(tmpDir, "a/b/c"))
 
 	// this leads to tmpDir/a being unwatched
 	Stop(ch2)
 
-	// fire an event that will never show up because the watchpoint for ./a is removed
-	// as well.
+	// fire an event
 	filePath := filepath.Join(tmpDir, "a/b/c/d")
 	go func() { _ = ioutil.WriteFile(filePath, []byte("X"), 0664) }()
 
@@ -187,8 +235,8 @@ func TestStopChild(t *testing.T) {
 	for {
 		select {
 		case ev := <-ch1:
-			t.Log(filePath, ev.Path(), ev.Event())
-			if ev.Path() == filePath && ev.Event() == Write {
+			t.Log(ev.Path(), ev.Event())
+			if ev.Path() == filePath && (ev.Event() == Create || ev.Event() == Write) {
 				return
 			}
 		case <-timeout:
