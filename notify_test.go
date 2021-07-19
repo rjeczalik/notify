@@ -147,6 +147,56 @@ func TestRenameInRoot(t *testing.T) {
 	}
 }
 
+func mustWatch(t *testing.T, path string) chan EventInfo {
+	c := make(chan EventInfo, 1)
+	err := Watch(path+"...", c, All)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return c
+}
+
+func TestStopChild(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "notify_test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// create test dir
+	err = os.MkdirAll(filepath.Join(tmpDir, "a/b/c"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// watch a child and parent path across multiple channels.
+	// this can happen in any order.
+	ch1 := mustWatch(t, filepath.Join(tmpDir, "a"))
+	ch2 := mustWatch(t, filepath.Join(tmpDir, "a/b/c"))
+
+	// this leads to tmpDir/a being unwatched
+	Stop(ch2)
+
+	// fire an event that will never show up because the watchpoint for ./a is removed
+	// as well.
+	filePath := filepath.Join(tmpDir, "a/b/c/d")
+	go func() { _ = ioutil.WriteFile(filePath, []byte("X"), 0664) }()
+
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case ev := <-ch1:
+			t.Log(filePath, ev.Path(), ev.Event())
+			if ev.Path() == filePath && ev.Event() == Write {
+				return
+			}
+		case <-timeout:
+			t.Fatal("timed out before receiving event")
+		}
+	}
+}
+
 func TestRecreated(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "notify_test-")
 	if err != nil {
