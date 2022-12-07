@@ -48,12 +48,12 @@ var defaultTree = newTree()
 // for each path. If a single filesystem event contains multiple coalesced events,
 // each of them is dispatched separately. E.g. the following filesystem change:
 //
-//   ~ $ echo Hello > Notify.txt
+//	~ $ echo Hello > Notify.txt
 //
 // dispatches two events - notify.Create and notify.Write. However, it may depend
 // on the underlying watcher implementation whether OS reports both of them.
 //
-// Windows and recursive watches
+// # Windows and recursive watches
 //
 // If a directory which path was used to create recursive watch under Windows
 // gets deleted, the OS will not report such event. It is advised to keep in

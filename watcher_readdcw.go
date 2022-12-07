@@ -2,6 +2,7 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
+//go:build windows
 // +build windows
 
 package notify
@@ -32,10 +33,11 @@ const (
 )
 
 // Filter used in current implementation was split into four segments:
-//  - bits  0-11 store ReadDirectoryChangesW filters,
-//  - bits 12-19 store File notify actions,
-//  - bits 20-27 store notify specific events and flags,
-//  - bits 28-31 store states which are used in loop's FSM.
+//   - bits  0-11 store ReadDirectoryChangesW filters,
+//   - bits 12-19 store File notify actions,
+//   - bits 20-27 store notify specific events and flags,
+//   - bits 28-31 store states which are used in loop's FSM.
+//
 // Constants below are used as masks to retrieve only specific filter parts.
 const (
 	onlyNotifyChanges uint32 = 0x00000FFF
