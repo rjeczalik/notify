@@ -11,7 +11,6 @@ import "testing"
 
 func TestNotifySystemSpecificEvent(t *testing.T) {
 	n := NewNotifyTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(1)
 
@@ -33,7 +32,6 @@ func TestNotifySystemSpecificEvent(t *testing.T) {
 
 func TestUnknownEvent(t *testing.T) {
 	n := NewNotifyTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(1)
 
@@ -42,7 +40,6 @@ func TestUnknownEvent(t *testing.T) {
 
 func TestNotifySystemAndGlobalMix(t *testing.T) {
 	n := NewNotifyTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(3)
 

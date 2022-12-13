@@ -8,7 +8,6 @@ import "testing"
 
 func TestRecursiveTree(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(5)
 
@@ -409,7 +408,6 @@ func TestRecursiveTree(t *testing.T) {
 
 func TestRecursiveTreeWatchInactiveMerge(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(1)
 
@@ -480,7 +478,6 @@ func TestRecursiveTreeWatchInactiveMerge(t *testing.T) {
 
 func TestRecursiveTree_Windows(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	const ChangeFileName = Event(0x1)
 

@@ -8,7 +8,7 @@
 package notify
 
 import (
-	"io/ioutil"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +17,6 @@ import (
 
 func TestNotifyExample(t *testing.T) {
 	n := NewNotifyTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(3)
 
@@ -110,11 +109,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestRenameInRoot(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "notify_test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	c := make(chan EventInfo, 100)
 	first := filepath.Join(tmpDir, "foo")
@@ -138,7 +133,7 @@ func TestRenameInRoot(t *testing.T) {
 	for {
 		select {
 		case ev := <-c:
-			if ev.Path() == file {
+			if samefile(t, ev.Path(), file) {
 				return
 			}
 			t.Log(ev.Path())
@@ -149,11 +144,7 @@ func TestRenameInRoot(t *testing.T) {
 }
 
 func TestRecreated(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "notify_test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	dir := filepath.Join(tmpDir, "folder")
 	file := filepath.Join(dir, "file")
@@ -165,12 +156,12 @@ func TestRecreated(t *testing.T) {
 
 	recreateFolder := func() {
 		// Give the sync some time to process events
-		_ = os.RemoveAll(dir)
+		mustT(t, os.RemoveAll(dir))
 		mustT(t, os.Mkdir(dir, 0777))
 		time.Sleep(100 * time.Millisecond)
 
 		// Create a file
-		mustT(t, ioutil.WriteFile(file, []byte("abc"), 0666))
+		mustT(t, os.WriteFile(file, []byte("abc"), 0666))
 	}
 	timeout := time.After(5 * time.Second)
 	checkCreated := func() {
@@ -178,7 +169,7 @@ func TestRecreated(t *testing.T) {
 			select {
 			case ev := <-eventChan:
 				t.Log(ev.Path(), ev.Event())
-				if ev.Path() == file && ev.Event() == Create {
+				if samefile(t, ev.Path(), file) && ev.Event() == Create {
 					return
 				}
 			case <-timeout:
@@ -215,4 +206,20 @@ func mustT(t testing.TB, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func samefile(t *testing.T, p1, p2 string) bool {
+	// The tests sometimes delete files shortly after creating them.
+	// That's expected; ignore stat failures.
+	fi1, err := os.Stat(p1)
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	mustT(t, err)
+	fi2, err := os.Stat(p2)
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	mustT(t, err)
+	return os.SameFile(fi1, fi2)
 }

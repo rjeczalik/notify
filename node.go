@@ -6,7 +6,7 @@ package notify
 
 import (
 	"errors"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -78,12 +78,12 @@ Traverse:
 		}
 		// TODO(rjeczalik): tolerate open failures - add failed names to
 		// AddDirError and notify users which names are not added to the tree.
-		fi, err := ioutil.ReadDir(nd.Name)
+		fi, err := os.ReadDir(nd.Name)
 		if err != nil {
 			return err
 		}
 		for _, fi := range fi {
-			if fi.Mode()&(os.ModeSymlink|os.ModeDir) == os.ModeDir {
+			if fi.Type()&(fs.ModeSymlink|fs.ModeDir) == fs.ModeDir {
 				name := filepath.Join(nd.Name, fi.Name())
 				stack = append(stack, nd.addchild(name, name[len(nd.Name)+1:]))
 			}

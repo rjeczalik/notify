@@ -11,7 +11,6 @@ import (
 
 func TestNonrecursiveTree(t *testing.T) {
 	n := NewNonrecursiveTreeTest(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(5)
 
@@ -430,7 +429,6 @@ func TestNonrecursiveTree(t *testing.T) {
 
 func TestNonrecursiveTreeInternal(t *testing.T) {
 	n, c := NewNonrecursiveTreeTestC(t, "testdata/vfs.txt")
-	defer n.Close()
 
 	ch := NewChans(5)
 
