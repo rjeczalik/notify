@@ -7,7 +7,6 @@ package notify
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -105,7 +104,7 @@ func tmptree(root, list string) (string, error) {
 	}
 	defer f.Close()
 	if root == "" {
-		if root, err = ioutil.TempDir(vfs()); err != nil {
+		if root, err = os.MkdirTemp(vfs()); err != nil {
 			return "", err
 		}
 	}
@@ -713,18 +712,21 @@ func NewNotifyTest(t *testing.T, tree string) *N {
 	} else {
 		n.tree = newNonrecursiveTree(n.w.watcher(), n.w.c(), nil)
 	}
+	t.Cleanup(n.Close)
 	return n
 }
 
 func NewRecursiveTreeTest(t *testing.T, tree string) *N {
 	n := newTreeN(t, tree)
 	n.tree = newRecursiveTree(n.spy, n.c)
+	t.Cleanup(n.Close)
 	return n
 }
 
 func NewNonrecursiveTreeTest(t *testing.T, tree string) *N {
 	n := newTreeN(t, tree)
 	n.tree = newNonrecursiveTree(n.spy, n.c, nil)
+	t.Cleanup(n.Close)
 	return n
 }
 
@@ -750,6 +752,7 @@ func NewNonrecursiveTreeTestC(t *testing.T, tree string) (*N, chan EventInfo) {
 	tr := newNonrecursiveTree(n.spy, n.c, recinternal)
 	tr.rec = rec
 	n.tree = tr
+	t.Cleanup(n.Close)
 	return n, recuser
 }
 
@@ -764,12 +767,12 @@ func (n *N) W() *W {
 	return n.w
 }
 
-func (n *N) Close() error {
-	defer os.RemoveAll(n.w.root)
-	if err := n.tree.Close(); err != nil {
+func (n *N) Close() {
+	err := n.tree.Close()
+	os.RemoveAll(n.w.root)
+	if err != nil {
 		n.w.Fatalf("(notifier).Close()=%v", err)
 	}
-	return nil
 }
 
 func (n *N) Watch(path string, c chan<- EventInfo, events ...Event) {

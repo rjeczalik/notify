@@ -8,14 +8,13 @@
 package notify
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func tmpfile(s string) (string, error) {
-	f, err := ioutil.TempFile(filepath.Split(s))
+	f, err := os.CreateTemp(filepath.Split(s))
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +95,7 @@ func TestCanonicalCircular(t *testing.T) {
 
 // issue #83
 func TestCanonical_RelativeSymlink(t *testing.T) {
-	dir, err := ioutil.TempDir(wd, "")
+	dir, err := os.MkdirTemp(wd, "")
 	if err != nil {
 		t.Fatalf("TempDir()=%v", err)
 	}
