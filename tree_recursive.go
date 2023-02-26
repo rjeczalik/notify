@@ -47,6 +47,10 @@ func watchCopy(src, dst node) {
 	}
 	if wpsrc := src.Child[""].Watch; len(wpsrc) != 0 {
 		wpdst := dst.Child[""].Watch
+		if wpdst == nil {
+			wpdst = make(watchpoint)
+			dst.Child[""] = node{Watch: wpdst}
+		}
 		for c, e := range wpsrc {
 			if c == nil {
 				continue
@@ -226,7 +230,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 	// Look for children nodes, unwatch n-1 of them and rewatch the last one.
 	var children []node
 	fn := func(nd node) error {
-		if len(nd.Watch) == 0 {
+		if watchTotal(nd) == 0 {
 			return nil
 		}
 		children = append(children, nd)
@@ -306,6 +310,7 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 func (t *recursiveTree) Stop(c chan<- EventInfo) {
 	var err error
 	fn := func(nd node) (e error) {
+		isRecursive := watchIsRecursive(nd)
 		diff := watchDel(nd, c, all)
 		switch {
 		case diff == none && watchTotal(nd) == 0:
@@ -315,13 +320,15 @@ func (t *recursiveTree) Stop(c chan<- EventInfo) {
 		case diff == none:
 			// Removing c from nd does not require shrinking its eventset.
 		case diff[1] == 0:
-			if watchIsRecursive(nd) {
-				e = t.w.RecursiveUnwatch(nd.Name)
-			} else {
-				e = t.w.Unwatch(nd.Name)
+			if watchTotal(nd) == 0 {
+				if isRecursive {
+					e = t.w.RecursiveUnwatch(nd.Name)
+				} else {
+					e = t.w.Unwatch(nd.Name)
+				}
 			}
 		default:
-			if watchIsRecursive(nd) {
+			if isRecursive {
 				e = t.w.RecursiveRewatch(nd.Name, nd.Name, diff[0], diff[1])
 			} else {
 				e = t.w.Rewatch(nd.Name, diff[0], diff[1])
