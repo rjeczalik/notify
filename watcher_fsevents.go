@@ -207,10 +207,9 @@ func (fse *fsevents) watch(path string, event Event, isrec int32) (err error) {
 
 func (fse *fsevents) unwatch(path string) (err error) {
 	w, ok := fse.watches[path]
-	if !ok {
-		return errNotWatched
+	if ok {
+		w.stream.Stop()
 	}
-	w.stream.Stop()
 	delete(fse.watches, path)
 	return nil
 }
