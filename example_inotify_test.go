@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rjeczalik/notify"
+	"github.com/JekaMas/notify"
 )
 
 // This example shows how to watch changes made on file-system by text editor

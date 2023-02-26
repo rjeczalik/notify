@@ -19,7 +19,16 @@
 
 package notify
 
-var defaultTree = newTree()
+import (
+	"sync"
+	"sync/atomic"
+)
+
+var (
+	isStarted = new(uint32)
+	defaultTreeMu = sync.Mutex{}
+	defaultTree tree
+)
 
 // Watch sets up a watchpoint on path listening for events given by the events
 // argument.
@@ -61,6 +70,12 @@ var defaultTree = newTree()
 // e.g. use persistent paths like %userprofile% or watch additionally parent
 // directory of a recursive watchpoint in order to receive delete events for it.
 func Watch(path string, c chan<- EventInfo, events ...Event) error {
+	defaultTreeMu.Lock()
+	defer defaultTreeMu.Unlock()
+
+	if atomic.CompareAndSwapUint32(isStarted, 0, 1) {
+		defaultTree = newTree()
+	}
 	return defaultTree.Watch(path, c, events...)
 }
 
@@ -70,5 +85,17 @@ func Watch(path string, c chan<- EventInfo, events ...Event) error {
 // Stop does not close c. When Stop returns, it is guaranteed that c will
 // receive no more signals.
 func Stop(c chan<- EventInfo) {
+	defaultTreeMu.Lock()
+	defer defaultTreeMu.Unlock()
+
 	defaultTree.Stop(c)
+}
+
+func Close() {
+	defaultTreeMu.Lock()
+	defer defaultTreeMu.Unlock()
+
+	if atomic.CompareAndSwapUint32(isStarted, 1, 0) {
+		defaultTree.Close()
+	}
 }
