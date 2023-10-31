@@ -2,22 +2,22 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-//go:build linux && !(android && amd64)
-// +build linux
-// +build !android !amd64
+//go:build android && amd64
+// +build android,amd64
 
 package notify
 
 import (
 	"bytes"
 	"errors"
+	"golang.org/x/sys/unix"
 	"path/filepath"
+	_ "path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
+	_ "syscall"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
 
 // eventBufferSize defines the size of the buffer given to read(2) function. One
@@ -179,39 +179,56 @@ func (i *inotify) epollclose() (err error) {
 	return
 }
 
-// loop blocks until either inotify or pipe file descriptor is ready for I/O.
-// All read operations triggered by filesystem notifications are forwarded to
-// one of the event's consumers. If pipe fd became ready, loop function closes
-// all file descriptors opened by lazyinit method and returns afterwards.
 func (i *inotify) loop(esch chan<- []*event) {
-	epes := make([]unix.EpollEvent, 1)
-	fd := atomic.LoadInt32(&i.fd)
-	for {
-		switch _, err := unix.EpollWait(i.epfd, epes, -1); err {
-		case nil:
-			switch epes[0].Fd {
-			case fd:
-				esch <- i.read()
-				epes[0].Fd = 0
-			case int32(i.pipefd[0]):
-				i.Lock()
-				defer i.Unlock()
-				if err = unix.Close(int(fd)); err != nil && err != unix.EINTR {
-					panic("notify: close(2) error " + err.Error())
-				}
-				atomic.StoreInt32(&i.fd, invalidDescriptor)
-				if err = i.epollclose(); err != nil && err != unix.EINTR {
-					panic("notify: epollclose error " + err.Error())
-				}
-				close(esch)
+	inotifyCh := make(chan []*event)
+	closeCh := make(chan struct{})
+
+	go func() {
+		for {
+			events := i.read()
+			if events != nil {
+				inotifyCh <- events
+			}
+		}
+	}()
+
+	go func() {
+		buf := make([]byte, 1)
+		for {
+			_, err := unix.Read(i.pipefd[0], buf)
+			if err != nil {
+				closeCh <- struct{}{}
 				return
 			}
-		case unix.EINTR:
-			continue
-		default: // We should never reach this line.
-			panic("notify: epoll_wait(2) error " + err.Error())
+		}
+	}()
+
+	for {
+		select {
+		case events := <-inotifyCh:
+			esch <- events
+		case <-closeCh:
+			i.closeResources(esch)
+			return
 		}
 	}
+}
+
+func (i *inotify) closeResources(esch chan<- []*event) {
+	i.Lock()
+	defer i.Unlock()
+
+	fd := atomic.LoadInt32(&i.fd)
+	if err := unix.Close(int(fd)); err != nil && err != unix.EINTR {
+		panic("notify: close(2) error " + err.Error())
+	}
+
+	atomic.StoreInt32(&i.fd, invalidDescriptor)
+	if err := i.epollclose(); err != nil && err != unix.EINTR {
+		panic("notify: epollclose error " + err.Error())
+	}
+
+	close(esch)
 }
 
 // read reads events from an inotify file descriptor. It does not handle errors
