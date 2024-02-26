@@ -126,9 +126,9 @@ func base(s string) string {
 // indexrel returns the index of the first char of name that is
 // below/relative to root. It returns -1 if name is not a child of root.
 func indexrel(root, name string) int {
-	if n, m := len(root), len(name); m > n && name[:n] == root &&
-		name[n] == os.PathSeparator {
-		return n + 1
+	if n, m := len(root), len(name); m > n-1 && name[:n] == root &&
+		name[n-1] == os.PathSeparator {
+		return n
 	}
 	return -1
 }

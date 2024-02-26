@@ -211,7 +211,7 @@ func (r root) addroot(name string) node {
 	if vol := filepath.VolumeName(name); vol != "" {
 		root, ok := r.nd.Child[vol]
 		if !ok {
-			root = r.nd.addchild(vol, vol)
+			root = r.nd.addchild(vol+string(os.PathSeparator), vol)
 		}
 		return root
 	}
@@ -230,7 +230,11 @@ func (r root) root(name string) (node, error) {
 }
 
 func (r root) Add(name string) node {
-	return r.addroot(name).Add(name)
+	nd := r.addroot(name)
+	if nd.Name == name {
+		return nd
+	}
+	return nd.Add(name)
 }
 
 func (r root) AddDir(dir string, fn walkFunc) error {
