@@ -2,8 +2,8 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-//go:build (darwin && kqueue) || (darwin && !cgo) || dragonfly || freebsd || netbsd || openbsd || solaris || illumos
-// +build darwin,kqueue darwin,!cgo dragonfly freebsd netbsd openbsd solaris illumos
+//go:build (darwin && kqueue) || (darwin && !cgo) || dragonfly || freebsd || netbsd || openbsd || solaris || illumos || ios
+// +build darwin,kqueue darwin,!cgo dragonfly freebsd netbsd openbsd solaris illumos ios
 
 package notify
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
-//go:build darwin && !kqueue && cgo
-// +build darwin,!kqueue,cgo
+//go:build darwin && !kqueue && cgo && !ios
+// +build darwin,!kqueue,cgo,!ios
 
 package notify
 
@@ -77,7 +77,6 @@ func gostream(_, info uintptr, n C.size_t, paths, flags, ids uintptr) {
 				ID:    *(*uint64)(unsafe.Pointer(ids + i*offid)),
 			})
 		}
-
 	}
 	fn(ev)
 }

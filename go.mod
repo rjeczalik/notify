@@ -1,4 +1,4 @@
-module github.com/rjeczalik/notify
+module github.com/syncthing/notify
 
 go 1.11
 

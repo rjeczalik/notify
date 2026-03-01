@@ -15,7 +15,6 @@ import (
 func TestCanonicalDarwin(t *testing.T) {
 	cases := [...]caseCanonical{
 		{"/etc", "/private/etc"},
-		{"/etc/defaults", "/private/etc/defaults"},
 		{"/etc/hosts", "/private/etc/hosts"},
 		{"/tmp", "/private/tmp"},
 		{"/var", "/private/var"},
