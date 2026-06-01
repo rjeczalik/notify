@@ -144,11 +144,11 @@ func TestRenameInRoot(t *testing.T) {
 }
 
 func prepareTestDir(t *testing.T) string {
-	tmpDir, err := ioutil.TempDir("", "notify_test-")
+	tmpDir, err := os.MkdirTemp("", "notify_test-")
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// resolve paths on OSX
 	s, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
@@ -160,12 +160,12 @@ func prepareTestDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	return s
 }
 
 func mustWatch(t *testing.T, path string) chan EventInfo {
-	c := make(chan EventInfo, 1)
+	c := make(chan EventInfo, 100)
 	err := Watch(path+"...", c, All)
 	if err != nil {
 		t.Fatal(err)
@@ -187,14 +187,14 @@ func TestAddParentAfterStop(t *testing.T) {
 	// unwatch ./a/b -- this is what causes the panic on the next line.
 	// note that this also fails if we notify.Stop(ch1) instead.
 	Stop(ch1)
-	
+
 	// add parent watchpoint
 	ch3 := mustWatch(t, filepath.Join(tmpDir, "a"))
 	defer Stop(ch3)
 
 	// fire an event
 	filePath := filepath.Join(tmpDir, "a/b/c/d")
-	go func() { _ = ioutil.WriteFile(filePath, []byte("X"), 0664) }()
+	go func() { _ = os.WriteFile(filePath, []byte("X"), 0664) }()
 
 	timeout := time.After(5 * time.Second)
 	for {
@@ -225,7 +225,7 @@ func TestStopChild(t *testing.T) {
 
 	// fire an event
 	filePath := filepath.Join(tmpDir, "a/b/c/d")
-	go func() { _ = ioutil.WriteFile(filePath, []byte("X"), 0664) }()
+	go func() { _ = os.WriteFile(filePath, []byte("X"), 0664) }()
 
 	timeout := time.After(5 * time.Second)
 	for {
