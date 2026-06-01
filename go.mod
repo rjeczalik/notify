@@ -1,5 +1,5 @@
 module github.com/rjeczalik/notify
 
-go 1.11
+go 1.26
 
-require golang.org/x/sys v0.0.0-20180926160741-c2ed4eda69e7
+require golang.org/x/sys v0.45.0
