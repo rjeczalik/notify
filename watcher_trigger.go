@@ -291,7 +291,7 @@ func (t *trg) Rewatch(p string, _, e Event) error {
 		err = t.watch(p, e, fi)
 	}
 	t.Unlock()
-	return nil
+	return err
 }
 
 func (*trg) file(w *watched, n interface{}, e Event) (evn []event) {

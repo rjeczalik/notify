@@ -20,3 +20,12 @@ func TestWatcherCreateOnly(t *testing.T) {
 
 	w.ExpectAny(cases[:])
 }
+
+func TestTriggerRewatchReturnsUnwatchError(t *testing.T) {
+	w := newWatcher(make(chan EventInfo, buffer))
+	defer w.Close()
+
+	if err := w.Rewatch(t.TempDir(), Create, Write); err == nil {
+		t.Fatal("want Rewatch on unwatched path to return error; got nil")
+	}
+}

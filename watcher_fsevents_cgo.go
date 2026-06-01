@@ -10,12 +10,35 @@ package notify
 /*
 #include <CoreServices/CoreServices.h>
 #include <dispatch/dispatch.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 void gostream(uintptr_t, uintptr_t, size_t, uintptr_t, uintptr_t, uintptr_t);
+
+static dispatch_queue_t EventDispatchQueue(void) {
+	return dispatch_queue_create("com.github.rjeczalik.notify", DISPATCH_QUEUE_SERIAL);
+}
 
 static FSEventStreamRef EventStreamCreate(FSEventStreamContext * context, uintptr_t info, CFArrayRef paths, FSEventStreamEventId since, CFTimeInterval latency, FSEventStreamCreateFlags flags) {
 	context->info = (void*) info;
 	return FSEventStreamCreate(NULL, (FSEventStreamCallback) gostream, context, paths, since, latency, flags);
+}
+
+static CFArrayRef PathArrayCreate(CFStringRef path) {
+	const void *paths[] = { path };
+	return CFArrayCreate(kCFAllocatorDefault, paths, 1, &kCFTypeArrayCallBacks);
+}
+
+static const char* EventPathAt(uintptr_t paths, size_t i) {
+	return ((char**)paths)[i];
+}
+
+static FSEventStreamEventFlags EventFlagsAt(uintptr_t flags, size_t i) {
+	return ((FSEventStreamEventFlags*)flags)[i];
+}
+
+static FSEventStreamEventId EventIDAt(uintptr_t ids, size_t i) {
+	return ((FSEventStreamEventId*)ids)[i];
 }
 
 #cgo LDFLAGS: -framework CoreServices
@@ -30,7 +53,11 @@ import (
 	"unsafe"
 )
 
-var nilstream C.FSEventStreamRef
+var (
+	nilarray  C.CFArrayRef
+	nilstring C.CFStringRef
+	nilstream C.FSEventStreamRef
+)
 
 // Default arguments for FSEventStreamCreate function.
 var (
@@ -40,10 +67,7 @@ var (
 )
 
 // global dispatch queue which all streams are registered with
-var q C.dispatch_queue_t = C.dispatch_queue_create(
-	C.CString("com.github.rjeczalik.notify"),
-	(C.dispatch_queue_attr_t)(C.DISPATCH_QUEUE_SERIAL),
-)
+var q C.dispatch_queue_t = C.EventDispatchQueue()
 
 // Errors returned when FSEvents functions fail.
 var (
@@ -53,11 +77,6 @@ var (
 
 //export gostream
 func gostream(_, info uintptr, n C.size_t, paths, flags, ids uintptr) {
-	const (
-		offchar = unsafe.Sizeof((*C.char)(nil))
-		offflag = unsafe.Sizeof(C.FSEventStreamEventFlags(0))
-		offid   = unsafe.Sizeof(C.FSEventStreamEventId(0))
-	)
 	if n == 0 {
 		return
 	}
@@ -67,14 +86,14 @@ func gostream(_, info uintptr, n C.size_t, paths, flags, ids uintptr) {
 	}
 	ev := make([]FSEvent, 0, int(n))
 	for i := uintptr(0); i < uintptr(n); i++ {
-		switch flags := *(*uint32)(unsafe.Pointer((flags + i*offflag))); {
+		switch flags := uint32(C.EventFlagsAt(C.uintptr_t(flags), C.size_t(i))); {
 		case flags&uint32(FSEventsEventIdsWrapped) != 0:
 			atomic.StoreUint64(&since, uint64(C.FSEventsGetCurrentEventId()))
 		default:
 			ev = append(ev, FSEvent{
-				Path:  C.GoString(*(**C.char)(unsafe.Pointer(paths + i*offchar))),
+				Path:  C.GoString(C.EventPathAt(C.uintptr_t(paths), C.size_t(i))),
 				Flags: flags,
-				ID:    *(*uint64)(unsafe.Pointer(ids + i*offid)),
+				ID:    uint64(C.EventIDAt(C.uintptr_t(ids), C.size_t(i))),
 			})
 		}
 
@@ -135,16 +154,30 @@ func (s *stream) Start() error {
 	if s.ref != nilstream {
 		return nil
 	}
-	p := C.CFStringCreateWithCStringNoCopy(C.kCFAllocatorDefault, C.CString(s.path), C.kCFStringEncodingUTF8, C.kCFAllocatorDefault)
-	path := C.CFArrayCreate(C.kCFAllocatorDefault, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
+	cpath := C.CString(s.path)
+	defer C.free(unsafe.Pointer(cpath))
+	p := C.CFStringCreateWithCString(C.kCFAllocatorDefault, cpath, C.kCFStringEncodingUTF8)
+	if p == nilstring {
+		streamFuncs.delete(s.info)
+		return errCreate
+	}
+	defer C.CFRelease(C.CFTypeRef(p))
+	path := C.PathArrayCreate(p)
+	if path == nilarray {
+		streamFuncs.delete(s.info)
+		return errCreate
+	}
+	defer C.CFRelease(C.CFTypeRef(path))
 	ctx := C.FSEventStreamContext{}
 	ref := C.EventStreamCreate(&ctx, C.uintptr_t(s.info), path, C.FSEventStreamEventId(atomic.LoadUint64(&since)), latency, flags)
 	if ref == nilstream {
+		streamFuncs.delete(s.info)
 		return errCreate
 	}
 	C.FSEventStreamSetDispatchQueue(ref, q)
 	if C.FSEventStreamStart(ref) == C.Boolean(0) {
 		C.FSEventStreamInvalidate(ref)
+		streamFuncs.delete(s.info)
 		return errStart
 	}
 	s.ref = ref

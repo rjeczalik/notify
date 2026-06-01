@@ -734,20 +734,36 @@ func NewNonrecursiveTreeTestC(t *testing.T, tree string) (*N, chan EventInfo) {
 	rec := make(chan EventInfo, buffer)
 	recinternal := make(chan EventInfo, buffer)
 	recuser := make(chan EventInfo, buffer)
+	errc := make(chan error, 1)
+	send := func(name string, dst chan<- EventInfo, ei EventInfo) bool {
+		select {
+		case dst <- ei:
+			return true
+		default:
+			select {
+			case errc <- fmt.Errorf("failed to send ei to %s: not ready", name):
+			default:
+			}
+			return false
+		}
+	}
 	go func() {
 		for ei := range rec {
-			select {
-			case recinternal <- ei:
-			default:
-				t.Fatalf("failed to send ei to recinternal: not ready")
+			if !send("recinternal", recinternal, ei) {
+				return
 			}
-			select {
-			case recuser <- ei:
-			default:
-				t.Fatalf("failed to send ei to recuser: not ready")
+			if !send("recuser", recuser, ei) {
+				return
 			}
 		}
 	}()
+	t.Cleanup(func() {
+		select {
+		case err := <-errc:
+			t.Error(err)
+		default:
+		}
+	})
 	n := newTreeN(t, tree)
 	tr := newNonrecursiveTree(n.spy, n.c, recinternal)
 	tr.rec = rec

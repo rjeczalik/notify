@@ -145,6 +145,8 @@ func TestRenameInRoot(t *testing.T) {
 
 func TestRecreated(t *testing.T) {
 	tmpDir := t.TempDir()
+	tmpDir, err := canonical(tmpDir)
+	mustT(t, err)
 
 	dir := filepath.Join(tmpDir, "folder")
 	file := filepath.Join(dir, "file")
@@ -154,42 +156,52 @@ func TestRecreated(t *testing.T) {
 	mustT(t, Watch(tmpDir+"/...", eventChan, All))
 	defer Stop(eventChan)
 
-	recreateFolder := func() {
-		// Give the sync some time to process events
+	waitFor := func(name string, match func(EventInfo) bool) {
+		timeout := time.After(5 * time.Second)
+		for {
+			select {
+			case ev := <-eventChan:
+				t.Log(ev.Path(), ev.Event())
+				if match(ev) {
+					return
+				}
+			case <-timeout:
+				t.Fatalf("timed out before receiving %s", name)
+			}
+		}
+	}
+	match := func(path string, event Event) func(EventInfo) bool {
+		return func(ev EventInfo) bool {
+			return filepath.Clean(ev.Path()) == path && ev.Event() == event
+		}
+	}
+	recreateFolder := func(waitRemove bool) {
 		mustT(t, os.RemoveAll(dir))
+		if waitRemove {
+			waitFor("folder remove event", match(dir, Remove))
+		}
 		mustT(t, os.Mkdir(dir, 0777))
 		time.Sleep(100 * time.Millisecond)
 
 		// Create a file
 		mustT(t, os.WriteFile(file, []byte("abc"), 0666))
 	}
-	timeout := time.After(5 * time.Second)
 	checkCreated := func() {
-		for {
-			select {
-			case ev := <-eventChan:
-				t.Log(ev.Path(), ev.Event())
-				if samefile(t, ev.Path(), file) && ev.Event() == Create {
-					return
-				}
-			case <-timeout:
-				t.Fatal("timed out before receiving event")
-			}
-		}
+		waitFor("file create event", match(file, Create))
 	}
 
 	// 1. Create a folder and a file within it
 	// This will create a node in the internal tree for the subfolder test/folder
 	// Will create a new inotify watch for the folder
 	t.Log("######## First ########")
-	recreateFolder()
+	recreateFolder(false)
 	checkCreated()
 
 	// 2. Create a folder and a file within it again
 	// This will set the events for the subfolder test/folder in the internal tree
 	// Will create a new inotify watch for the folder because events differ
 	t.Log("######## Second ########")
-	recreateFolder()
+	recreateFolder(true)
 	checkCreated()
 
 	// 3. Create a folder and a file within it yet again
@@ -197,7 +209,7 @@ func TestRecreated(t *testing.T) {
 	// and node already exist in the internal tree and all subsequent events
 	// are lost, hence there is no event for the created file here anymore
 	t.Log("######## Third ########")
-	recreateFolder()
+	recreateFolder(true)
 	checkCreated()
 }
 
