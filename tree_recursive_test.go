@@ -476,6 +476,68 @@ func TestRecursiveTreeWatchInactiveMerge(t *testing.T) {
 	n.ExpectTreeEvents(events[:], ch)
 }
 
+func TestRecursiveTreeUpgradeUnderNonRecursiveAncestor(t *testing.T) {
+	// #230: recursive watch under an existing non-recursive ancestor with
+	// the same visible event set must upgrade via RecursiveRewatch.
+	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
+
+	ch := NewChans(1)
+
+	watches := [...]RCase{
+		// i=0 — non-recursive ancestor
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs",
+				C: ch[0],
+				E: Create,
+			},
+			Record: []Call{
+				{
+					F: FuncWatch,
+					P: "src/github.com/rjeczalik/fs",
+					E: Create,
+				},
+			},
+		},
+		// i=1 — recursive child, same event set (diff would be none without upgrade)
+		{
+			Call: Call{
+				F: FuncWatch,
+				P: "src/github.com/rjeczalik/fs/cmd/gotree/...",
+				C: ch[0],
+				E: Create,
+			},
+			Record: []Call{
+				{
+					F:  FuncRecursiveRewatch,
+					P:  "src/github.com/rjeczalik/fs",
+					NP: "src/github.com/rjeczalik/fs",
+					E:  Create,
+					NE: Create,
+				},
+			},
+		},
+	}
+
+	n.ExpectRecordedCalls(watches[:])
+
+	events := [...]TCase{
+		// i=0 — deep event under the recursive child must be delivered
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/cmd/gotree/main.go", E: Create},
+			Receiver: Chans{ch[0]},
+		},
+		// i=1 — sibling under ancestor (non-recursive parent path) also ok
+		{
+			Event:    Call{P: "src/github.com/rjeczalik/fs/.fs.go.swp", E: Create},
+			Receiver: Chans{ch[0]},
+		},
+	}
+
+	n.ExpectTreeEvents(events[:], ch)
+}
+
 func TestRecursiveTree_Windows(t *testing.T) {
 	n := NewRecursiveTreeTest(t, "testdata/vfs.txt")
 

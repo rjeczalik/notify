@@ -194,15 +194,30 @@ func (t *recursiveTree) Watch(path string, c chan<- EventInfo, events ...Event) 
 		// information to shrink the eventset on eventual Stop.
 		// return t.resetwatchpoint(parent, parent, c, eventset|inactive)
 		var diff eventDiff
+		var hadRecursiveInactive bool
 		if self {
 			diff = watchAdd(cur, c, eventset)
 		} else {
+			// Snapshot before Add so we can tell a first-time recursive
+			// upgrade apart from a no-op repeat (#230).
+			if wp := parent.Child[""].Watch; len(wp) != 0 {
+				hadRecursiveInactive = wp.IsRecursive()
+			}
 			diff = watchAddInactive(parent, c, eventset)
 		}
 		switch {
 		case diff == none:
-			// the parent watchpoint already covers requested subtree with its
-			// eventset
+			// Visible event set unchanged. Recursive is stripped from the
+			// diff as an internal bit, so a recursive request under a
+			// non-recursive ancestor still needs the watcher upgraded (#230).
+			if isrec && !parent.Watch.IsRecursive() && !hadRecursiveInactive {
+				total := watchTotal(parent)
+				err = t.w.RecursiveRewatch(parent.Name, parent.Name, total, total)
+				if err != nil {
+					watchDel(parent, c, eventset)
+					return err
+				}
+			}
 		case diff[0] == 0:
 			// TODO(rjeczalik): cleanup this panic after implementation is stable
 			panic("dangling watchpoint: " + parent.Name)
