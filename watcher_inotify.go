@@ -27,8 +27,8 @@ const eventBufferSize = 64 * (unix.SizeofInotifyEvent + unix.PathMax + 1)
 
 // consumersCount defines the number of consumers in producer-consumer based
 // implementation. Each consumer is run in a separate goroutine and has read
-// access to watched files map.
-const consumersCount = 2
+// access to watched files map. One consumer preserves kernel batch order.
+const consumersCount = 1
 
 const invalidDescriptor = -1
 
@@ -41,7 +41,8 @@ type watched struct {
 
 // inotify implements Watcher interface.
 type inotify struct {
-	sync.RWMutex                       // protects inotify.m map
+	sync.RWMutex                       // protects m and paths
+	paths        map[string]int32      // path to watch descriptor
 	m            map[int32]*watched    // watch descriptor to watched object
 	fd           int32                 // inotify file descriptor
 	pipefd       []int                 // pipe's read and write descriptors
@@ -56,6 +57,7 @@ type inotify struct {
 func newWatcher(c chan<- EventInfo) watcher {
 	i := &inotify{
 		m:      make(map[int32]*watched),
+		paths:  make(map[string]int32),
 		fd:     invalidDescriptor,
 		pipefd: []int{invalidDescriptor, invalidDescriptor},
 		epfd:   invalidDescriptor,
@@ -91,18 +93,26 @@ func (i *inotify) watch(path string, e Event) (err error) {
 	if err = i.lazyinit(); err != nil {
 		return
 	}
+	i.Lock()
+	defer i.Unlock()
 	iwd, err := unix.InotifyAddWatch(int(i.fd), path, encode(e))
 	if err != nil {
 		return
 	}
-	i.Lock()
+	// A path can now refer to a replacement inode while its old descriptor
+	// remains in the map (for example, after an automatically removed watch).
+	if old, ok := i.paths[path]; ok && old != int32(iwd) {
+		removeInotifyWatch(i.fd, old)
+		delete(i.m, old)
+	}
 	if wd, ok := i.m[int32(iwd)]; !ok {
 		i.m[int32(iwd)] = &watched{path: path, mask: uint32(e)}
 	} else {
+		delete(i.paths, wd.path)
 		wd.path = path
 		wd.mask = uint32(e)
 	}
-	i.Unlock()
+	i.paths[path] = int32(iwd)
 	return nil
 }
 
@@ -341,25 +351,21 @@ func decode(mask Event, e *event) (syse *event) {
 // This method is allowed to return EINVAL error when concurrently requested to
 // delete identical path.
 func (i *inotify) Unwatch(path string) (err error) {
-	iwd := int32(invalidDescriptor)
-	i.RLock()
-	for iwdkey, wd := range i.m {
-		if wd.path == path {
-			iwd = iwdkey
-			break
-		}
-	}
-	i.RUnlock()
-	if iwd == invalidDescriptor {
+	// Serialize lookup, kernel removal and map deletion against Watch. Besides
+	// avoiding a linear scan under churn, this cannot delete a newly added watch
+	// after dropping the lock between lookup and removal.
+	i.Lock()
+	defer i.Unlock()
+	iwd, ok := i.paths[path]
+	if !ok {
 		return errors.New("notify: path " + path + " is already watched")
 	}
 	fd := atomic.LoadInt32(&i.fd)
 	if err = removeInotifyWatch(fd, iwd); err != nil {
 		return
 	}
-	i.Lock()
 	delete(i.m, iwd)
-	i.Unlock()
+	delete(i.paths, path)
 	return nil
 }
 
@@ -377,6 +383,7 @@ func (i *inotify) Close() (err error) {
 		if e := removeInotifyWatch(i.fd, iwd); e != nil && err == nil {
 			err = e
 		}
+		delete(i.paths, i.m[iwd].path)
 		delete(i.m, iwd)
 	}
 	switch _, errwrite := unix.Write(i.pipefd[1], []byte{0x00}); {
